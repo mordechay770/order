@@ -3,277 +3,408 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Кухня — Redesign Preview</title>
+  <title>Кухня — Кошерная еда в Алматы</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300;1,9..144,500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --navy: #1B3A6B; --navy-deep: #0E2246; --navy-soft: #2A4F8E;
-      --gold: #C9A84C; --gold-deep: #A07820; --gold-soft: #F4E9C6; --gold-tint: #FBF6E4;
-      --paper: #FAF6EC; --ink: #1A1A2E; --ink-2: #4A4E6A; --muted: #7A7E94;
-      --line: #E7DFC9; --surface: #FFFFFF;
+      --navy:      #1B3A6B;
+      --navy-deep: #0D1F3C;
+      --navy-mid:  #162F5A;
+      --gold:      #C9A84C;
+      --gold-warm: #D4AF6A;
+      --gold-pale: #F0E2B8;
+      --gold-tint: #FBF6E4;
+      --paper:     #F7F2E5;
+      --ink:       #12192B;
+      --muted:     #6B7280;
+      --cream:     #FFFDF6;
     }
-    html, body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+    html { scroll-behavior: smooth; }
+
     body {
-      font-family: 'Roboto', -apple-system, sans-serif;
-      background: var(--paper); color: var(--ink);
-      min-height: 100vh;
-    }
-    .page {
-      max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px;
-    }
-    .hero {
-      position: relative;
-      background: radial-gradient(120% 80% at 50% 0%, rgba(201,168,76,0.28) 0%, transparent 55%),
-                  linear-gradient(170deg, var(--navy-deep) 0%, var(--navy) 55%, var(--navy-soft) 100%);
-      color: #fff; border-radius: 26px;
-      padding: 40px 36px;
-      margin-bottom: 34px;
-      overflow: hidden;
-      box-shadow: 0 30px 60px -30px rgba(14,34,70,0.5);
-    }
-    .hero::before {
-      content: ""; position: absolute; inset: 0;
-      background-image:
-        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.07) 0 2px, transparent 3px),
-        radial-gradient(circle at 80% 70%, rgba(255,255,255,0.06) 0 1.5px, transparent 2.5px);
-      background-size: 220px 220px, 180px 180px;
-      opacity: 0.6;
-    }
-    .hero-inner { position: relative; max-width: 620px; }
-    .brand-chip {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 5px 12px 5px 6px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.14);
-      border-radius: 999px;
-      font-size: 12px; font-weight: 500;
-    }
-    .brand-chip .dot {
-      width: 22px; height: 22px;
-      display: grid; place-items: center;
-      background: var(--gold); color: var(--navy-deep);
-      border-radius: 50%;
-      font-size: 12px; font-weight: 800;
-      font-family: 'Fraunces', serif;
-    }
-    .hero h1 {
-      font-family: 'Fraunces', Georgia, serif;
-      font-weight: 600;
-      font-size: clamp(30px, 5vw, 42px);
-      line-height: 1.08;
-      letter-spacing: -0.02em;
-      margin: 18px 0 12px;
-    }
-    .hero h1 em { font-style: italic; color: var(--gold); font-weight: 500; }
-    .hero p { font-size: 15px; color: rgba(255,255,255,0.78); line-height: 1.6; max-width: 520px; }
-    .palette {
-      margin-top: 22px;
-      display: inline-flex; gap: 8px;
-      padding: 6px 10px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 999px;
-      font-size: 11px; color: rgba(255,255,255,0.7);
-      letter-spacing: 0.3px;
-    }
-    .palette i { display: inline-block; width: 14px; height: 14px; border-radius: 50%; }
-
-    .section-label {
-      font-size: 11px; font-weight: 700;
-      letter-spacing: 1.8px; text-transform: uppercase;
-      color: var(--muted); margin-bottom: 10px;
-    }
-    .section-title {
-      font-family: 'Fraunces', serif;
-      font-size: 22px; font-weight: 600;
-      color: var(--navy-deep);
-      letter-spacing: -0.01em;
-      margin-bottom: 20px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 18px;
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 22px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(14,34,70,0.05);
-      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
-      display: flex; flex-direction: column;
-    }
-    .card:hover {
-      transform: translateY(-3px);
-      border-color: rgba(201,168,76,0.5);
-      box-shadow: 0 20px 40px -12px rgba(14,34,70,0.2);
-    }
-    .card-preview {
-      aspect-ratio: 4/3;
-      background: linear-gradient(160deg, var(--gold-tint), var(--gold-soft));
-      position: relative;
-      display: grid; place-items: center;
-      overflow: hidden;
-    }
-    .card-preview::before {
-      content: ""; position: absolute; inset: 0;
-      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.6), transparent 55%);
-    }
-    .card-preview .icon {
-      position: relative;
-      font-size: 60px;
-      width: 110px; height: 110px;
-      display: grid; place-items: center;
-      background: #fff; color: var(--navy-deep);
-      border-radius: 30px;
-      box-shadow: 0 20px 40px -14px rgba(0,0,0,0.25);
-      transform: rotate(-4deg);
-    }
-    .card-body { padding: 20px 22px 22px; flex: 1; display: flex; flex-direction: column; }
-    .card-num {
-      display: inline-block;
-      font-family: 'Fraunces', serif;
-      font-size: 11px; font-weight: 700;
-      letter-spacing: 1.2px; text-transform: uppercase;
-      color: var(--gold-deep);
-      margin-bottom: 6px;
-    }
-    .card-title {
-      font-family: 'Fraunces', serif;
-      font-size: 20px; font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--paper);
       color: var(--ink);
-      letter-spacing: -0.01em;
-      margin-bottom: 8px;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
-    .card-sub {
-      font-size: 13.5px; color: var(--ink-2);
-      line-height: 1.55; margin-bottom: 16px;
-      flex: 1;
-    }
-    .card-cta {
-      display: inline-flex; align-items: center; justify-content: space-between;
-      padding: 11px 18px;
-      background: var(--navy); color: #fff;
-      border-radius: 999px;
-      font-size: 13.5px; font-weight: 600;
-      text-decoration: none;
-      transition: background 0.2s, transform 0.15s;
-    }
-    .card-cta:hover { background: var(--navy-deep); transform: translateY(-1px); }
-    .card-cta .arrow { font-size: 16px; }
 
-    .notes {
-      margin-top: 40px;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 24px 28px;
+    /* ── GRAIN OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+      opacity: .45;
     }
-    .notes h3 {
+
+    /* ── HEADER ── */
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 18px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      backdrop-filter: blur(12px);
+      background: rgba(247, 242, 229, 0.85);
+      border-bottom: 1px solid rgba(201,168,76,0.2);
+      animation: fadeDown 0.8s ease both;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+      text-decoration: none;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: var(--navy);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .logo-text {
       font-family: 'Fraunces', serif;
-      font-size: 16px; font-weight: 600;
+      font-size: 22px; font-weight: 500;
+      color: var(--navy);
+      letter-spacing: -0.02em;
+    }
+    .logo-text em {
+      font-style: italic;
+      color: var(--gold);
+    }
+
+    .kosher-badge {
+      display: flex; align-items: center; gap: 7px;
+      padding: 6px 14px;
+      border: 1.5px solid var(--gold);
+      border-radius: 100px;
+      font-size: 12px; font-weight: 500;
+      color: var(--navy);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .kosher-badge span { color: var(--gold); font-size: 14px; }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100svh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+    }
+
+    .hero-bg {
+      position: absolute; inset: 0; z-index: -1;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(201,168,76,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(27,58,107,0.08) 0%, transparent 50%),
+        var(--paper);
+    }
+
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--gold);
+      margin-bottom: 28px;
+      animation: fadeUp 0.9s 0.1s ease both;
+    }
+    .hero-eyebrow::before,
+    .hero-eyebrow::after {
+      content: ''; display: block;
+      width: 28px; height: 1px;
+      background: var(--gold); opacity: 0.5;
+    }
+
+    .hero-title {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(52px, 9vw, 110px);
+      font-weight: 300; line-height: 0.95;
+      letter-spacing: -0.03em;
       color: var(--navy-deep);
-      margin-bottom: 12px;
-      letter-spacing: -0.01em;
+      margin-bottom: 10px;
+      animation: fadeUp 0.9s 0.2s ease both;
     }
-    .notes ul { list-style: none; }
-    .notes li {
-      padding: 6px 0;
-      font-size: 13.5px; color: var(--ink-2);
-      line-height: 1.55;
-      display: flex; gap: 10px; align-items: flex-start;
+    .hero-title em {
+      font-style: italic; font-weight: 300;
+      color: var(--gold);
     }
-    .notes li::before {
-      content: "";
-      display: inline-block;
-      width: 5px; height: 5px;
+    .hero-title .accent-line {
+      display: block;
+      font-size: clamp(38px, 6.5vw, 78px);
+      color: var(--navy-mid);
+    }
+
+    .hero-sub {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(18px, 2.5vw, 26px);
+      font-weight: 300; font-style: italic;
+      color: var(--muted);
+      margin: 28px auto 56px;
+      max-width: 520px; line-height: 1.5;
+      animation: fadeUp 0.9s 0.35s ease both;
+    }
+
+    /* ── CTA CARDS ── */
+    .cta-row {
+      display: flex; gap: 20px; flex-wrap: wrap;
+      justify-content: center;
+      animation: fadeUp 0.9s 0.5s ease both;
+    }
+
+    .cta-card {
+      position: relative; overflow: hidden;
+      width: 260px;
+      border-radius: 20px;
+      text-decoration: none;
+      padding: 32px 28px;
+      transition: transform 0.35s cubic-bezier(.22,.68,0,1.2), box-shadow 0.35s ease;
+      cursor: pointer;
+    }
+    .cta-card:hover {
+      transform: translateY(-6px);
+    }
+
+    .cta-card--primary {
+      background: var(--navy-deep);
+      box-shadow: 0 20px 60px -10px rgba(13,31,60,0.4);
+      color: #fff;
+    }
+    .cta-card--primary:hover {
+      box-shadow: 0 28px 70px -10px rgba(13,31,60,0.55);
+    }
+    .cta-card--primary::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(201,168,76,0.25) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .cta-card--secondary {
+      background: var(--cream);
+      border: 1.5px solid var(--gold-pale);
+      box-shadow: 0 16px 50px -10px rgba(201,168,76,0.2);
+      color: var(--navy-deep);
+    }
+    .cta-card--secondary:hover {
+      border-color: var(--gold);
+      box-shadow: 0 24px 60px -10px rgba(201,168,76,0.3);
+    }
+
+    .cta-emoji {
+      font-size: 38px; margin-bottom: 20px; display: block;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
+    }
+    .cta-label {
+      font-size: 10px; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      opacity: 0.5; margin-bottom: 8px;
+    }
+    .cta-title {
+      font-family: 'Fraunces', serif;
+      font-size: 26px; font-weight: 500;
+      line-height: 1.1; margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }
+    .cta-card--primary .cta-title { color: #fff; }
+    .cta-card--secondary .cta-title { color: var(--navy); }
+
+    .cta-desc {
+      font-size: 13px; line-height: 1.55; opacity: 0.65;
+      margin-bottom: 24px;
+    }
+    .cta-card--primary .cta-desc { color: #fff; }
+
+    .cta-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 500;
+      padding: 10px 18px;
+      border-radius: 100px;
+      transition: gap 0.25s ease;
+    }
+    .cta-card:hover .cta-btn { gap: 12px; }
+
+    .cta-card--primary .cta-btn {
       background: var(--gold);
-      border-radius: 50%;
-      margin-top: 8px;
-      flex-shrink: 0;
+      color: var(--navy-deep);
     }
-    .notes li strong { color: var(--navy-deep); font-weight: 600; }
+    .cta-card--secondary .cta-btn {
+      background: var(--navy);
+      color: #fff;
+    }
+
+    /* ── SCROLL HINT ── */
+    .scroll-hint {
+      margin-top: 64px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      animation: fadeUp 0.9s 0.7s ease both;
+      color: var(--muted); font-size: 11px; letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .scroll-line {
+      width: 1px; height: 40px;
+      background: linear-gradient(to bottom, var(--gold), transparent);
+      animation: scrollPulse 2s ease-in-out infinite;
+    }
+
+    /* ── INFO SECTION ── */
+    .info-section {
+      background: var(--navy-deep);
+      color: #fff;
+      padding: 100px 40px;
+      position: relative; overflow: hidden;
+    }
+    .info-section::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 100% 50%, rgba(201,168,76,0.12) 0%, transparent 60%);
+    }
+    .info-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 60px; position: relative;
+    }
+
+    .info-block { }
+    .info-num {
+      font-family: 'Fraunces', serif;
+      font-size: 11px; font-weight: 300;
+      color: var(--gold); letter-spacing: 0.1em;
+      text-transform: uppercase; margin-bottom: 20px;
+    }
+    .info-heading {
+      font-family: 'Fraunces', serif;
+      font-size: 28px; font-weight: 300;
+      line-height: 1.2; margin-bottom: 14px;
+      letter-spacing: -0.02em;
+    }
+    .info-heading em { font-style: italic; color: var(--gold-warm); }
+    .info-text {
+      font-size: 14px; line-height: 1.7;
+      color: rgba(255,255,255,0.55);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 40px;
+      text-align: center;
+      border-top: 1px solid rgba(201,168,76,0.15);
+      font-size: 13px; color: var(--muted);
+    }
+    footer a { color: var(--gold); text-decoration: none; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes scrollPulse {
+      0%, 100% { opacity: 0.3; transform: scaleY(1); }
+      50%       { opacity: 1;   transform: scaleY(1.15); }
+    }
+
+    /* ── MOBILE ── */
+    @media (max-width: 640px) {
+      header { padding: 14px 20px; }
+      .kosher-badge { display: none; }
+      .cta-card { width: 100%; max-width: 320px; }
+      .info-inner { grid-template-columns: 1fr; gap: 48px; }
+      .info-section { padding: 72px 24px; }
+      footer { padding: 32px 24px; }
+    }
   </style>
 </head>
 <body>
 
-<div class="page">
+  <!-- HEADER -->
+  <header>
+    <a class="logo" href="#">
+      <div class="logo-icon">🍽</div>
+      <div class="logo-text">Куш<em>ня</em></div>
+    </a>
+    <div class="kosher-badge">
+      <span>✡</span> Кошерная кухня
+    </div>
+  </header>
 
+  <!-- HERO -->
   <section class="hero">
-    <div class="hero-inner">
-      <div class="brand-chip">
-        <span class="dot">К</span>
-        <span>Кухня · Almaty · Redesign</span>
-      </div>
-      <h1>Кошерная кухня<br/>с <em>душой</em> в каждой детали</h1>
-      <p>Редизайн 3 экранов заказа еды для Chabad Community Center — премиальный food-app look, navy + gold палитра, типографика Fraunces + Roboto. Вся функциональность сохранена.</p>
-      <div class="palette">
-        <i style="background:#0E2246"></i>
-        <i style="background:#1B3A6B"></i>
-        <i style="background:#C9A84C"></i>
-        <i style="background:#F4E9C6"></i>
-        <i style="background:#FAF6EC"></i>
-        <span style="margin-left:4px;">Navy · Gold · Cream</span>
-      </div>
+    <div class="hero-bg"></div>
+
+    <div class="hero-eyebrow">Кошерная кухня · Алматы</div>
+
+    <h1 class="hero-title">
+      Еда,<br>
+      <em>приготовленная</em>
+      <span class="accent-line">с душой</span>
+    </h1>
+
+    <p class="hero-sub">
+      Кошерные блюда на каждый день и торжественные мероприятия —
+      свежие, вкусные, с заботой о традиции.
+    </p>
+
+    <div class="cta-row">
+      <a href="order-form.html" class="cta-card cta-card--primary">
+        <span class="cta-emoji">🥗</span>
+        <div class="cta-label">Ежедневно</div>
+        <div class="cta-title">Заказать еду</div>
+        <div class="cta-desc">Завтрак, обед, ужин. Доставка или самовывоз. Выберите блюда и оформите заказ за минуту.</div>
+        <div class="cta-btn">Сделать заказ →</div>
+      </a>
+
+      <a href="event-form.html" class="cta-card cta-card--secondary">
+        <span class="cta-emoji">🥂</span>
+        <div class="cta-label">Мероприятия</div>
+        <div class="cta-title">Заказать банкет</div>
+        <div class="cta-desc">Свадьбы, бар-мицвы, корпоративы. Полное меню, залы, сервировка — всё включено.</div>
+        <div class="cta-btn">Узнать подробности →</div>
+      </a>
+    </div>
+
+    <div class="scroll-hint">
+      <div class="scroll-line"></div>
+      О нас
     </div>
   </section>
 
-  <div class="section-label">Три экрана</div>
-  <div class="section-title">Откройте любой экран</div>
+  <!-- INFO -->
+  <section class="info-section">
+    <div class="info-inner">
 
-  <div class="grid">
-
-    <div class="card">
-      <div class="card-preview"><div class="icon">🏠</div></div>
-      <div class="card-body">
-        <div class="card-num">01 · Лендинг</div>
-        <div class="card-title">Order Hub</div>
-        <div class="card-sub">Объявления, кнопки страниц, карточки типов заказа (шаббат, обед, меню недели, поминки), featured блок с мероприятиями.</div>
-        <a href="order-hub.html" class="card-cta">Открыть <span class="arrow">→</span></a>
+      <div class="info-block">
+        <div class="info-num">01 · Кашрут</div>
+        <h3 class="info-heading">Строгий<br><em>кошер</em></h3>
+        <p class="info-text">Все блюда приготовлены в соответствии с требованиями кашрута под наблюдением машгиаха. Мясо и молоко строго разделены. Сертифицировано раввинатом Алматы.</p>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="card-preview"><div class="icon">🍽</div></div>
-      <div class="card-body">
-        <div class="card-num">02 · Оформление</div>
-        <div class="card-title">Order Form</div>
-        <div class="card-sub">6 экранов: тип → дата → меню → данные клиента → оплата (наличные / Kaspi / ваучер / частичная) → результат. RU · EN · HE.</div>
-        <a href="order-form.html" class="card-cta">Открыть <span class="arrow">→</span></a>
+      <div class="info-block">
+        <div class="info-num">02 · Качество</div>
+        <h3 class="info-heading">Свежие<br><em>ингредиенты</em></h3>
+        <p class="info-text">Только проверенные поставщики, сезонные продукты и домашние рецепты. Никаких полуфабрикатов — всё готовится в день заказа.</p>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="card-preview"><div class="icon">⚙️</div></div>
-      <div class="card-body">
-        <div class="card-num">03 · Админ</div>
-        <div class="card-title">Admin Panel</div>
-        <div class="card-sub">Дизайн, контакты, объявления, типы заказов, тексты, оплата, вебхуки, экспорт, мероприятия. Пароль: <code style="background:#FBF6E4;padding:1px 6px;border-radius:4px;font-size:12px;">kitchen2025</code></div>
-        <a href="admin.html" class="card-cta">Открыть <span class="arrow">→</span></a>
+      <div class="info-block">
+        <div class="info-num">03 · Удобство</div>
+        <h3 class="info-heading">Заказ за<br><em>1 минуту</em></h3>
+        <p class="info-text">Выберите блюда, укажите дату и контакты — готово. Подтверждение приходит в WhatsApp. Оплата наличными, Kaspi или ваучером.</p>
       </div>
+
     </div>
+  </section>
 
-  </div>
-
-  <div class="notes">
-    <h3>Что изменилось</h3>
-    <ul>
-      <li><strong>Типографика —</strong> Fraunces serif для заголовков даёт «premium food» ощущение, Roboto остаётся для UI.</li>
-      <li><strong>Палитра —</strong> navy #1B3A6B + gold #C9A84C обогащены кремовым paper #FAF6EC и тёплыми gold-tint поверхностями.</li>
-      <li><strong>Карточки —</strong> мягкие тени, hover lift, капсульные CTA, gold glow вместо плоских border-left акцентов.</li>
-      <li><strong>Оплата —</strong> grid 2×2 карточек (наличные / Kaspi / ваучер / частичная) с активным состоянием, чек-маркером и плавным fade-in деталей.</li>
-      <li><strong>Hero-блоки —</strong> тёмный navy gradient с золотым свечением, звёздчатый паттерн, крупный Fraunces заголовок с курсивным акцентом.</li>
-      <li><strong>Функциональность —</strong> ВСЕ ID, onclick, JS, webhook-пути, localStorage ключи, i18n словари сохранены 1-в-1.</li>
-    </ul>
-  </div>
-
-</div>
+  <!-- FOOTER -->
+  <footer>
+    <p>© 2026 Кухня · Алматы &nbsp;·&nbsp; <a href="order-form.html">Заказать еду</a> &nbsp;·&nbsp; <a href="event-form.html">Мероприятия</a></p>
+  </footer>
 
 </body>
 </html>
