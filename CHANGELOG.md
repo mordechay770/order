@@ -1,5 +1,16 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-06-05 — ארגון תיקיות + אבטחה
+
+### בוצע
+- מבנה תיקיות חדש: `src/` | `docs/` | `archive/v1/` | `make-blueprints/`
+- הוסר `קלאוד דיזיין/` — קוד עבר ל-`src/`
+- Webhook URLs הוסרו מקוד מקור — נקראים בלבד מ-`localStorage(kc_admin_settings)`
+- נמחקו קבצים כפולים מהשורש
+- חיבור repo ל-GitHub: `mordechay770/order`
+
+---
+
 ## 2026-06-05 — DB Airtable — בנייה מלאה (שיחה 2)
 
 ### בוצע (MCP Airtable)
