@@ -1,0 +1,140 @@
+{
+  "name": "2026-04-21 · New Order · Mordechai",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": "YOUR_WEBHOOK_ID",
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "restore": {
+          "parameters": {
+            "hook": { "label": "kc-new-order" }
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "airtable:ActionCreateRecord",
+      "version": 3,
+      "parameters": {
+        "__IMTCONN__": "YOUR_AIRTABLE_CONNECTION_ID"
+      },
+      "mapper": {
+        "baseId": "YOUR_AIRTABLE_BASE_ID",
+        "tableId": "Orders",
+        "fields": {
+          "order_id":       "{{1.order_id}}",
+          "type":           "{{1.type}}",
+          "date":           "{{1.date}}",
+          "customer_name":  "{{1.customer_name}}",
+          "phone":          "{{1.customer_phone}}",
+          "items":          "{{toString(1.items)}}",
+          "total":          "{{toNumber(1.total)}}",
+          "payment_method": "{{1.payment_method}}",
+          "voucher_code":   "{{1.voucher_code}}",
+          "partial_cash":   "{{toNumber(1.partial_cash)}}",
+          "notes":          "{{1.notes}}",
+          "lang":           "{{1.lang}}",
+          "status":         "pending",
+          "created_at":     "{{now}}"
+        }
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0 }
+      }
+    },
+    {
+      "id": 3,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {
+        "handleErrors": true,
+        "useNewZLibDecompression": true
+      },
+      "mapper": {
+        "url": "https://api.green-api.com/waInstance{{YOUR_GREEN_API_INSTANCE_ID}}/sendMessage/{{YOUR_GREEN_API_TOKEN}}",
+        "method": "post",
+        "headers": [],
+        "qs": [],
+        "bodyType": "raw",
+        "parseResponse": true,
+        "timeout": 40,
+        "rejectUnauthorized": true,
+        "followRedirect": true,
+        "gzip": true,
+        "contentType": "application/json",
+        "body": "{\"chatId\": \"{{1.customer_phone}}@c.us\", \"message\": \"✅ Заказ №{{1.order_id}} принят!\\n\\n📅 Дата: {{1.date}}\\n🍽 Тип: {{1.type}}\\n💰 Сумма: {{1.total}} ₸\\n💳 Оплата: {{1.payment_method}}\\n\\nМы подтвердим ваш заказ в течение 2 часов. Спасибо! 🙏\\n\\n— Кухня Хабад Алматы\"}"
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": -200 }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {
+        "handleErrors": true,
+        "useNewZLibDecompression": true
+      },
+      "mapper": {
+        "url": "https://api.green-api.com/waInstance{{YOUR_GREEN_API_INSTANCE_ID}}/sendMessage/{{YOUR_GREEN_API_TOKEN}}",
+        "method": "post",
+        "headers": [],
+        "qs": [],
+        "bodyType": "raw",
+        "parseResponse": true,
+        "timeout": 40,
+        "rejectUnauthorized": true,
+        "followRedirect": true,
+        "gzip": true,
+        "contentType": "application/json",
+        "body": "{\"chatId\": \"{{YOUR_ADMIN_PHONE}}@c.us\", \"message\": \"🔔 НОВЫЙ ЗАКАЗ\\n\\n📋 №{{1.order_id}}\\n👤 {{1.customer_name}}\\n📞 {{1.customer_phone}}\\n📅 {{1.date}} · {{1.type}}\\n💰 {{1.total}} ₸ · {{1.payment_method}}\\n📝 {{if(1.notes; 1.notes; \\\"—\\\")}}\\n\\n✅ Чтобы подтвердить, напишите: ПОДТВЕРДИТЬ {{1.order_id}}\\n❌ Чтобы отклонить, напишите: ОТКЛОНИТЬ {{1.order_id}}\"}"
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": 200 }
+      }
+    },
+    {
+      "id": 5,
+      "module": "gateway:WebhookRespond",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "status": "200",
+        "body": "{\"success\": true, \"order_id\": \"{{1.order_id}}\", \"record_id\": \"{{2.id}}\"}",
+        "headers": [
+          { "key": "Content-Type",                "value": "application/json" },
+          { "key": "Access-Control-Allow-Origin", "value": "*"                }
+        ]
+      },
+      "metadata": {
+        "designer": { "x": 900, "y": 0 }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": { "orphans": [] },
+    "zone": "eu1.make.com"
+  }
+}

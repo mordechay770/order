@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Заказ еды — Кухня</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,600&family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy:        #1B3A6B;
+      --navy-deep:   #0E2246;
+      --navy-soft:   #2A4F8E;
+      --navy-tint:   #EEF2FA;
+      --gold:        #C9A84C;
+      --gold-deep:   #A07820;
+      --gold-soft:   #F4E9C6;
+      --gold-tint:   #FBF6E4;
+      --cream:       #FBF7EE;
+      --cream-deep:  #F3ECD9;
+      --paper:       #FAF6EC;
+      --ink:         #1A1A2E;
+      --ink-2:       #4A4E6A;
+      --muted:       #7A7E94;
+      --line:        #E7DFC9;
+      --surface:     #FFFFFF;
+      --success:     #2D6A4F;
+      --warn:        #B45309;
+      --danger:      #C62828;
+
+      --shadow-xs:   0 1px 2px rgba(14,34,70,0.06);
+      --shadow-sm:   0 2px 6px rgba(14,34,70,0.06), 0 1px 2px rgba(14,34,70,0.04);
+      --shadow-md:   0 10px 24px -8px rgba(14,34,70,0.18), 0 2px 6px rgba(14,34,70,0.06);
+      --shadow-lg:   0 24px 48px -12px rgba(14,34,70,0.22), 0 4px 10px rgba(14,34,70,0.08);
+      --shadow-gold: 0 10px 28px -10px rgba(201,168,76,0.45);
+
+      --r-sm: 10px;
+      --r-md: 16px;
+      --r-lg: 22px;
+      --r-xl: 28px;
+      --r-pill: 999px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+    body {
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100vh;
+      min-height: 100dvh;
+      background-image:
+        radial-gradient(1200px 600px at 50% -200px, rgba(201,168,76,0.10), transparent 60%),
+        radial-gradient(900px 500px at 100% 100%, rgba(27,58,107,0.05), transparent 60%);
+    }
+
+    .serif { font-family: 'Fraunces', Georgia, serif; font-feature-settings: "ss01"; }
+
+    /* ─────────── HERO ─────────── */
+    .hero {
+      position: relative;
+      padding: 28px 20px 40px;
+      color: #fff;
+      background:
+        radial-gradient(120% 80% at 50% 0%, rgba(201,168,76,0.35) 0%, transparent 55%),
+        linear-gradient(170deg, var(--navy-deep) 0%, var(--navy) 55%, var(--navy-soft) 100%);
+      overflow: hidden;
+      border-radius: 0 0 28px 28px;
+      box-shadow: 0 30px 60px -40px rgba(14,34,70,0.6);
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08) 0 2px, transparent 3px),
+        radial-gradient(circle at 80% 60%, rgba(255,255,255,0.06) 0 2px, transparent 3px),
+        radial-gradient(circle at 55% 85%, rgba(255,255,255,0.05) 0 1.5px, transparent 2.5px);
+      background-size: 240px 240px, 200px 200px, 160px 160px;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .hero-inner {
+      position: relative;
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 18px;
+      font-size: 12px;
+    }
+    .brand-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 5px 10px 5px 6px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: var(--r-pill);
+      backdrop-filter: blur(8px);
+      font-weight: 500;
+      letter-spacing: 0.2px;
+    }
+    .brand-chip .dot {
+      width: 20px; height: 20px;
+      display: grid; place-items: center;
+      background: var(--gold);
+      color: var(--navy-deep);
+      border-radius: 50%;
+      font-size: 11px; font-weight: 800;
+      font-family: 'Fraunces', serif;
+    }
+    .lang-switch { display: inline-flex; gap: 2px; background: rgba(255,255,255,0.08); padding: 3px; border-radius: var(--r-pill); border: 1px solid rgba(255,255,255,0.12); }
+    .lang-switch button {
+      background: transparent; border: 0; color: rgba(255,255,255,0.65);
+      padding: 4px 10px; border-radius: var(--r-pill);
+      font: 600 11px/1 'Roboto', sans-serif; cursor: pointer;
+      letter-spacing: 0.3px;
+    }
+    .lang-switch button.active { background: var(--gold); color: var(--navy-deep); }
+
+    .hero-mark {
+      width: 76px; height: 76px;
+      margin: 2px auto 18px;
+      display: grid; place-items: center;
+      background: linear-gradient(160deg, #fff 0%, var(--gold-soft) 100%);
+      color: var(--navy-deep);
+      border-radius: 22px;
+      font-size: 40px;
+      box-shadow: 0 20px 40px -14px rgba(0,0,0,0.35), inset 0 -4px 10px rgba(201,168,76,0.2);
+      transform: rotate(-4deg);
+    }
+    .hero-kicker {
+      display: inline-block;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 1.8px; text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    .hero h1 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: clamp(30px, 8vw, 40px);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+    .hero h1 em { font-style: italic; color: var(--gold); font-weight: 500; }
+    .hero p {
+      margin-top: 12px;
+      font-size: 14px; line-height: 1.5;
+      color: rgba(255,255,255,0.78);
+      max-width: 340px; margin-left: auto; margin-right: auto;
+    }
+
+    .hero-meta {
+      display: flex; justify-content: center; gap: 6px;
+      margin-top: 20px; font-size: 12px; color: rgba(255,255,255,0.75);
+      flex-wrap: wrap;
+    }
+    .hero-meta span {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 11px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--r-pill);
+    }
+    .hero-meta i {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--gold); display: inline-block;
+    }
+
+    /* ─────────── CONTENT ─────────── */
+    .content { max-width: 600px; margin: 0 auto; padding: 0 16px 40px; }
+
+    #annBanners { margin-top: -24px; position: relative; z-index: 2; }
+    .ann-banner {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--r-md);
+      margin-bottom: 10px;
+      font-size: 14px; line-height: 1.45;
+      box-shadow: var(--shadow-sm);
+      background: #fff;
+      border: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+    }
+    .ann-banner::before {
+      content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    }
+    .ann-banner.info::before    { background: var(--navy); }
+    .ann-banner.warning::before { background: #f59e0b; }
+    .ann-banner.success::before { background: var(--success); }
+    .ann-banner.error::before   { background: var(--danger); }
+    .ann-banner.info    { color: var(--navy); }
+    .ann-banner.warning { background: #FFFBEC; color: #7A4F00; }
+    .ann-banner.success { background: #F0F8F2; color: #1B4332; }
+    .ann-banner.error   { background: #FDF2F2; color: #7F1D1D; }
+    .ann-emoji { font-size: 20px; line-height: 1.1; flex-shrink: 0; }
+    .ann-btn {
+      display: inline-block;
+      background: var(--navy); color: #fff;
+      border-radius: var(--r-pill);
+      padding: 6px 14px; font-size: 12px; font-weight: 600;
+      text-decoration: none; margin-top: 8px;
+    }
+
+    #pageBtns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .page-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface); color: var(--navy);
+      border: 1px solid var(--line);
+      border-radius: var(--r-pill);
+      padding: 10px 18px;
+      font-size: 14px; font-weight: 600;
+      text-decoration: none;
+      box-shadow: var(--shadow-xs);
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .page-btn:hover { transform: translateY(-1px); border-color: var(--gold); box-shadow: var(--shadow-sm); }
+
+    /* ─────────── SECTION HEADER ─────────── */
+    .section-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin: 30px 4px 14px;
+    }
+    .section-head h2 {
+      font-family: 'Fraunces', serif;
+      font-weight: 600;
+      font-size: 20px;
+      letter-spacing: -0.01em;
+      color: var(--navy-deep);
+    }
+    .section-head .eyebrow {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 1.4px; text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ─────────── ORDER CARDS ─────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .order-card {
+      --accent: var(--navy);
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-lg);
+      padding: 18px 16px 18px;
+      text-decoration: none;
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: transform .18s ease, box-shadow .2s ease, border-color .18s ease;
+      -webkit-tap-highlight-color: transparent;
+      isolation: isolate;
+    }
+    .order-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -30px -40px auto;
+      width: 130px; height: 130px;
+      background: radial-gradient(circle at 30% 30%, var(--gold-soft), transparent 70%);
+      opacity: 0.35;
+      z-index: -1;
+      transition: opacity .2s ease;
+    }
+    .order-card:hover {
+      border-color: rgba(201,168,76,0.5);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+    .order-card:hover::after { opacity: 0.7; }
+    .order-card:active { transform: scale(0.985); }
+
+    .card-icon-wrap {
+      width: 46px; height: 46px;
+      display: grid; place-items: center;
+      border-radius: 14px;
+      background: var(--gold-tint);
+      color: var(--navy);
+      font-size: 24px;
+      box-shadow: inset 0 -2px 6px rgba(160,120,32,0.10);
+    }
+    .card-title {
+      font-family: 'Fraunces', serif;
+      font-weight: 600;
+      font-size: 19px;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      line-height: 1.15;
+    }
+    .card-sub {
+      font-size: 12.5px; color: var(--muted); line-height: 1.45;
+      margin-top: -2px;
+    }
+    .card-cta {
+      margin-top: auto;
+      padding-top: 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; font-weight: 600;
+      color: var(--navy);
+      letter-spacing: 0.2px;
+    }
+    .card-cta .arrow {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--navy-tint);
+      display: grid; place-items: center;
+      transition: transform .2s ease, background .2s ease, color .2s ease;
+    }
+    .order-card:hover .card-cta .arrow { background: var(--gold); color: var(--navy-deep); transform: translateX(2px); }
+
+    /* Full-width card */
+    .order-card.full {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      align-items: center;
+      padding: 16px 18px;
+      gap: 14px;
+    }
+    .order-card.full .card-body { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+    .order-card.full .card-cta { margin-top: 0; padding-top: 0; flex: 0 0 auto; }
+    .order-card.full .card-title { font-size: 18px; }
+    .order-card.full .card-icon-wrap { width: 52px; height: 52px; font-size: 26px; }
+
+    /* Disabled */
+    .order-card.disabled {
+      pointer-events: none;
+      background: #F7F3E9;
+      color: var(--muted);
+      box-shadow: none;
+      border-style: dashed;
+    }
+    .order-card.disabled .card-icon-wrap { background: #EDE6D3; color: var(--muted); box-shadow: none; }
+    .order-card.disabled::after { display: none; }
+    .order-card.disabled .card-title { color: var(--ink-2); }
+    .disabled-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      align-self: flex-start;
+      background: #EDE6D3; color: var(--muted);
+      font-size: 10px; font-weight: 700;
+      border-radius: var(--r-pill);
+      padding: 3px 10px;
+      letter-spacing: 0.8px; text-transform: uppercase;
+    }
+    .disabled-badge::before {
+      content: ""; width: 6px; height: 6px; border-radius: 50%;
+      background: #c9b57a;
+    }
+
+    /* Event (featured) card — gold treatment */
+    .order-card.event-card {
+      grid-column: 1 / -1;
+      background:
+        linear-gradient(135deg, var(--gold) 0%, #D4B564 60%, var(--gold-deep) 100%);
+      color: var(--navy-deep);
+      border: 1px solid rgba(255,255,255,0.25);
+      box-shadow: var(--shadow-gold);
+      flex-direction: row;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+    }
+    .order-card.event-card::after {
+      background: radial-gradient(circle at 85% 30%, rgba(255,255,255,0.35), transparent 60%);
+      opacity: 0.8; width: 200px; height: 200px; inset: -50px -50px auto auto;
+    }
+    .order-card.event-card .card-icon-wrap {
+      background: rgba(14,34,70,0.92);
+      color: var(--gold);
+      box-shadow: 0 6px 14px -4px rgba(0,0,0,0.35);
+    }
+    .order-card.event-card .card-title { color: var(--navy-deep); font-size: 20px; }
+    .order-card.event-card .card-sub { color: rgba(14,34,70,0.75); font-weight: 500; }
+    .order-card.event-card .card-cta { color: var(--navy-deep); }
+    .order-card.event-card .card-cta .arrow { background: var(--navy-deep); color: var(--gold); }
+    .order-card.event-card:hover .card-cta .arrow { background: #fff; color: var(--navy-deep); }
+
+    .event-tags {
+      display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px;
+    }
+    .event-tags span {
+      font-size: 10.5px; font-weight: 600; letter-spacing: 0.2px;
+      padding: 3px 8px;
+      background: rgba(14,34,70,0.12);
+      color: var(--navy-deep);
+      border-radius: var(--r-pill);
+    }
+
+    /* ─────────── FOOTER ─────────── */
+    .footer {
+      text-align: center;
+      padding: 32px 20px 40px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .footer .divider {
+      display: inline-block; width: 28px; height: 1px; background: var(--line);
+      vertical-align: middle; margin: 0 8px;
+    }
+    .footer .mark {
+      font-family: 'Fraunces', serif;
+      color: var(--navy);
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    /* RTL */
+    [dir="rtl"] .card-cta .arrow { transform: scaleX(-1); }
+    [dir="rtl"] .order-card:hover .card-cta .arrow { transform: scaleX(-1) translateX(-2px); }
+
+    @media (min-width: 560px) {
+      .hero { padding: 36px 28px 48px; }
+      .content { padding: 0 24px 40px; }
+    }
+  </style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="topbar">
+      <div class="brand-chip">
+        <span class="dot">К</span>
+        <span>Кухня · Almaty</span>
+      </div>
+      <div class="lang-switch" aria-label="Language">
+        <button data-lang="ru" onclick="setHubLang('ru')">РУС</button>
+        <button data-lang="en" onclick="setHubLang('en')">ENG</button>
+        <button data-lang="he" onclick="setHubLang('he')">עב</button>
+      </div>
+    </div>
+
+    <div class="hero-mark">🍽</div>
+    <div class="hero-kicker" data-i18n="kicker">Заказ еды онлайн</div>
+    <h1 class="serif" id="hubH1">Домашняя кухня<br/>с <em>любовью</em> к традиции</h1>
+    <p data-i18n="desc">Выберите тип заказа — шаббат, обед на завтра, меню недели или мероприятие с залом.</p>
+
+    <div class="hero-meta">
+      <span><i></i> <span data-i18n="meta_kosher">Кошерная сертификация</span></span>
+      <span><i></i> <span data-i18n="meta_delivery">Доставка по Алматы</span></span>
+    </div>
+  </div>
+</section>
+
+<main class="content">
+
+  <div id="annBanners"></div>
+  <div id="pageBtns"></div>
+
+  <div class="section-head">
+    <h2 class="serif" data-i18n="sec1_title">Что заказываем?</h2>
+    <span class="eyebrow" data-i18n="sec1_count">5 вариантов</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- 🕯 ШАББАТ -->
+    <a href="order-form.html?type=shabbat" class="order-card">
+      <div class="card-icon-wrap">🕯</div>
+      <div class="card-title" data-i18n="card_shabbat_title">Шаббат</div>
+      <div class="card-sub" data-i18n="card_shabbat_sub">Приём заказов<br/>вт–чт до 12:00</div>
+      <div class="card-cta"><span data-i18n="cta_choose">Выбрать блюда</span><span class="arrow">→</span></div>
+    </a>
+
+    <!-- ✡ ПРАЗДНИК -->
+    <a href="order-form.html?type=holiday" class="order-card disabled">
+      <div class="card-icon-wrap">✡</div>
+      <div class="card-title" data-i18n="card_holiday_title">Праздник</div>
+      <div class="card-sub" data-i18n="card_holiday_sub">Приём заказов<br/>временно закрыт</div>
+      <span class="disabled-badge" data-i18n="badge_soon">скоро</span>
+    </a>
+
+    <!-- 📅 МЕНЮ НЕДЕЛИ -->
+    <a href="order-form.html?type=weekly" class="order-card">
+      <div class="card-icon-wrap">📅</div>
+      <div class="card-title" data-i18n="card_weekly_title">Меню недели</div>
+      <div class="card-sub" data-i18n="card_weekly_sub">Блюда на текущую<br/>и следующую неделю</div>
+      <div class="card-cta"><span data-i18n="cta_menu">Смотреть меню</span><span class="arrow">→</span></div>
+    </a>
+
+    <!-- 🍱 ОБЕД НА ЗАВТРА -->
+    <a href="order-form.html?type=daily" class="order-card">
+      <div class="card-icon-wrap">🍱</div>
+      <div class="card-title" data-i18n="card_daily_title">Обед</div>
+      <div class="card-sub" data-i18n="card_daily_sub">Заказ принимается<br/>до 20:00 накануне</div>
+      <div class="card-cta"><span data-i18n="cta_lunch">Заказать обед</span><span class="arrow">→</span></div>
+    </a>
+
+    <!-- 🥂 ПОМИНКИ / БАНКЕТ -->
+    <a href="order-form.html?type=pominki" class="order-card full">
+      <div class="card-icon-wrap">🥂</div>
+      <div class="card-body">
+        <div class="card-title" data-i18n="card_pominki_title">Поминки · Банкет</div>
+        <div class="card-sub" data-i18n="card_pominki_sub">Индивидуальный заказ — свяжемся для уточнения деталей</div>
+      </div>
+      <div class="card-cta"><span class="arrow">→</span></div>
+    </a>
+
+  </div>
+
+  <div class="section-head">
+    <h2 class="serif" data-i18n="sec2_title">Мероприятия с залом</h2>
+    <span class="eyebrow" data-i18n="sec2_label">С услугами</span>
+  </div>
+
+  <!-- 🎉 ЗАКАЗ МЕРОПРИЯТИЯ -->
+  <a href="../event-booking/event-form.html" class="order-card event-card">
+    <div class="card-icon-wrap">🎉</div>
+    <div class="card-body">
+      <div class="card-title" data-i18n="card_event_title">Заказать мероприятие</div>
+      <div class="card-sub" data-i18n="card_event_sub">Выбор зала, меню и услуг под ключ</div>
+      <div class="event-tags">
+        <span data-i18n="tag_pominki">Поминки</span>
+        <span data-i18n="tag_bday">День рождения</span>
+        <span data-i18n="tag_mitzva">Бар · Бат-мицва</span>
+        <span data-i18n="tag_wedding">Свадьба</span>
+      </div>
+    </div>
+    <div class="card-cta"><span class="arrow">→</span></div>
+  </a>
+
+</main>
+
+<footer class="footer">
+  <span class="mark">Кухня</span>
+  <span class="divider"></span>
+  <span>Все вопросы по телефону</span>
+  <div style="margin-top:10px; font-size:11px; opacity:0.7;">© 2026 · Chabad Kitchen Almaty</div>
+</footer>
+
+<script>
+const HUB_T = {
+  ru: {
+    kicker: 'Заказ еды онлайн',
+    h1: 'Домашняя кухня<br/>с <em>любовью</em> к традиции',
+    desc: 'Выберите тип заказа — шаббат, обед на завтра, меню недели или мероприятие с залом.',
+    meta_kosher: 'Кошерная сертификация', meta_delivery: 'Доставка по Алматы',
+    sec1_title: 'Что заказываем?', sec1_count: '5 вариантов',
+    card_shabbat_title: 'Шаббат', card_shabbat_sub: 'Приём заказов<br/>вт–чт до 12:00', cta_choose: 'Выбрать блюда',
+    card_holiday_title: 'Праздник', card_holiday_sub: 'Приём заказов<br/>временно закрыт', badge_soon: 'скоро',
+    card_weekly_title: 'Меню недели', card_weekly_sub: 'Блюда на текущую<br/>и следующую неделю', cta_menu: 'Смотреть меню',
+    card_daily_title: 'Обед', card_daily_sub: 'Заказ принимается<br/>до 20:00 накануне', cta_lunch: 'Заказать обед',
+    card_pominki_title: 'Поминки · Банкет', card_pominki_sub: 'Индивидуальный заказ — свяжемся для уточнения деталей',
+    sec2_title: 'Мероприятия с залом', sec2_label: 'С услугами',
+    card_event_title: 'Заказать мероприятие', card_event_sub: 'Выбор зала, меню и услуг под ключ',
+    tag_pominki: 'Поминки', tag_bday: 'День рождения', tag_mitzva: 'Бар · Бат-мицва', tag_wedding: 'Свадьба',
+  },
+  en: {
+    kicker: 'Order Food Online',
+    h1: 'Home Kitchen<br/>crafted with <em>love</em> for tradition',
+    desc: 'Choose your order type — Shabbat, lunch, weekly menu or a catered event.',
+    meta_kosher: 'Kosher Certified', meta_delivery: 'Almaty Delivery',
+    sec1_title: 'What are we ordering?', sec1_count: '5 options',
+    card_shabbat_title: 'Shabbat', card_shabbat_sub: 'Orders accepted<br/>Tue–Thu until 12:00', cta_choose: 'Choose dishes',
+    card_holiday_title: 'Holiday', card_holiday_sub: 'Orders temporarily<br/>not available', badge_soon: 'soon',
+    card_weekly_title: 'Weekly Menu', card_weekly_sub: 'Dishes for this<br/>and next week', cta_menu: 'View menu',
+    card_daily_title: 'Lunch', card_daily_sub: 'Orders accepted<br/>until 20:00 the day before', cta_lunch: 'Order lunch',
+    card_pominki_title: 'Memorial · Banquet', card_pominki_sub: 'Custom order — we will contact you to clarify details',
+    sec2_title: 'Catered Events', sec2_label: 'Full service',
+    card_event_title: 'Book an event', card_event_sub: 'Hall, menu and services — all inclusive',
+    tag_pominki: 'Memorial', tag_bday: 'Birthday', tag_mitzva: 'Bar · Bat Mitzvah', tag_wedding: 'Wedding',
+  },
+  he: {
+    kicker: 'הזמנת אוכל אונליין',
+    h1: 'מטבח ביתי<br/>עם <em>אהבה</em> למסורת',
+    desc: 'בחרו סוג הזמנה — שבת, ארוחת צהריים, תפריט שבועי או אירוע מאורגן.',
+    meta_kosher: 'כשרות מוסמכת', meta_delivery: 'משלוח באלמאטי',
+    sec1_title: 'מה מזמינים?', sec1_count: '5 אפשרויות',
+    card_shabbat_title: 'שבת', card_shabbat_sub: 'קבלת הזמנות<br/>ג׳-ה׳ עד 12:00', cta_choose: 'בחרו מנות',
+    card_holiday_title: 'חג', card_holiday_sub: 'קבלת הזמנות<br/>זמנית סגורה', badge_soon: 'בקרוב',
+    card_weekly_title: 'תפריט שבועי', card_weekly_sub: 'מנות לשבוע הנוכחי<br/>והשבוע הבא', cta_menu: 'לתפריט',
+    card_daily_title: 'ארוחת צהריים', card_daily_sub: 'הזמנות עד 20:00<br/>יום לפני', cta_lunch: 'הזמן ארוחה',
+    card_pominki_title: 'הנצחה · בנקט', card_pominki_sub: 'הזמנה אישית — ניצור קשר לפרטים',
+    sec2_title: 'אירועים באולם', sec2_label: 'שירות מלא',
+    card_event_title: 'הזמינו אירוע', card_event_sub: 'בחירת אולם, תפריט ושירותים',
+    tag_pominki: 'הנצחה', tag_bday: 'יום הולדת', tag_mitzva: 'בר · בת מצווה', tag_wedding: 'חתונה',
+  },
+};
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function applyHubLang(lang) {
+  const T = Object.assign({}, HUB_T[lang] || HUB_T.ru);
+  try {
+    const s = JSON.parse(localStorage.getItem('kc_admin_settings') || '{}');
+    if (s.texts && s.texts[lang]) Object.assign(T, s.texts[lang]);
+  } catch(_) {}
+  const isRTL = lang === 'he';
+  document.documentElement.lang = lang;
+  document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (T[key] !== undefined) el.textContent = T[key];
+  });
+  const h1 = document.getElementById('hubH1');
+  if (h1 && T.h1) h1.innerHTML = T.h1;
+  document.querySelectorAll('.lang-switch button').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+  });
+}
+
+function setHubLang(lang) {
+  localStorage.setItem('kc_lang', lang);
+  applyHubLang(lang);
+}
+
+(function() {
+  try {
+    const s = JSON.parse(localStorage.getItem('kc_admin_settings') || '{}');
+    const list = (s.announcements || []).filter(a => a.active && a.text && (!a.pages || !a.pages.length || a.pages.includes('hub')));
+    document.getElementById('annBanners').innerHTML = list.map(a => `
+      <div class="ann-banner ${esc(a.type||'info')}">
+        <span class="ann-emoji">${esc(a.emoji||'📢')}</span>
+        <div>
+          <span>${esc(a.text)}</span>
+          ${a.btn_url ? `<br><a href="${esc(a.btn_url)}" target="_blank" rel="noopener" class="ann-btn">${esc(a.btn_text||'Подробнее →')}</a>` : ''}
+        </div>
+      </div>
+    `).join('');
+    const btns = (s.page_buttons || []).filter(b => b.active !== false && b.text && b.url && (!b.pages || !b.pages.length || b.pages.includes('hub')));
+    document.getElementById('pageBtns').innerHTML = btns.map(b => `
+      <a href="${esc(b.url)}" target="_blank" rel="noopener" class="page-btn">
+        ${b.icon ? `<span>${esc(b.icon)}</span>` : ''}${esc(b.text)}
+      </a>
+    `).join('');
+  } catch(_) {}
+
+  const savedLang = localStorage.getItem('kc_lang') || 'ru';
+  applyHubLang(savedLang);
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,135 @@
+{
+  "name": "2026-04-21 · Voucher Check · Mordechai",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": "YOUR_WEBHOOK_ID",
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "restore": {
+          "parameters": {
+            "hook": { "label": "kc-voucher-check" }
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "airtable:ActionSearchRecords",
+      "version": 3,
+      "parameters": {
+        "__IMTCONN__": "YOUR_AIRTABLE_CONNECTION_ID"
+      },
+      "mapper": {
+        "baseId": "YOUR_AIRTABLE_BASE_ID",
+        "tableId": "Vouchers",
+        "filterByFormula": "AND({code}='{{1.voucher_code}}', {status}='active')",
+        "maxRecords": 1
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0 }
+      }
+    },
+    {
+      "id": 3,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 600, "y": 0 }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 4,
+              "module": "gateway:WebhookRespond",
+              "version": 1,
+              "parameters": {},
+              "filter": {
+                "name": "Voucher found",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{length(2.records)}}",
+                      "b": "0",
+                      "o": "number:greater"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "status": "200",
+                "body": "{\"valid\": true, \"balance\": {{2.records[].fields.balance}}, \"used\": {{2.records[].fields.used_amount}}, \"owner_name\": \"{{2.records[].fields.owner_name}}\", \"owner_phone\": \"{{2.records[].fields.owner_phone}}\", \"expires_at\": \"{{2.records[].fields.expires_at}}\"}",
+                "headers": [
+                  { "key": "Content-Type",                "value": "application/json" },
+                  { "key": "Access-Control-Allow-Origin", "value": "*"                }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 900, "y": -150 }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 5,
+              "module": "gateway:WebhookRespond",
+              "version": 1,
+              "parameters": {},
+              "filter": {
+                "name": "Voucher not found or expired",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{length(2.records)}}",
+                      "b": "0",
+                      "o": "number:equal"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "status": "200",
+                "body": "{\"valid\": false, \"error\": \"not_found\"}",
+                "headers": [
+                  { "key": "Content-Type",                "value": "application/json" },
+                  { "key": "Access-Control-Allow-Origin", "value": "*"                }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 900, "y": 150 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": { "orphans": [] },
+    "zone": "eu1.make.com"
+  }
+}

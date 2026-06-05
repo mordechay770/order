@@ -1,0 +1,103 @@
+{
+  "name": "2026-04-21 · Time Slots · Mordechai",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": "YOUR_WEBHOOK_ID",
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "restore": {
+          "parameters": {
+            "hook": { "label": "kc-time-slots" }
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {
+        "handleErrors": true,
+        "useNewZLibDecompression": true
+      },
+      "mapper": {
+        "url": "https://api.airtable.com/v0/YOUR_AIRTABLE_BASE_ID/Settings",
+        "method": "get",
+        "headers": [
+          {
+            "name": "Authorization",
+            "value": "Bearer YOUR_AIRTABLE_PERSONAL_ACCESS_TOKEN"
+          }
+        ],
+        "qs": [
+          {
+            "name": "filterByFormula",
+            "value": "OR({key}='shabbat_cutoff', {key}='lunch_cutoff', {key}='closed_dates', {key}='available_order_types', {key}='advance_days')"
+          }
+        ],
+        "bodyType": "raw",
+        "parseResponse": true,
+        "timeout": 40,
+        "rejectUnauthorized": true,
+        "followRedirect": true,
+        "gzip": true
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0 }
+      }
+    },
+    {
+      "id": 3,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "json": "{{toString(2.data)}}"
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": 0 }
+      }
+    },
+    {
+      "id": 4,
+      "module": "gateway:WebhookRespond",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "status": "200",
+        "body": "{{toString(2.data)}}",
+        "headers": [
+          { "key": "Content-Type",                "value": "application/json" },
+          { "key": "Access-Control-Allow-Origin", "value": "*"                }
+        ]
+      },
+      "metadata": {
+        "designer": { "x": 900, "y": 0 }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": { "orphans": [] },
+    "zone": "eu1.make.com"
+  }
+}

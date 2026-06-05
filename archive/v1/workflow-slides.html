@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen Orders — Workflow</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:#1B3A6B; --navy-d:#0E2246; --navy-s:#2A4F8E;
+      --gold:#C9A84C; --gold-d:#A07820; --gold-t:#FBF6E4;
+      --green:#2D6A4F; --green-t:#E8F5EE;
+      --red:#C62828; --red-t:#FEF2F2;
+      --orange:#B45309; --orange-t:#FFFBEC;
+      --paper:#FAF6EC; --surface:#fff; --ink:#1A1A2E; --muted:#6B7280; --line:#E7DFC9;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Roboto',sans-serif;background:#0d1117;color:var(--ink);min-height:100vh;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px 0 24px}
+    .progress{width:min(960px,96vw);height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-bottom:10px;overflow:hidden;position:sticky;top:8px;z-index:10}
+    .progress-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .3s}
+    #slides{width:min(960px,96vw)}
+    .slide{display:none;border-radius:22px;overflow:visible;box-shadow:0 20px 60px rgba(0,0,0,0.5);min-height:min(560px,82vh);position:relative}
+    .slide.active{display:flex;flex-direction:column}
+    .s-content,.s-dark{overflow-y:auto}
+
+    /* SLIDE TYPES */
+    .s-title{background:linear-gradient(145deg,var(--navy-d),var(--navy),var(--navy-s));color:#fff;justify-content:center;align-items:center;text-align:center;padding:40px 36px}
+    .s-content{background:var(--surface);padding:32px 36px}
+    .s-dark{background:linear-gradient(145deg,#0d1117,var(--navy-d));color:#fff;padding:32px 36px}
+    .s-split{background:var(--paper);padding:0;display:grid!important;grid-template-columns:1fr 1fr}
+
+    /* TYPOGRAPHY */
+    .eyebrow{display:inline-block;background:rgba(201,168,76,.2);color:var(--gold);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border-radius:20px;padding:4px 14px;margin-bottom:14px}
+    .eyebrow.dark{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+    h1.slide-h1{font-family:'Fraunces',serif;font-size:clamp(28px,5vw,44px);font-weight:700;line-height:1.1;margin-bottom:12px}
+    h1.slide-h1 em{font-style:italic;color:var(--gold)}
+    .slide-sub{font-size:15px;color:rgba(255,255,255,.75);line-height:1.6;max-width:540px}
+    h2.sec-h{font-family:'Fraunces',serif;font-size:clamp(20px,3.5vw,28px);font-weight:700;color:var(--navy-d);margin-bottom:6px}
+    h2.sec-h.light{color:#fff}
+    .gold-bar{width:44px;height:4px;background:var(--gold);border-radius:2px;margin:10px 0 20px}
+
+    /* FLOW STEPS */
+    .flow{display:flex;flex-direction:column;gap:10px}
+    .flow-row{display:flex;align-items:flex-start;gap:14px}
+    .flow-num{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--navy);color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center}
+    .flow-num.gold{background:var(--gold-d)}
+    .flow-num.green{background:var(--green)}
+    .flow-num.red{background:var(--red)}
+    .flow-body strong{display:block;font-size:14px;font-weight:700;color:var(--ink);margin-bottom:3px}
+    .flow-body span{font-size:12.5px;color:var(--muted);line-height:1.5}
+    .flow-arrow{text-align:center;color:var(--gold);font-size:18px;line-height:1;padding-left:16px}
+
+    /* CARDS GRID */
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-top:4px}
+    .card{border-radius:16px;padding:16px;border:1px solid var(--line);background:var(--paper)}
+    .card.gold-card{background:var(--gold-t);border-color:#dcc38b}
+    .card.green-card{background:var(--green-t);border-color:#a7d7b8}
+    .card.red-card{background:var(--red-t);border-color:#fca5a5}
+    .card.navy-card{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);color:#fff}
+    .card .ci{font-size:24px;margin-bottom:8px}
+    .card .ct{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px}
+    .card.navy-card .ct,.card.navy-card .cb{color:rgba(255,255,255,.9)}
+    .card .cb{font-size:12px;color:var(--muted);line-height:1.5}
+
+    /* SPLIT PANEL */
+    .split-pane{padding:28px 28px;display:flex;flex-direction:column}
+    .split-pane.left{background:var(--green-t);border-right:1px solid #a7d7b8}
+    .split-pane.right{background:var(--red-t)}
+    .split-pane h3{font-family:'Fraunces',serif;font-size:20px;font-weight:700;margin-bottom:8px}
+    .split-pane.left h3{color:var(--green)}
+    .split-pane.right h3{color:var(--red)}
+
+    /* WEBHOOK TABLE */
+    .wh-table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+    .wh-table th{background:var(--navy);color:#fff;padding:8px 12px;text-align:left;font-weight:600}
+    .wh-table td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+    .wh-table tr:last-child td{border-bottom:none}
+    .wh-table tr:nth-child(even) td{background:#faf6ec}
+    .badge{display:inline-block;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700}
+    .badge.post{background:#dbeafe;color:#1d4ed8}
+    .badge.get{background:#d1fae5;color:#065f46}
+    .badge.auto{background:var(--gold-t);color:var(--gold-d)}
+
+    /* MSG BUBBLE */
+    .msg-list{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+    .msg{border-radius:16px;padding:14px 16px;font-size:13px;line-height:1.6}
+    .msg.customer{background:#dcf8c6;border:1px solid #a8d5a2;color:#1a1a1a}
+    .msg.admin{background:var(--gold-t);border:1px solid #dcc38b;color:var(--ink)}
+    .msg.chef{background:#e0f2fe;border:1px solid #7dd3fc;color:#0c4a6e}
+    .msg-from{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;opacity:.65}
+    .msg code{background:rgba(0,0,0,.08);padding:1px 6px;border-radius:4px;font-size:11px}
+
+    /* NAV */
+    .nav-bar{display:flex;align-items:center;gap:12px;margin-top:10px;width:min(960px,96vw);justify-content:space-between}
+    .nav-dots{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;flex:1}
+    .dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer;transition:background .2s,transform .1s}
+    .dot.active{background:var(--gold);transform:scale(1.35)}
+    .nav-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:50%;width:40px;height:40px;font-size:18px;cursor:pointer;display:grid;place-items:center;transition:background .15s;flex-shrink:0}
+    .nav-btn:hover{background:rgba(255,255,255,.18)}
+    .nav-btn:disabled{opacity:.25;cursor:default}
+    .slide-counter{font-size:11px;color:rgba(255,255,255,.4);white-space:nowrap}
+
+    /* LANG TOGGLE */
+    .lang-toggle{position:fixed;top:14px;right:16px;display:flex;gap:4px;z-index:100}
+    .lang-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:background .15s}
+    .lang-btn.active{background:var(--gold);color:var(--navy-d);border-color:var(--gold)}
+
+    @media(max-width:600px){
+      .s-content,.s-dark{padding:22px 18px}
+      .s-split{grid-template-columns:1fr}
+      .cards{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+
+<div class="lang-toggle">
+  <button class="lang-btn active" onclick="setLang('ru')">RU</button>
+  <button class="lang-btn" onclick="setLang('he')">עב</button>
+</div>
+
+<div class="progress"><div class="progress-fill" id="pFill"></div></div>
+<div id="slides">
+
+<!-- 1. TITLE -->
+<div class="slide s-title active">
+  <div class="eyebrow dark" data-ru="Кухня Хабад Алматы · Техническая документация" data-he="מטבח חב״ד אלמאטי · תיעוד טכני"></div>
+  <h1 class="slide-h1">Kitchen Orders<br/><em data-ru="Полный рабочий процесс" data-he="זרימת עבודה מלאה"></em></h1>
+  <p class="slide-sub" data-ru="Make.com · WhatsApp · Airtable · APITemplate · ChatRace — как всё работает вместе" data-he="Make.com · WhatsApp · Airtable · APITemplate · ChatRace — איך הכל עובד יחד"></p>
+</div>
+
+<!-- 2. АРХИТЕКТУРА -->
+<div class="slide s-dark">
+  <div class="eyebrow dark" data-ru="Общий обзор" data-he="סקירה כללית"></div>
+  <h2 class="sec-h light" data-ru="Архитектура системы" data-he="ארכיטקטורת המערכת"></h2>
+  <div class="gold-bar"></div>
+  <div class="cards">
+    <div class="card navy-card"><div class="ci">👤</div><div class="ct" data-ru="Клиент" data-he="לקוח"></div><div class="cb" data-ru="Заполняет форму на сайте. Получает уведомления в WhatsApp." data-he="ממלא טופס באתר. מקבל התראות בוואטסאפ."></div></div>
+    <div class="card navy-card"><div class="ci">⚙️</div><div class="ct">Make.com</div><div class="cb" data-ru="Оркестрирует весь процесс: приём заказов, уведомления, PDF, обновление статусов." data-he="מתזמר את כל התהליך: קבלת הזמנות, התראות, PDF, עדכון סטטוסים."></div></div>
+    <div class="card navy-card"><div class="ci">🗄️</div><div class="ct">Airtable</div><div class="cb" data-ru="База данных: заказы, статусы, оплата, ваучеры, меню." data-he="מסד נתונים: הזמנות, סטטוסים, תשלום, שוברים, תפריט."></div></div>
+    <div class="card navy-card"><div class="ci">💬</div><div class="ct">WhatsApp</div><div class="cb" data-ru="Green API + ChatRace: уведомления клиенту, администратору, шеф-повару. Кнопки подтверждения." data-he="Green API + ChatRace: התראות ללקוח, מנהל, שף. כפתורי אישור."></div></div>
+    <div class="card navy-card"><div class="ci">📄</div><div class="ct">APITemplate</div><div class="cb" data-ru="Генерация PDF: квитанция для клиента + лист заказа для кухни." data-he="יצירת PDF: קבלה ללקוח + דף הזמנה למטבח."></div></div>
+    <div class="card navy-card"><div class="ci">💳</div><div class="ct">Kaspi / Voucher</div><div class="cb" data-ru="Kaspi: автоматическая ссылка на оплату. Ваучер: проверка и подтверждение владельца." data-he="Kaspi: קישור תשלום אוטומטי. שובר: אימות ואישור בעלים."></div></div>
+  </div>
+</div>
+
+<!-- 3. ШАГИ КЛИЕНТА -->
+<div class="slide s-content">
+  <div class="eyebrow" data-ru="Шаг 1" data-he="שלב 1"></div>
+  <h2 class="sec-h" data-ru="Клиент оформляет заказ" data-he="הלקוח מזמין"></h2>
+  <div class="gold-bar"></div>
+  <div class="flow">
+    <div class="flow-row"><div class="flow-num">1</div><div class="flow-body"><strong data-ru="Открывает order-hub.html" data-he="פותח order-hub.html"></strong><span data-ru="Выбирает тип заказа: Шаббат / Обед / Меню недели / Поминки" data-he="בוחר סוג הזמנה: שבת / צהריים / תפריט שבועי / הנצחה"></span></div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-row"><div class="flow-num">2</div><div class="flow-body"><strong data-ru="Переходит на order-form.html" data-he="עובר ל-order-form.html"></strong><span data-ru="Выбирает дату → блюда и количество → вводит имя, телефон, адрес" data-he="בוחר תאריך → מנות וכמויות → מזין שם, טלפון, כתובת"></span></div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-row"><div class="flow-num gold">3</div><div class="flow-body"><strong data-ru="Экран оплаты (screenPay)" data-he="מסך תשלום (screenPay)"></strong><span data-ru="Выбирает метод: Наличные / Kaspi / Ваучер / Частичная оплата" data-he="בוחר שיטה: מזומן / Kaspi / שובר / תשלום משולב"></span></div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-row"><div class="flow-num">4</div><div class="flow-body"><strong data-ru="Нажимает «Оформить заказ»" data-he="לוחץ על «בצע הזמנה»"></strong><span data-ru="Форма отправляет POST на вебхук Make.com. Клиент видит экран «Заказ принят»." data-he="הטופס שולח POST לוובהוק Make.com. הלקוח רואה מסך «ההזמנה התקבלה»."></span></div></div>
+  </div>
+</div>
+
+<!-- 4. MAKE ПОЛУЧАЕТ ЗАКАЗ -->
+<div class="slide s-dark">
+  <div class="eyebrow dark" data-ru="Шаг 2 — Make.com Сценарий 5a" data-he="שלב 2 — Make.com תרחיש 5a"></div>
+  <h2 class="sec-h light" data-ru="Make.com получает и обрабатывает заказ" data-he="Make.com מקבל ומעבד את ההזמנה"></h2>
+  <div class="gold-bar"></div>
+  <div class="flow">
+    <div class="flow-row"><div class="flow-num gold">1</div><div class="flow-body"><strong data-ru="Webhook получает JSON" data-he="Webhook מקבל JSON"></strong><span data-ru="order_type, items[], total_price, customer_name, customer_phone, payment_method, submitted_at" data-he="order_type, items[], total_price, customer_name, customer_phone, payment_method, submitted_at"></span></div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-row"><div class="flow-num">2</div><div class="flow-body"><strong data-ru="Создаёт запись в Airtable" data-he="יוצר רשומה ב-Airtable"></strong><span data-ru="Таблица «Orders»: статус = Новый, все поля заказа, номер заказа (автогенерация)" data-he="טבלת «Orders»: סטטוס = חדש, כל שדות ההזמנה, מספר הזמנה (אוטומטי)"></span></div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-row"><div class="flow-num">3</div><div class="flow-body"><strong data-ru="Роутер по payment_method" data-he="Router לפי payment_method"></strong><span data-ru="cash → стандартный поток | kaspi → отправить ссылку Kaspi | voucher → сценарий 5b" data-he="cash → זרימה סטנדרטית | kaspi → שלח קישור Kaspi | voucher → תרחיש 5b"></span></div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-row"><div class="flow-num green">4</div><div class="flow-body"><strong data-ru="Уведомления (параллельно)" data-he="התראות (במקביל)"></strong><span data-ru="→ WhatsApp клиенту: «Заказ принят, ожидайте» | → WhatsApp администратору: детали + кнопки" data-he="→ WhatsApp ללקוח: «ההזמנה התקבלה, ממתינים» | → WhatsApp למנהל: פרטים + כפתורים"></span></div></div>
+  </div>
+</div>
+
+<!-- 5. УВЕДОМЛЕНИЯ КЛИЕНТУ И ADMIN -->
+<div class="slide s-content">
+  <div class="eyebrow" data-ru="Шаг 3 — WhatsApp сообщения" data-he="שלב 3 — הודעות WhatsApp"></div>
+  <h2 class="sec-h" data-ru="Кто что получает" data-he="מי מקבל מה"></h2>
+  <div class="gold-bar"></div>
+  <div class="msg-list">
+    <div class="msg customer">
+      <div class="msg-from" data-ru="→ КЛИЕНТ (подтверждение получения)" data-he="→ ללקוח (אישור קבלה)"></div>
+      <span data-ru="✅ Ваш заказ #{{order_num}} принят!
+Тип: {{order_type}} · {{order_date}}
+Сумма: {{total_price}} ₸
+Ожидайте подтверждения от менеджера. Обычно в течение 1–2 часов." data-he="✅ הזמנתך #{{order_num}} התקבלה!
+סוג: {{order_type}} · {{order_date}}
+סכום: {{total_price}} ₸
+ממתינים לאישור מנהל. בדרך כלל תוך 1–2 שעות."></span>
+    </div>
+    <div class="msg admin">
+      <div class="msg-from" data-ru="→ АДМИНИСТРАТОР (новый заказ + кнопки)" data-he="→ למנהל (הזמנה חדשה + כפתורים)"></div>
+      <span data-ru="🆕 Новый заказ #{{order_num}}
+👤 {{customer_name}} · 📱 {{customer_phone}}
+🍽 {{order_type}} — {{order_date}}
+💰 {{total_price}} ₸ · {{payment_method}}
+📋 {{items_list}}
+[✅ Подтвердить] [❌ Отклонить]" data-he="🆕 הזמנה חדשה #{{order_num}}
+👤 {{customer_name}} · 📱 {{customer_phone}}
+🍽 {{order_type}} — {{order_date}}
+💰 {{total_price}} ₸ · {{payment_method}}
+📋 {{items_list}}
+[✅ אשר] [❌ דחה]"></span>
+    </div>
+  </div>
+</div>
+
+<!-- 6. АПРУВ / РЕДЖЕКТ -->
+<div class="slide s-split">
+  <div class="split-pane left">
+    <div class="eyebrow" style="background:#d1fae5;color:#065f46;" data-ru="✅ Одобрен" data-he="✅ אושר"></div>
+    <h3 data-ru="Заказ подтверждён" data-he="ההזמנה אושרה"></h3>
+    <div class="gold-bar" style="background:var(--green)"></div>
+    <div class="flow">
+      <div class="flow-row"><div class="flow-num green" style="font-size:11px">1</div><div class="flow-body"><strong data-ru="Airtable: статус → «Подтверждён»" data-he="Airtable: סטטוס → «אושר»"></strong></div></div>
+      <div class="flow-row"><div class="flow-num green" style="font-size:11px">2</div><div class="flow-body"><strong data-ru="WhatsApp клиенту: «Заказ подтверждён!»" data-he="WhatsApp ללקוח: «ההזמנה אושרה!»"></strong><span style="display:block;font-size:12px;color:var(--muted);margin-top:3px" data-ru="+ дата, время, детали" data-he="+ תאריך, שעה, פרטים"></span></div></div>
+      <div class="flow-row"><div class="flow-num green" style="font-size:11px">3</div><div class="flow-body"><strong data-ru="APITemplate → PDF" data-he="APITemplate → PDF"></strong><span style="display:block;font-size:12px;color:var(--muted);margin-top:3px" data-ru="Квитанция клиенту + лист кухни" data-he="קבלה ללקוח + דף מטבח"></span></div></div>
+      <div class="flow-row"><div class="flow-num green" style="font-size:11px">4</div><div class="flow-body"><strong data-ru="WhatsApp шеф-повару" data-he="WhatsApp לשף"></strong><span style="display:block;font-size:12px;color:var(--muted);margin-top:3px" data-ru="Лист заказа с составом блюд и количеством" data-he="דף הזמנה עם מנות וכמויות"></span></div></div>
+    </div>
+  </div>
+  <div class="split-pane right">
+    <div class="eyebrow" style="background:#fee2e2;color:#991b1b;" data-ru="❌ Отклонён" data-he="❌ נדחה"></div>
+    <h3 data-ru="Заказ отклонён" data-he="ההזמנה נדחתה"></h3>
+    <div class="gold-bar" style="background:var(--red)"></div>
+    <div class="flow">
+      <div class="flow-row"><div class="flow-num red" style="font-size:11px">1</div><div class="flow-body"><strong data-ru="Airtable: статус → «Отклонён»" data-he="Airtable: סטטוס → «נדחה»"></strong></div></div>
+      <div class="flow-row"><div class="flow-num red" style="font-size:11px">2</div><div class="flow-body"><strong data-ru="WhatsApp клиенту: извинения + причина" data-he="WhatsApp ללקוח: התנצלות + סיבה"></strong><span style="display:block;font-size:12px;color:var(--muted);margin-top:3px" data-ru="❌ К сожалению, заказ №... не может быть выполнен. [причина]. Свяжитесь с нами: +7..." data-he="❌ לצערנו, הזמנה מס׳... לא ניתן לבצע. [סיבה]. צרו קשר: +7..."></span></div></div>
+      <div class="flow-row"><div class="flow-num red" style="font-size:11px">3</div><div class="flow-body"><strong data-ru="Если была оплата — уведомление о возврате" data-he="אם היה תשלום — הודעה על החזר"></strong></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. ОПЛАТА — 4 МЕТОДА -->
+<div class="slide s-content">
+  <div class="eyebrow" data-ru="Оплата — 4 метода" data-he="תשלום — 4 שיטות"></div>
+  <h2 class="sec-h" data-ru="Потоки оплаты" data-he="זרימות תשלום"></h2>
+  <div class="gold-bar"></div>
+  <div class="cards">
+    <div class="card gold-card">
+      <div class="ci">💵</div>
+      <div class="ct" data-ru="Наличные" data-he="מזומן"></div>
+      <div class="cb" data-ru="Заказ отправляется → Admin получает уведомление → Подтверждает получение наличных вручную → статус «Оплачен»" data-he="הזמנה נשלחת → מנהל מקבל התראה → מאשר קבלת מזומן ידנית → סטטוס «שולם»"></div>
+    </div>
+    <div class="card navy-card" style="background:rgba(27,58,107,.9)">
+      <div class="ci">📱</div>
+      <div class="ct" style="color:#fff">Kaspi</div>
+      <div class="cb" style="color:rgba(255,255,255,.75)" data-ru="Заказ → Make генерирует ссылку Kaspi с суммой → отправляет клиенту в WhatsApp → Kaspi webhook подтверждает оплату → статус обновляется" data-he="הזמנה → Make יוצר קישור Kaspi עם הסכום → שולח ללקוח בוואטסאפ → Kaspi webhook מאשר תשלום → סטטוס מתעדכן"></div>
+    </div>
+    <div class="card green-card">
+      <div class="ci">🎫</div>
+      <div class="ct" data-ru="Ваучер" data-he="שובר"></div>
+      <div class="cb" data-ru="Клиент вводит код + имя владельца → Make.com (сцен.5b) проверяет Airtable → Отправляет запрос владельцу в WA → Владелец подтверждает → статус «Принят»" data-he="לקוח מזין קוד + שם בעלים → Make.com (תרחיש 5b) בודק Airtable → שולח בקשה לבעלים בוואטסאפ → בעלים מאשר → סטטוס «אושר»"></div>
+    </div>
+    <div class="card" style="background:#f5f0ff;border-color:#c4b5fd">
+      <div class="ci">🔀</div>
+      <div class="ct" style="color:#4c1d95" data-ru="Частичная оплата" data-he="תשלום משולב"></div>
+      <div class="cb" data-ru="Сплит между 2–3 методами. Make роутит каждую часть по своему методу. Статус «Оплачен» только когда все части подтверждены." data-he="פיצול בין 2–3 שיטות. Make מנתב כל חלק לפי שיטתו. סטטוס «שולם» רק כאשר כל החלקים אושרו."></div>
+    </div>
+  </div>
+</div>
+
+<!-- 8. VOUCHER FLOW -->
+<div class="slide s-dark">
+  <div class="eyebrow dark" data-ru="Детальный поток — Ваучер" data-he="זרימה מפורטת — שובר"></div>
+  <h2 class="sec-h light" data-ru="Процесс подтверждения ваучера" data-he="תהליך אישור שובר"></h2>
+  <div class="gold-bar"></div>
+  <div class="flow">
+    <div class="flow-row"><div class="flow-num gold">1</div><div class="flow-body"><strong data-ru="Клиент вводит: код талона + имя владельца + свой WA" data-he="לקוח מזין: קוד שובר + שם בעלים + הוואטסאפ שלו"></strong></div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-row"><div class="flow-num">2</div><div class="flow-body"><strong data-ru="Webhook 5b → Make Сценарий 5b" data-he="Webhook 5b → Make תרחיש 5b"></strong><span data-ru="Проверяет ваучер в Airtable: существует? не использован? сумма совпадает?" data-he="בודק שובר ב-Airtable: קיים? לא נוצל? הסכום מתאים?"></span></div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-row"><div class="flow-num">3</div><div class="flow-body"><strong data-ru="Если ваучер валиден → запрос владельцу в WhatsApp" data-he="אם השובר תקין → בקשה לבעלים בוואטסאפ"></strong><span data-ru="🎫 Запрос на использование талона №XXX на сумму YYY ₸ для [имя клиента]. [✅ Разрешить] [❌ Отказать]" data-he="🎫 בקשה לשימוש בשובר מס׳ XXX בסכום YYY ₸ עבור [שם לקוח]. [✅ אשר] [❌ דחה]"></span></div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-row"><div class="flow-num green">4</div><div class="flow-body"><strong data-ru="Владелец отвечает через ChatRace" data-he="הבעלים עונה דרך ChatRace"></strong><span data-ru="✅ → Ваучер помечается как «использован» в Airtable → Заказ продолжается | ❌ → Клиент получает уведомление об отказе" data-he="✅ → שובר מסומן כ«נוצל» ב-Airtable → ההזמנה ממשיכה | ❌ → לקוח מקבל הודעת דחייה"></span></div></div>
+  </div>
+</div>
+
+<!-- 9. APITEMPLATE PDF -->
+<div class="slide s-content">
+  <div class="eyebrow" data-ru="APITemplate — PDF документы" data-he="APITemplate — מסמכי PDF"></div>
+  <h2 class="sec-h" data-ru="Какие PDF генерируются" data-he="אילו PDF נוצרים"></h2>
+  <div class="gold-bar"></div>
+  <div class="cards">
+    <div class="card gold-card">
+      <div class="ci">🧾</div>
+      <div class="ct" data-ru="Квитанция клиента" data-he="קבלה ללקוח"></div>
+      <div class="cb" data-ru="Номер заказа, состав, сумма, метод оплаты, дата. Отправляется в WhatsApp после подтверждения." data-he="מספר הזמנה, פירוט, סכום, שיטת תשלום, תאריך. נשלח בוואטסאפ לאחר אישור."></div>
+    </div>
+    <div class="card" style="background:#e0f2fe;border-color:#7dd3fc">
+      <div class="ci">👨‍🍳</div>
+      <div class="ct" style="color:#0c4a6e" data-ru="Лист кухни" data-he="דף מטבח"></div>
+      <div class="cb" data-ru="Дата, тип заказа, список блюд с количеством, адрес доставки. Шеф-повар получает через WhatsApp или печатает." data-he="תאריך, סוג הזמנה, רשימת מנות עם כמויות, כתובת משלוח. השף מקבל בוואטסאפ או מדפיס."></div>
+    </div>
+  </div>
+  <div style="margin-top:18px;background:#f8f6f0;border-radius:14px;padding:16px 18px;border:1px solid var(--line)">
+    <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px" data-ru="Структура данных → APITemplate" data-he="מבנה נתונים → APITemplate"></div>
+    <code style="font-size:12px;color:#374151;line-height:1.8;display:block">
+      order_number · customer_name · order_date<br>
+      items[]: name · qty · unit_price · subtotal<br>
+      total_price · payment_method · delivery_address
+    </code>
+  </div>
+</div>
+
+<!-- 10. ВЕБХУКИ -->
+<div class="slide s-content">
+  <div class="eyebrow" data-ru="Make.com — Список вебхуков" data-he="Make.com — רשימת Webhooks"></div>
+  <h2 class="sec-h" data-ru="Все вебхуки системы" data-he="כל ה-Webhooks של המערכת"></h2>
+  <div class="gold-bar"></div>
+  <table class="wh-table">
+    <thead><tr><th data-ru="Вебхук" data-he="Webhook"></th><th data-ru="Метод" data-he="שיטה"></th><th data-ru="Сценарий" data-he="תרחיש"></th><th data-ru="Назначение" data-he="מטרה"></th></tr></thead>
+    <tbody>
+      <tr><td>ORDER_WEBHOOK</td><td><span class="badge post">POST</span></td><td>5a</td><td data-ru="Заказ (наличные / Kaspi / комбо)" data-he="הזמנה (מזומן / Kaspi / משולב)"></td></tr>
+      <tr><td>VOUCHER_WEBHOOK</td><td><span class="badge post">POST</span></td><td>5b</td><td data-ru="Проверка и подтверждение ваучера" data-he="בדיקת ואישור שובר"></td></tr>
+      <tr><td>MENU_WEBHOOK</td><td><span class="badge get">GET</span></td><td>5c</td><td data-ru="Загрузка меню из Airtable" data-he="טעינת תפריט מ-Airtable"></td></tr>
+      <tr><td>SLOTS_WEBHOOK</td><td><span class="badge get">GET</span></td><td>5d</td><td data-ru="Загрузка доступных дат" data-he="טעינת תאריכים זמינים"></td></tr>
+      <tr><td>SETTINGS_WEBHOOK</td><td><span class="badge get">GET</span></td><td>5e</td><td data-ru="Настройки сайта из Airtable" data-he="הגדרות אתר מ-Airtable"></td></tr>
+      <tr><td>ADMIN_APPROVE</td><td><span class="badge auto">ChatRace</span></td><td>5f</td><td data-ru="Ответ администратора (✅/❌)" data-he="תשובת מנהל (✅/❌)"></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 11. СООБЩЕНИЯ ВСЕ -->
+<div class="slide s-dark">
+  <div class="eyebrow dark" data-ru="WhatsApp — Все шаблоны сообщений" data-he="WhatsApp — כל תבניות ההודעות"></div>
+  <h2 class="sec-h light" data-ru="Кто что получает" data-he="מי מקבל מה"></h2>
+  <div class="gold-bar"></div>
+  <div class="msg-list">
+    <div class="msg customer"><div class="msg-from" data-ru="КЛИЕНТ — Заказ принят (ожидание)" data-he="לקוח — הזמנה התקבלה (המתנה)"></div><span data-ru="✅ Заказ #{{num}} принят. Ожидайте подтверждения в течение 1–2 ч." data-he="✅ הזמנה #{{num}} התקבלה. ממתינים לאישור תוך 1–2 שעות."></span></div>
+    <div class="msg customer" style="background:#dcf8c6"><div class="msg-from" data-ru="КЛИЕНТ — Заказ подтверждён" data-he="לקוח — ההזמנה אושרה"></div><span data-ru="🎉 Заказ #{{num}} подтверждён! {{order_type}}, {{date}}. Сумма: {{total}} ₸. Ждём вас! PDF-квитанция: [ссылка]" data-he="🎉 הזמנה #{{num}} אושרה! {{order_type}}, {{date}}. סכום: {{total}} ₸. מחכים לך! קבלה PDF: [קישור]"></span></div>
+    <div class="msg customer" style="background:#fee2e2;border-color:#fca5a5"><div class="msg-from" data-ru="КЛИЕНТ — Заказ отклонён" data-he="לקוח — ההזמנה נדחתה"></div><span data-ru="❌ К сожалению, заказ #{{num}} не может быть выполнен. {{reason}}. Свяжитесь с нами: {{phone}}" data-he="❌ לצערנו, הזמנה #{{num}} לא ניתן לבצע. {{reason}}. צרו קשר: {{phone}}"></span></div>
+    <div class="msg chef"><div class="msg-from" data-ru="ШЕФ-ПОВАР — Новый заказ на кухню" data-he="שף — הזמנה חדשה למטבח"></div><span data-ru="👨‍🍳 Заказ #{{num}} | {{order_type}} | {{date}}
+{{items_formatted}}
+📍 {{delivery_address}}" data-he="👨‍🍳 הזמנה #{{num}} | {{order_type}} | {{date}}
+{{items_formatted}}
+📍 {{delivery_address}}"></span></div>
+  </div>
+</div>
+
+<!-- 12. ФИНАЛ -->
+<div class="slide s-title">
+  <div class="eyebrow dark" data-ru="Полная схема готова" data-he="התרשים המלא מוכן"></div>
+  <h1 class="slide-h1" data-ru="Система готова к<br/><em>реализации</em>" data-he="המערכת מוכנה<br/><em>ליישום</em>"></h1>
+  <p class="slide-sub" data-ru="Следующий шаг: настройка Make.com сценариев, шаблонов WhatsApp и PDF" data-he="הצעד הבא: הגדרת תרחישי Make.com, תבניות WhatsApp ו-PDF"></p>
+</div>
+
+</div><!-- /slides -->
+
+<div class="nav-bar">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)" disabled>‹</button>
+  <div class="nav-dots" id="dots"></div>
+  <span class="slide-counter" id="ctr">1 / 12</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">›</button>
+</div>
+
+<script>
+const slides=document.querySelectorAll('.slide'),total=slides.length;
+let cur=0,lang='ru';
+const dots=document.getElementById('dots');
+for(let i=0;i<total;i++){const d=document.createElement('div');d.className='dot'+(i===0?' active':'');d.onclick=()=>goTo(i);dots.appendChild(d);}
+function goTo(n){cur=Math.max(0,Math.min(total-1,n));slides.forEach((s,i)=>s.classList.toggle('active',i===cur));document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('active',i===cur));document.getElementById('ctr').textContent=(cur+1)+' / '+total;document.getElementById('prevBtn').disabled=cur===0;document.getElementById('nextBtn').disabled=cur===total-1;document.getElementById('pFill').style.width=((cur+1)/total*100)+'%';}
+function go(d){goTo(cur+d);}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowDown')go(1);if(e.key==='ArrowLeft'||e.key==='ArrowUp')go(-1);});
+let tx=0;document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX},{passive:true});document.addEventListener('touchend',e=>{const d=tx-e.changedTouches[0].clientX;if(Math.abs(d)>40)go(d>0?1:-1);},{passive:true});
+
+function setLang(l){
+  lang=l;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.textContent.trim()===(l==='ru'?'RU':'עב')));
+  const isRTL=l==='he';
+  document.documentElement.dir=isRTL?'rtl':'ltr';
+  document.querySelectorAll('[data-'+l+']').forEach(el=>{
+    const val=el.getAttribute('data-'+l);
+    if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'){el.value=val;}
+    else{el.innerHTML=val.replace(/\n/g,'<br>');}
+  });
+}
+goTo(0);
+</script>
+</body>
+</html>

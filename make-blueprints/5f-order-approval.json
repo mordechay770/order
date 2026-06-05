@@ -1,0 +1,281 @@
+{
+  "name": "2026-04-21 · Order Approval · Mordechai",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": "YOUR_WEBHOOK_ID",
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "restore": {
+          "parameters": {
+            "hook": { "label": "kc-order-approval" }
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "airtable:ActionSearchRecords",
+      "version": 3,
+      "parameters": {
+        "__IMTCONN__": "YOUR_AIRTABLE_CONNECTION_ID"
+      },
+      "mapper": {
+        "baseId": "YOUR_AIRTABLE_BASE_ID",
+        "tableId": "Orders",
+        "filterByFormula": "{order_id}='{{1.order_id}}'",
+        "maxRecords": 1
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0 }
+      }
+    },
+    {
+      "id": 3,
+      "module": "airtable:ActionUpdateRecord",
+      "version": 3,
+      "parameters": {
+        "__IMTCONN__": "YOUR_AIRTABLE_CONNECTION_ID"
+      },
+      "mapper": {
+        "baseId": "YOUR_AIRTABLE_BASE_ID",
+        "tableId": "Orders",
+        "recordId": "{{2.records[].id}}",
+        "fields": {
+          "status":        "{{1.action}}",
+          "reject_reason": "{{1.reason}}",
+          "approved_at":   "{{now}}"
+        }
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": 0 }
+      }
+    },
+    {
+      "id": 4,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 900, "y": 0 }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 5,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": true,
+                "useNewZLibDecompression": true
+              },
+              "filter": {
+                "name": "Approved",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.action}}",
+                      "b": "approved",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "url": "https://rest.apitemplate.io/v2/create?template_id=YOUR_RECEIPT_TEMPLATE_ID",
+                "method": "post",
+                "headers": [
+                  {
+                    "name": "X-API-KEY",
+                    "value": "YOUR_APITEMPLATE_API_KEY"
+                  }
+                ],
+                "qs": [],
+                "bodyType": "raw",
+                "parseResponse": true,
+                "timeout": 60,
+                "contentType": "application/json",
+                "body": "{\"overrides\": [{\"name\": \"order_id\", \"text\": \"{{2.records[].fields.order_id}}\"}, {\"name\": \"customer_name\", \"text\": \"{{2.records[].fields.customer_name}}\"}, {\"name\": \"date\", \"text\": \"{{2.records[].fields.date}}\"}, {\"name\": \"items\", \"text\": \"{{2.records[].fields.items}}\"}, {\"name\": \"total\", \"text\": \"{{2.records[].fields.total}} ₸\"}, {\"name\": \"payment_method\", \"text\": \"{{2.records[].fields.payment_method}}\"}]}"
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": -300 }
+              }
+            },
+            {
+              "id": 6,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": true,
+                "useNewZLibDecompression": true
+              },
+              "mapper": {
+                "url": "https://rest.apitemplate.io/v2/create?template_id=YOUR_KITCHEN_SHEET_TEMPLATE_ID",
+                "method": "post",
+                "headers": [
+                  {
+                    "name": "X-API-KEY",
+                    "value": "YOUR_APITEMPLATE_API_KEY"
+                  }
+                ],
+                "qs": [],
+                "bodyType": "raw",
+                "parseResponse": true,
+                "timeout": 60,
+                "contentType": "application/json",
+                "body": "{\"overrides\": [{\"name\": \"order_id\", \"text\": \"{{2.records[].fields.order_id}}\"}, {\"name\": \"date\", \"text\": \"{{2.records[].fields.date}}\"}, {\"name\": \"type\", \"text\": \"{{2.records[].fields.type}}\"}, {\"name\": \"items\", \"text\": \"{{2.records[].fields.items}}\"}, {\"name\": \"notes\", \"text\": \"{{2.records[].fields.notes}}\"}, {\"name\": \"customer_name\", \"text\": \"{{2.records[].fields.customer_name}}\"}]}"
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": -100 }
+              }
+            },
+            {
+              "id": 7,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": true,
+                "useNewZLibDecompression": true
+              },
+              "mapper": {
+                "url": "https://api.green-api.com/waInstance{{YOUR_GREEN_API_INSTANCE_ID}}/sendFileByUrl/{{YOUR_GREEN_API_TOKEN}}",
+                "method": "post",
+                "headers": [],
+                "qs": [],
+                "bodyType": "raw",
+                "parseResponse": true,
+                "timeout": 40,
+                "contentType": "application/json",
+                "body": "{\"chatId\": \"{{2.records[].fields.phone}}@c.us\", \"urlFile\": \"{{5.download_url}}\", \"fileName\": \"receipt-{{2.records[].fields.order_id}}.pdf\", \"caption\": \"✅ Заказ №{{2.records[].fields.order_id}} подтверждён!\\n\\n📅 Дата: {{2.records[].fields.date}}\\n💰 Сумма: {{2.records[].fields.total}} ₸\\n\\nЧек во вложении. Ждём вас! 🙏\\n— Кухня Хабад Алматы\"}"
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": -300 }
+              }
+            },
+            {
+              "id": 8,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": true,
+                "useNewZLibDecompression": true
+              },
+              "mapper": {
+                "url": "https://api.green-api.com/waInstance{{YOUR_GREEN_API_INSTANCE_ID}}/sendFileByUrl/{{YOUR_GREEN_API_TOKEN}}",
+                "method": "post",
+                "headers": [],
+                "qs": [],
+                "bodyType": "raw",
+                "parseResponse": true,
+                "timeout": 40,
+                "contentType": "application/json",
+                "body": "{\"chatId\": \"{{YOUR_CHEF_PHONE}}@c.us\", \"urlFile\": \"{{6.download_url}}\", \"fileName\": \"kitchen-{{2.records[].fields.order_id}}.pdf\", \"caption\": \"👨‍🍳 Новый заказ к приготовлению\\n\\n📋 №{{2.records[].fields.order_id}}\\n📅 {{2.records[].fields.date}}\\n🍽 {{2.records[].fields.type}}\\n\\nДетали в PDF.\"}"
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": -100 }
+              }
+            },
+            {
+              "id": 9,
+              "module": "gateway:WebhookRespond",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "status": "200",
+                "body": "{\"success\": true, \"action\": \"approved\", \"order_id\": \"{{1.order_id}}\"}",
+                "headers": [
+                  { "key": "Content-Type",                "value": "application/json" },
+                  { "key": "Access-Control-Allow-Origin", "value": "*"                }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": -200 }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 10,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": true,
+                "useNewZLibDecompression": true
+              },
+              "filter": {
+                "name": "Rejected",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.action}}",
+                      "b": "rejected",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "url": "https://api.green-api.com/waInstance{{YOUR_GREEN_API_INSTANCE_ID}}/sendMessage/{{YOUR_GREEN_API_TOKEN}}",
+                "method": "post",
+                "headers": [],
+                "qs": [],
+                "bodyType": "raw",
+                "parseResponse": true,
+                "timeout": 40,
+                "contentType": "application/json",
+                "body": "{\"chatId\": \"{{2.records[].fields.phone}}@c.us\", \"message\": \"❌ К сожалению, заказ №{{2.records[].fields.order_id}} не может быть выполнен.\\n\\n📋 Причина: {{if(1.reason; 1.reason; \\\"К сожалению, на эту дату заказы недоступны\\\")}}\\n\\nПожалуйста, свяжитесь с нами для уточнения деталей.\\n📞 Кухня Хабад Алматы\"}"
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": 200 }
+              }
+            },
+            {
+              "id": 11,
+              "module": "gateway:WebhookRespond",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "status": "200",
+                "body": "{\"success\": true, \"action\": \"rejected\", \"order_id\": \"{{1.order_id}}\"}",
+                "headers": [
+                  { "key": "Content-Type",                "value": "application/json" },
+                  { "key": "Access-Control-Allow-Origin", "value": "*"                }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": 200 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": { "orphans": [] },
+    "zone": "eu1.make.com"
+  }
+}

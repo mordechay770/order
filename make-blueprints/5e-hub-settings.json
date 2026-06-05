@@ -1,0 +1,91 @@
+{
+  "name": "2026-04-21 · Hub Settings · Mordechai",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": "YOUR_WEBHOOK_ID",
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "restore": {
+          "parameters": {
+            "hook": { "label": "kc-hub-settings" }
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {
+        "handleErrors": true,
+        "useNewZLibDecompression": true
+      },
+      "mapper": {
+        "url": "https://api.airtable.com/v0/YOUR_AIRTABLE_BASE_ID/Settings",
+        "method": "get",
+        "headers": [
+          {
+            "name": "Authorization",
+            "value": "Bearer YOUR_AIRTABLE_PERSONAL_ACCESS_TOKEN"
+          }
+        ],
+        "qs": [
+          {
+            "name": "filterByFormula",
+            "value": "OR({key}='announcement_ru', {key}='announcement_en', {key}='announcement_he', {key}='is_open', {key}='opening_hours', {key}='shabbat_visible', {key}='lunch_visible', {key}='weekly_visible', {key}='event_visible', {key}='pominki_visible')"
+          }
+        ],
+        "bodyType": "raw",
+        "parseResponse": true,
+        "timeout": 40,
+        "rejectUnauthorized": true,
+        "followRedirect": true,
+        "gzip": true
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0 }
+      }
+    },
+    {
+      "id": 3,
+      "module": "gateway:WebhookRespond",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "status": "200",
+        "body": "{{toString(2.data)}}",
+        "headers": [
+          { "key": "Content-Type",                "value": "application/json" },
+          { "key": "Access-Control-Allow-Origin", "value": "*"                }
+        ]
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": 0 }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": { "orphans": [] },
+    "zone": "eu1.make.com"
+  }
+}
