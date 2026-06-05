@@ -1351,15 +1351,15 @@
 
 <script>
 // ═════════════════════ CONFIG + LOGIC (unchanged from original) ═════════════════════
-const MENU_WEBHOOK_URL = 'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l';
-const ORDER_WEBHOOK_URL = 'https://hook.eu1.make.com/9v6fgdv240xcvuc6xc263q4ql7u4x69e';
-const SLOTS_WEBHOOK_URL = 'YOUR_SLOTS_WEBHOOK_URL_HERE';
-const SETTINGS_WEBHOOK_URL = 'YOUR_SETTINGS_WEBHOOK_URL_HERE';
-const VOUCHER_WEBHOOK_URL = (() => {
-  try { const _ae = JSON.parse(localStorage.getItem('kc_admin_settings') || '{}');
-    return (_ae.webhooks && _ae.webhooks.voucher) || 'YOUR_VOUCHER_WEBHOOK_URL_HERE';
-  } catch(_) { return 'YOUR_VOUCHER_WEBHOOK_URL_HERE'; }
+const _adminSettings = (() => {
+  try { return JSON.parse(localStorage.getItem('kc_admin_settings') || '{}'); } catch(_) { return {}; }
 })();
+const _wh = _adminSettings.webhooks || {};
+const MENU_WEBHOOK_URL     = _wh.menu     || '';
+const ORDER_WEBHOOK_URL    = _wh.order    || '';
+const SLOTS_WEBHOOK_URL    = _wh.slots    || '';
+const SETTINGS_WEBHOOK_URL = _wh.settings || '';
+const VOUCHER_WEBHOOK_URL  = _wh.voucher  || '';
 
 const SITE_CONFIG = {
   site_name: 'Кухня', logo_emoji: '🍽', logo_url: '',
