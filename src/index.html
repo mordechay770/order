@@ -237,6 +237,22 @@
       color: #fff;
     }
 
+    .cta-card--tertiary {
+      background: var(--gold-tint);
+      border: 1.5px solid var(--gold-pale);
+      box-shadow: 0 16px 50px -10px rgba(201,168,76,0.15);
+      color: var(--navy-deep);
+    }
+    .cta-card--tertiary:hover {
+      border-color: var(--gold);
+      box-shadow: 0 24px 60px -10px rgba(201,168,76,0.25);
+    }
+    .cta-card--tertiary .cta-title { color: var(--navy); }
+    .cta-card--tertiary .cta-btn {
+      background: var(--gold);
+      color: var(--navy-deep);
+    }
+
     /* ── SCROLL HINT ── */
     .scroll-hint {
       margin-top: 64px;
@@ -368,6 +384,14 @@
         <div class="cta-desc">Свадьбы, бар-мицвы, корпоративы. Полное меню, залы, сервировка — всё включено.</div>
         <div class="cta-btn">Узнать подробности →</div>
       </a>
+
+      <a href="https://recipes-ivory-xi.vercel.app" class="cta-card cta-card--tertiary" target="_blank">
+        <span class="cta-emoji">📖</span>
+        <div class="cta-label">Рецепты</div>
+        <div class="cta-title">Кошерные рецепты</div>
+        <div class="cta-desc">Халы, традиционные блюда, семейные рецепты. Делитесь своими с общиной.</div>
+        <div class="cta-btn">Перейти →</div>
+      </a>
     </div>
 
     <div class="scroll-hint">
@@ -403,7 +427,7 @@
 
   <!-- FOOTER -->
   <footer>
-    <p>© 2026 Кухня · Алматы &nbsp;·&nbsp; <a href="order-form.html">Заказать еду</a> &nbsp;·&nbsp; <a href="event-form.html">Мероприятия</a></p>
+    <p>© 2026 Кухня · Алматы &nbsp;·&nbsp; <a href="order-form.html">Заказать еду</a> &nbsp;·&nbsp; <a href="event-form.html">Мероприятия</a> &nbsp;·&nbsp; <a href="https://recipes-ivory-xi.vercel.app" target="_blank">Рецепты</a></p>
   </footer>
 
 </body>
