@@ -2095,31 +2095,43 @@ function getSampleDishes(typeId) {
 
 // ── CLOSURE CHECK (Shabbat + custom holiday blocks) ──────────────
 
+function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(id));
+}
+
 async function fetchGeoLocation() {
-  const cacheKey = 'kc_geo_' + new Date().toISOString().slice(0, 10);
-  const cached = sessionStorage.getItem(cacheKey);
-  if (cached) return JSON.parse(cached);
-  const res = await fetch('https://ipapi.co/json/');
+  const cached = sessionStorage.getItem('kc_geo');
+  if (cached) {
+    const p = JSON.parse(cached);
+    if (p.date === new Date().toISOString().slice(0, 10)) return p;
+  }
+  const res = await fetchWithTimeout('https://ipapi.co/json/', 3000);
   const d = await res.json();
-  const result = { lat: d.latitude, lng: d.longitude, tz: d.timezone };
-  sessionStorage.setItem(cacheKey, JSON.stringify(result));
+  const result = { lat: d.latitude, lng: d.longitude, tz: d.timezone, date: new Date().toISOString().slice(0, 10) };
+  sessionStorage.setItem('kc_geo', JSON.stringify(result));
   return result;
 }
 
 async function fetchShabbatTimes(lat, lng, tz) {
-  const cacheKey = 'kc_shabbat_' + new Date().toISOString().slice(0, 10) + '_' + lat.toFixed(1) + '_' + lng.toFixed(1);
-  const cached = sessionStorage.getItem(cacheKey);
-  if (cached) return JSON.parse(cached);
+  const today = new Date().toISOString().slice(0, 10);
+  const cached = sessionStorage.getItem('kc_shabbat');
+  if (cached) {
+    const p = JSON.parse(cached);
+    if (p.date === today && p.lat === lat.toFixed(1)) return p;
+  }
   const url = `https://www.hebcal.com/shabbat?cfg=json&latitude=${lat}&longitude=${lng}&tzid=${encodeURIComponent(tz)}&m=50`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, 3000);
   const data = await res.json();
   const candles  = data.items?.find(i => i.category === 'candles');
   const havdalah = data.items?.find(i => i.category === 'havdalah');
   const result = {
     candles:  candles  ? new Date(candles.date).getTime()  : null,
     havdalah: havdalah ? new Date(havdalah.date).getTime() : null,
+    date: today, lat: lat.toFixed(1),
   };
-  sessionStorage.setItem(cacheKey, JSON.stringify(result));
+  sessionStorage.setItem('kc_shabbat', JSON.stringify(result));
   return result;
 }
 
@@ -2224,7 +2236,7 @@ async function checkClosure() {
   renderAnnouncements(SITE_CONFIG.announcements);
   renderPageButtons();
   loadSettings();
-  if (await checkClosure()) return; // closed — show closure screen, stop init
+  if (await Promise.race([checkClosure(), new Promise(r => setTimeout(() => r(false), 4000))])) return;
   const params = new URLSearchParams(window.location.search);
   const typeId = params.get('type');
   if (typeId) { const f = ORDER_TYPES.find(t => t.id===typeId); if (f) { await selectType(f); return; } }
