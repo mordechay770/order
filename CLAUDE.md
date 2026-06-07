@@ -45,6 +45,23 @@ kitchen-orders/
 - `src/admin.html` — ממשק ניהול (כולל טאב 🎉 אולמות+שירותים)
 - `src/order-hub.html` — מרכז הזמנות
 
+## 🌐 Deploy
+| | |
+|---|---|
+| **GitHub** | `github.com/mordechay770/order` |
+| **Vercel URL** | `https://src-sigma-ecru-25.vercel.app` |
+| **Root directory** | `src/` |
+| **פקודת deploy** | `cd kitchen-orders/src && vercel --prod` |
+
+> ⚠️ Vercel לא מחובר ל-GitHub אוטומטית — deploy ידני אחרי כל שינוי.
+> לחיבור אוטומטי: Vercel dashboard → Settings → Git → Connect `mordechay770/order` → Root: `src`
+
+## ניווט בין דפים
+- `src/index.html` → דף ראשי (hub) — מפנה ל: order-form, event-form, recipes
+- `src/order-form.html` → קישור "← Главная" חוזר ל-Vercel URL
+- `src/order-hub.html` → קישור "← Главная" חוזר ל-Vercel URL
+- מתכונים: `recipes-ivory-xi.vercel.app` → קישור "← Кухня" חוזר ל-Vercel URL
+
 ## סוכנים רלוונטיים
 - ⚙️ **מפתח צד-שרת** — Make.com, webhooks
 - 🎨 **מפתח ממשקים** — טפסים, admin UI
@@ -54,9 +71,9 @@ kitchen-orders/
 - admin.html שומר הגדרות: `localStorage('kc_admin_settings')`
 - event-booking/event-form.html קורא מאותו key
 - Make.com: webhooks לכל שלב בהזמנה
+- Webhook URLs — אין בקוד! נקראים בלבד מ-localStorage
 
-## כלל קריטי
-שינוי ב-`kc_admin_settings` schema → חייב לעדכן גם ב-event-booking!
-
-## כללים
-- כל שינוי → עדכן CHANGELOG.md בתיקייה זו
+## כללים קריטיים
+- שינוי ב-`kc_admin_settings` schema → חייב לעדכן גם ב-event-booking!
+- כל שינוי מבני (תיקיות, URLs, deploy) → עדכן סעיף זה ב-CLAUDE.md
+- כל שינוי קוד → עדכן CHANGELOG.md
