@@ -1,5 +1,22 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-06-07 — שיחה 5: פיצ'ר שבת + Vercel deploy
+
+### בוצע
+- פיצ'ר שבת: זמני הדלקת נרות + הבדלה לפי מיקום גולש (Hebcal API + ipapi.co)
+- מסך סגירה מציג שני כרטיסים: שעת נרות + שעת צאת שבת
+- admin.html — הוסבר שהשדה הוא fallback בלבד
+- תיקוני איכות: fetch timeout 3s, sessionStorage מפתח קבוע, init fallback 4s
+- Vercel חובר ל-GitHub (deploy ידני עד אימות אוטומטי)
+- Deploy פעיל: `src-sigma-ecru-25.vercel.app`
+
+### פתוח לשיחה הבאה
+- לאמת שVercel מתעדכן אוטומטי מ-push (BACKLOG)
+- Make webhooks 5a–5f
+- admin.html — טאב ⚙️ סוגי הזמנות
+
+---
+
 ## 2026-06-07 — GitHub + Vercel + Landing Page
 
 ### בוצע
