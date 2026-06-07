@@ -200,7 +200,16 @@
     .shabbat-icon { font-size: 56px; margin-bottom: 20px; }
     .shabbat-title { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 600; margin-bottom: 10px; }
     .shabbat-sub { font-size: 15px; opacity: 0.75; line-height: 1.6; max-width: 300px; }
-    .shabbat-reopen { margin-top: 28px; font-size: 13px; opacity: 0.6; }
+    .shabbat-times {
+      margin-top: 28px; display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;
+    }
+    .shabbat-time-card {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px; padding: 14px 20px; min-width: 120px; text-align: center;
+    }
+    .shabbat-time-label { font-size: 11px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .shabbat-time-value { font-size: 22px; font-weight: 700; letter-spacing: 0.02em; }
+    .shabbat-reopen { margin-top: 20px; font-size: 13px; opacity: 0.6; }
 
     /* Desktop: normal grid */
     .type-row {
@@ -978,6 +987,16 @@
     <div class="shabbat-icon" id="closedIcon">🕯</div>
     <div class="shabbat-title" id="closedTitle">Шаббат Шалом</div>
     <div class="shabbat-sub" id="closedSub">Сегодня мы не принимаем заказы. Приходите в воскресенье!</div>
+    <div class="shabbat-times" id="closedTimes" style="display:none">
+      <div class="shabbat-time-card">
+        <div class="shabbat-time-label" id="labelCandles">Зажигание свечей</div>
+        <div class="shabbat-time-value" id="timeCandles">—</div>
+      </div>
+      <div class="shabbat-time-card">
+        <div class="shabbat-time-label" id="labelHavdalah">Исход субботы</div>
+        <div class="shabbat-time-value" id="timeHavdalah">—</div>
+      </div>
+    </div>
     <div class="shabbat-reopen" id="closedReopen"></div>
   </div>
 </div>
@@ -2075,65 +2094,116 @@ function getSampleDishes(typeId) {
 }
 
 // ── CLOSURE CHECK (Shabbat + custom holiday blocks) ──────────────
-function checkClosure() {
-  const now = new Date();
-  const dow  = now.getDay();   // 0=Sun … 5=Fri … 6=Sat
-  const hour = now.getHours();
-  const min  = now.getMinutes();
-  const timeMin = hour * 60 + min; // minutes since midnight
 
-  // Load closure settings from admin (localStorage)
+async function fetchGeoLocation() {
+  const cacheKey = 'kc_geo_' + new Date().toISOString().slice(0, 10);
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) return JSON.parse(cached);
+  const res = await fetch('https://ipapi.co/json/');
+  const d = await res.json();
+  const result = { lat: d.latitude, lng: d.longitude, tz: d.timezone };
+  sessionStorage.setItem(cacheKey, JSON.stringify(result));
+  return result;
+}
+
+async function fetchShabbatTimes(lat, lng, tz) {
+  const cacheKey = 'kc_shabbat_' + new Date().toISOString().slice(0, 10) + '_' + lat.toFixed(1) + '_' + lng.toFixed(1);
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) return JSON.parse(cached);
+  const url = `https://www.hebcal.com/shabbat?cfg=json&latitude=${lat}&longitude=${lng}&tzid=${encodeURIComponent(tz)}&m=50`;
+  const res = await fetch(url);
+  const data = await res.json();
+  const candles  = data.items?.find(i => i.category === 'candles');
+  const havdalah = data.items?.find(i => i.category === 'havdalah');
+  const result = {
+    candles:  candles  ? new Date(candles.date).getTime()  : null,
+    havdalah: havdalah ? new Date(havdalah.date).getTime() : null,
+  };
+  sessionStorage.setItem(cacheKey, JSON.stringify(result));
+  return result;
+}
+
+async function checkClosure() {
+  const now = new Date();
+  const nowMs = now.getTime();
+
   let closureBlocks = [];
   try {
     const ls = JSON.parse(localStorage.getItem('kc_admin_settings') || '{}');
     closureBlocks = ls.closure_blocks || [];
-    // Shabbat candle-lighting time (minutes since midnight Friday, default 18:00)
-    SITE_CONFIG.candle_lighting_min = ls.candle_lighting_min || 18 * 60;
   } catch(_) {}
-
-  const candleMin = SITE_CONFIG.candle_lighting_min || 18 * 60;
-
-  // Shabbat: Friday from candle-lighting OR all day Saturday
-  const isShabbat = (dow === 6) || (dow === 5 && timeMin >= candleMin);
 
   // Custom holiday blocks: [{from:'2026-04-12T17:30', to:'2026-04-14T21:00', title:'Песах', icon:'✡'}]
   const nowISO = now.toISOString();
   const activeBlock = closureBlocks.find(b => b.from && b.to && nowISO >= b.from && nowISO <= b.to);
 
-  if (!isShabbat && !activeBlock) return false; // open
+  let isShabbat = false;
+  let candlesTime = null;
+  let havdalahTime = null;
 
-  // Build reopen time string
-  let icon = '🕯', title = 'Шаббат Шалом', sub = '', reopen = '';
+  try {
+    const geo = await fetchGeoLocation();
+    const times = await fetchShabbatTimes(geo.lat, geo.lng, geo.tz);
+    if (times.candles && times.havdalah) {
+      isShabbat = nowMs >= times.candles && nowMs < times.havdalah;
+      candlesTime  = times.candles;
+      havdalahTime = times.havdalah;
+    }
+  } catch(_) {
+    // Fallback: fixed 18:00 Friday → midnight Saturday
+    const dow = now.getDay();
+    const timeMin = now.getHours() * 60 + now.getMinutes();
+    isShabbat = (dow === 6) || (dow === 5 && timeMin >= 18 * 60);
+  }
+
+  if (!isShabbat && !activeBlock) return false;
+
+  const L = {
+    he: { title: 'שבת שלום', sub: 'היום אנחנו לא מקבלים הזמנות.', opens: 'נפתח', candles: 'הדלקת נרות', havdalah: 'צאת שבת' },
+    en: { title: 'Shabbat Shalom', sub: 'We are closed today.', opens: 'Opens', candles: 'Candle lighting', havdalah: 'Havdalah' },
+    ru: { title: 'Шаббат Шалом', sub: 'Сегодня мы не принимаем заказы.', opens: 'Откроемся', candles: 'Зажигание свечей', havdalah: 'Исход субботы' },
+  }[currentLang] || { title: 'Шаббат Шалом', sub: 'Сегодня мы не принимаем заказы.', opens: 'Откроемся', candles: 'Зажигание свечей', havdalah: 'Исход субботы' };
+
+  let icon = '🕯', title = L.title, sub = L.sub, reopen = '';
+  const locale = currentLang === 'he' ? 'he-IL' : currentLang === 'en' ? 'en-US' : 'ru-RU';
+
   if (activeBlock) {
     icon  = activeBlock.icon  || '✡';
-    title = activeBlock.title || 'Праздник';
-    sub   = activeBlock.sub   || 'Сегодня заказы не принимаются.';
+    title = activeBlock.title || L.title;
+    sub   = activeBlock.sub   || L.sub;
     const reopenDate = new Date(activeBlock.to);
-    reopen = '🕐 ' + (currentLang === 'he' ? 'נפתח' : currentLang === 'en' ? 'Opens' : 'Откроемся') +
-             ': ' + reopenDate.toLocaleDateString(currentLang === 'he' ? 'he-IL' : currentLang === 'en' ? 'en-US' : 'ru-RU',
-               { weekday:'long', day:'numeric', month:'long' }) +
-             ' ' + reopenDate.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    reopen = '🕐 ' + L.opens + ': ' +
+      reopenDate.toLocaleDateString(locale, { weekday:'long', day:'numeric', month:'long' }) +
+      ' ' + reopenDate.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  } else if (havdalahTime) {
+    const hav = new Date(havdalahTime);
+    reopen = '🕐 ' + L.opens + ': ' +
+      hav.toLocaleDateString(locale, { weekday:'long', day:'numeric', month:'long' }) +
+      ' ' + hav.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
   } else {
-    // Shabbat — reopen Sunday
+    // Fallback reopen: Sunday 09:00
+    const dow = now.getDay();
     const sun = new Date(now);
     sun.setDate(now.getDate() + ((7 - dow) % 7 || 7));
     sun.setHours(9, 0, 0, 0);
-    if (currentLang === 'he') {
-      sub    = 'היום אנחנו לא מקבלים הזמנות. נשוב ביום ראשון!';
-      reopen = '🕐 נפתח: ראשון, ' + sun.getDate() + ' ' + MONTHS.he[sun.getMonth()];
-    } else if (currentLang === 'en') {
-      sub    = 'We are closed today. See you on Sunday!';
-      reopen = '🕐 Opens: Sunday, ' + sun.getDate() + ' ' + MONTHS.en[sun.getMonth()];
-    } else {
-      sub    = 'Сегодня мы не принимаем заказы. Приходите в воскресенье!';
-      reopen = '🕐 Откроемся: воскресенье, ' + sun.getDate() + ' ' + MONTHS.ru[sun.getMonth()];
-    }
+    reopen = '🕐 ' + L.opens + ': ' + DAYS[currentLang in DAYS ? currentLang : 'ru'][0] +
+      ', ' + sun.getDate() + ' ' + MONTHS[currentLang in MONTHS ? currentLang : 'ru'][sun.getMonth()];
   }
 
-  document.getElementById('closedIcon').textContent  = icon;
-  document.getElementById('closedTitle').textContent = title;
-  document.getElementById('closedSub').textContent   = sub;
+  document.getElementById('closedIcon').textContent   = icon;
+  document.getElementById('closedTitle').textContent  = title;
+  document.getElementById('closedSub').textContent    = sub;
   document.getElementById('closedReopen').textContent = reopen;
+
+  // Show candle/havdalah times if available (Shabbat only, not custom holiday blocks)
+  if (!activeBlock && candlesTime && havdalahTime) {
+    const fmt = t => new Date(t).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    document.getElementById('labelCandles').textContent  = L.candles;
+    document.getElementById('labelHavdalah').textContent = L.havdalah;
+    document.getElementById('timeCandles').textContent   = fmt(candlesTime);
+    document.getElementById('timeHavdalah').textContent  = fmt(havdalahTime);
+    document.getElementById('closedTimes').style.display = 'flex';
+  }
 
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screenClosed').classList.add('active');
@@ -2154,7 +2224,7 @@ function checkClosure() {
   renderAnnouncements(SITE_CONFIG.announcements);
   renderPageButtons();
   loadSettings();
-  if (checkClosure()) return; // closed — show closure screen, stop init
+  if (await checkClosure()) return; // closed — show closure screen, stop init
   const params = new URLSearchParams(window.location.search);
   const typeId = params.get('type');
   if (typeId) { const f = ORDER_TYPES.find(t => t.id===typeId); if (f) { await selectType(f); return; } }

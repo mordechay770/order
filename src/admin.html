@@ -875,10 +875,14 @@
       <div class="admin-card">
         <div class="admin-card-title">🕯 Шаббат и выходные дни</div>
 
+        <div class="hint" style="margin-bottom:14px;">
+          🌍 Время автоматически определяется по геолокации посетителя через Hebcal API.<br>
+          Значение ниже используется только как <strong>резервное</strong> — если API недоступен.
+        </div>
         <div class="form-row">
-          <label class="form-label">Время зажигания свечей (пятница)</label>
+          <label class="form-label">Резервное время зажигания свечей (пятница)</label>
           <input type="time" class="form-input" id="cfg_candle_time" value="18:00" style="max-width:140px;" />
-          <div class="hint" style="margin-top:6px;">С этого времени в пятницу до конца субботы сайт закрыт для заказов.</div>
+          <div class="hint" style="margin-top:6px;">Используется только при отсутствии интернета или блокировке API. Исход субботы в таком случае — 00:00 ночи.</div>
         </div>
       </div>
 
