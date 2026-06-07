@@ -1,5 +1,22 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-06-07 — GitHub + Vercel + Landing Page
+
+### בוצע
+- חיבור repo ל-GitHub: `mordechay770/order`
+- Deploy ל-Vercel: `src-sigma-ecru-25.vercel.app`
+- `src/index.html` → דף נחיתה חדש עם 3 כרטיסים (הזמנות / אירועים / מתכונים)
+- ניווט "← Главная" ב-order-form + order-hub
+- CLAUDE.md עודכן עם URLs, deploy workflow, כללי ניווט
+
+### פתוח לשיחה הבאה
+- חיבור Vercel ↔ GitHub (deploy אוטומטי)
+- דיוק פיצ'ר שבת (חסימה, UX, שעות)
+- Make webhooks 5a–5f
+- admin.html — טאב ⚙️ סוגי הזמנות
+
+---
+
 ## 2026-06-05 — ארגון תיקיות + אבטחה
 
 ### בוצע
