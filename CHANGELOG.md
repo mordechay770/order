@@ -1,5 +1,19 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-06-09 — התקדמות: ניהול סוגי הזמנות ב-admin
+
+### בוצע
+- `src/admin.html` — טאב סוגי הזמנות הורחב לעריכת `date_mode`, deadline, webhook פר מסלול, Airtable record ID ו-template ID.
+- ברירות המחדל של סוגי ההזמנות סודרו לקטגוריות `daily/shabbat/custom/preorder`, בהתאמה ל-`order-form.html`.
+- `src/order-form.html` — טעינת תפריט ושליחת הזמנה משתמשות ב-webhook של המסלול אם הוגדר, ונופלות חזרה ל-webhook הכללי או לדמו מקומי.
+- payload של הזמנה כולל כעת metadata של מסלול: model, category, Airtable record ID ו-template ID.
+- תוקן fallback כאשר Make webhook ריק.
+
+### בדיקות
+- בדיקת syntax ל-JavaScript המוטמע ב-`admin.html` וב-`order-form.html` עברה בהצלחה.
+
+---
+
 ## 2026-06-07 — שיחה 5: פיצ'ר שבת + Vercel deploy
 
 ### בוצע

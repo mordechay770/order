@@ -1380,6 +1380,9 @@ const ORDER_WEBHOOK_URL    = _wh.order    || '';
 const SLOTS_WEBHOOK_URL    = _wh.slots    || '';
 const SETTINGS_WEBHOOK_URL = _wh.settings || '';
 const VOUCHER_WEBHOOK_URL  = _wh.voucher  || '';
+function routeWebhook(type, key, fallback) {
+  return (type && typeof type[key] === 'string' && type[key].trim()) || fallback || '';
+}
 
 const SITE_CONFIG = {
   site_name: 'Кухня', logo_emoji: '🍽', logo_url: '',
@@ -1544,7 +1547,7 @@ function renderTypeCards() {
     grid.appendChild(sec);
   }
 
-  const daily    = visible.filter(tp => tp.category === 'daily');
+  const daily    = visible.filter(tp => tp.category === 'daily' || tp.category === 'meal');
   const shabbat  = visible.filter(tp => tp.category === 'shabbat');
   const custom   = visible.filter(tp => tp.category === 'custom'   || (tp.model === 'open' && !tp.category && tp.id !== 'bakery' && tp.id !== 'semifinished'));
   const preorder = visible.filter(tp => tp.category === 'preorder');
@@ -1658,10 +1661,11 @@ function showSkeletons() {
 }
 
 async function loadDishes(typeId, date) {
-  if (MENU_WEBHOOK_URL === 'YOUR_MENU_WEBHOOK_URL_HERE') {
+  const menuUrl = routeWebhook(currentType, 'menu_webhook', MENU_WEBHOOK_URL);
+  if (!menuUrl || menuUrl === 'YOUR_MENU_WEBHOOK_URL_HERE') {
     dishes = getSampleDishes(currentType ? currentType.id : typeId); activeCat='all'; buildCatBar(); renderDishes(); return;
   }
-  let url = MENU_WEBHOOK_URL + '?type=' + typeId; if (date) url += '&date=' + date;
+  let url = menuUrl + '?type=' + encodeURIComponent(typeId); if (date) url += '&date=' + encodeURIComponent(date);
   try {
     const resp = await fetch(url); if (!resp.ok) throw new Error();
     const data = await resp.json();
@@ -1862,7 +1866,7 @@ function goToPayment() {
   if (!sel.length) { alert('Выберите хотя бы одно блюдо.'); return; }
   const items = sel.map(d => ({ dish_id: d.id, dish_name: d.name, quantity: quantities[d.id], unit_price: d.price }));
   const total = items.reduce((s,i)=> s + i.unit_price*i.quantity, 0);
-  pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_date: currentSlot?currentSlot.date:null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString() };
+  pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_model: currentType?currentType.model||null:null, order_category: currentType?currentType.category||null:null, order_type_record_id: currentType?currentType.airtable_record_id||null:null, order_template_id: currentType?currentType.template_id||null:null, order_date: currentSlot?currentSlot.date:null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString() };
   document.getElementById('payTotalAmount').textContent = total>0 ? total+' ₸' : '—';
   const methods = paymentConfig.methods;
   document.getElementById('payCardCash').style.display = methods.includes('cash')?'':'none';
@@ -1976,8 +1980,9 @@ async function doSubmitCombined() {
   if (!wa) return showCombinedError('Укажите ваш номер WhatsApp для уведомлений.');
   const payload = Object.assign({}, pendingOrderPayload, { payment_method:'combined', payment_breakdown:bd, customer_whatsapp:wa });
   const btn = document.getElementById('combinedSubmitBtn'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Отправляем…';
-  if (ORDER_WEBHOOK_URL === 'YOUR_ORDER_WEBHOOK_URL_HERE') { setTimeout(()=>{ clearCart(); showResult(true,'TEST-'+Math.floor(Math.random()*9999),'combined',bd); }, 900); return; }
-  try { const r = await fetch(ORDER_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error(); let num=''; try { const d=await r.json(); num=d.order_number||d.id||''; } catch(_) {} clearCart(); showResult(true,num,'combined',bd); }
+  const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL);
+  if (!orderUrl || orderUrl === 'YOUR_ORDER_WEBHOOK_URL_HERE') { setTimeout(()=>{ clearCart(); showResult(true,'TEST-'+Math.floor(Math.random()*9999),'combined',bd); }, 900); return; }
+  try { const r = await fetch(orderUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error(); let num=''; try { const d=await r.json(); num=d.order_number||d.id||''; } catch(_) {} clearCart(); showResult(true,num,'combined',bd); }
   catch(_) { btn.disabled=false; btn.textContent='✅ Оформить заказ'; showCombinedError('Ошибка отправки. Попробуйте ещё раз.'); }
 }
 
@@ -1999,8 +2004,9 @@ async function doSubmitOrder(pm) {
   const sec = pm==='cash'?'paySectionCash':'paySectionKaspi';
   const btn = document.querySelector('#'+sec+' .btn-submit');
   if (btn) { btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Отправляем…'; }
-  if (ORDER_WEBHOOK_URL === 'YOUR_ORDER_WEBHOOK_URL_HERE') { setTimeout(()=>{ clearCart(); showResult(true,'TEST-'+Math.floor(Math.random()*9999),pm); }, 900); return; }
-  try { const r = await fetch(ORDER_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error(); let num=''; try { const d=await r.json(); num=d.order_number||d.id||''; } catch(_) {} clearCart(); showResult(true,num,pm); }
+  const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL);
+  if (!orderUrl || orderUrl === 'YOUR_ORDER_WEBHOOK_URL_HERE') { setTimeout(()=>{ clearCart(); showResult(true,'TEST-'+Math.floor(Math.random()*9999),pm); }, 900); return; }
+  try { const r = await fetch(orderUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error(); let num=''; try { const d=await r.json(); num=d.order_number||d.id||''; } catch(_) {} clearCart(); showResult(true,num,pm); }
   catch(_) { if (btn) { btn.disabled=false; btn.textContent='✅ Подтвердить заказ'; } showResult(false); }
 }
 

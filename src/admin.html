@@ -1069,15 +1069,15 @@ const DEFAULT_SETTINGS = {
   },
   announcements: [],
   order_types: [
-    { id:'breakfast',    icon:'🌅', title:'Завтрак',       sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'meal',     date_mode:'daily',   active:true },
-    { id:'lunch',        icon:'🍱', title:'Обед',           sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'meal',     date_mode:'daily',   active:true },
-    { id:'dinner',       icon:'🌙', title:'Ужин',           sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'meal',     date_mode:'daily',   active:true },
-    { id:'shabbat',      icon:'🕯', title:'Шаббат',         sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'meal',     date_mode:'shabbat', active:true },
-    { id:'holiday',      icon:'✡',  title:'Праздник',       sub:'Заказы открыты до указанной даты', model:'fixed', category:'meal',     date_mode:'holiday', active:false },
-    { id:'trip',         icon:'🎒', title:'В дорогу',       sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   active:true },
-    { id:'special',      icon:'⭐', title:'Спецзаказ',      sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   active:true },
-    { id:'bakery',       icon:'🥐', title:'Выпечка',        sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', active:true },
-    { id:'semifinished', icon:'🥟', title:'Полуфабрикаты',  sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', active:true },
+    { id:'breakfast',    icon:'🌅', title:'Завтрак',       sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'daily',    date_mode:'daily',   deadline_days_before:1, deadline_time:'20:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
+    { id:'lunch',        icon:'🍱', title:'Обед',           sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'daily',    date_mode:'daily',   deadline_days_before:0, deadline_time:'09:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
+    { id:'dinner',       icon:'🌙', title:'Ужин',           sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'daily',   deadline_days_before:0, deadline_time:'11:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
+    { id:'shabbat',      icon:'🕯', title:'Шаббат',         sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'shabbat', deadline_days_before:2, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
+    { id:'holiday',      icon:'✡',  title:'Праздник',       sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'holiday', deadline_days_before:2, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:false },
+    { id:'trip',         icon:'🎒', title:'В дорогу',       sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',    deadline_days_before:1, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
+    { id:'special',      icon:'⭐', title:'Спецзаказ',      sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',    deadline_days_before:1, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
+    { id:'bakery',       icon:'🥐', title:'Выпечка',        sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',    deadline_days_before:2, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
+    { id:'semifinished', icon:'🥟', title:'Полуфабрикаты',  sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',    deadline_days_before:3, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
   ],
   texts: {
     ru: { app_title: 'Заказ еды', app_subtitle: 'Выберите тип заказа' },
@@ -1537,7 +1537,7 @@ function renderTypesList() {
 }
 
 function addOrderType() {
-  addOrderTypeRow({ id: 'type_' + Date.now(), icon: '📦', title: '', sub: '', full: false, active: true });
+  addOrderTypeRow({ id: 'type_' + Date.now(), icon: '📦', title: '', sub: '', model: 'open', category: 'custom', date_mode: 'none', deadline_days_before: 1, deadline_time: '12:00', menu_webhook: '', order_webhook: '', airtable_record_id: '', template_id: '', active: true });
 }
 
 function addOrderTypeRow(t) {
@@ -1570,7 +1570,8 @@ function addOrderTypeRow(t) {
       <div class="form-row" style="flex:1;min-width:160px;margin:0;">
         <label class="form-label" style="margin-bottom:4px;">Категория (секция)</label>
         <select class="form-select" data-type="category" style="width:100%;">
-          <option value="meal"     ${(t.category||'meal')==='meal'?'selected':''}>🍽 Стандартные меню</option>
+          <option value="daily"    ${(t.category||'daily')==='daily'||t.category==='meal'?'selected':''}>🍽 Ежедневные меню</option>
+          <option value="shabbat"  ${t.category==='shabbat'?'selected':''}>🕯 Шаббат / праздник</option>
           <option value="custom"   ${t.category==='custom'?'selected':''}>🛒 Индивидуальные</option>
           <option value="preorder" ${t.category==='preorder'?'selected':''}>📦 Заказ заранее</option>
         </select>
@@ -1582,6 +1583,46 @@ function addOrderTypeRow(t) {
           <span class="toggle-slider"></span>
         </label>
       </div>
+    </div>
+    <div class="form-row-2" style="margin-top:14px;">
+      <div>
+        <label class="form-label">Режим дат</label>
+        <select class="form-select" data-type="date_mode">
+          <option value="daily"   ${(t.date_mode||'none')==='daily'?'selected':''}>daily</option>
+          <option value="shabbat" ${t.date_mode==='shabbat'?'selected':''}>shabbat</option>
+          <option value="holiday" ${t.date_mode==='holiday'?'selected':''}>holiday</option>
+          <option value="weekly"  ${t.date_mode==='weekly'?'selected':''}>weekly</option>
+          <option value="none"    ${(t.date_mode||'none')==='none'?'selected':''}>none</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Airtable record ID</label>
+        <input class="form-input" data-type="airtable_record_id" value="${escHtml(t.airtable_record_id||'')}" placeholder="rec..." />
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Deadline: days before</label>
+        <input class="form-input" type="number" min="0" step="1" data-type="deadline_days_before" value="${Number.isFinite(Number(t.deadline_days_before)) ? Number(t.deadline_days_before) : ''}" placeholder="0" />
+      </div>
+      <div>
+        <label class="form-label">Deadline time</label>
+        <input class="form-input" type="time" data-type="deadline_time" value="${escHtml(t.deadline_time||'')}" />
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Menu webhook <span class="hint">(optional)</span></label>
+        <input class="form-input" data-type="menu_webhook" value="${escHtml(t.menu_webhook||'')}" placeholder="https://hook.eu1.make.com/..." />
+      </div>
+      <div>
+        <label class="form-label">Order webhook <span class="hint">(optional)</span></label>
+        <input class="form-input" data-type="order_webhook" value="${escHtml(t.order_webhook||'')}" placeholder="https://hook.eu1.make.com/..." />
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Template ID <span class="hint">(optional)</span></label>
+      <input class="form-input" data-type="template_id" value="${escHtml(t.template_id||'')}" placeholder="tbl/rec/template key for Make" />
     </div>
   `;
   document.getElementById('typesList').appendChild(div);
@@ -1595,7 +1636,14 @@ function collectOrderTypes() {
     title:  row.querySelector('[data-type="title"]').value.trim(),
     sub:    row.querySelector('[data-type="sub"]').value.trim(),
     model:    row.querySelector('[data-type="model"]')?.value    || 'fixed',
-    category: row.querySelector('[data-type="category"]')?.value || 'meal',
+    category: row.querySelector('[data-type="category"]')?.value || 'daily',
+    date_mode: row.querySelector('[data-type="date_mode"]')?.value || 'none',
+    deadline_days_before: Number(row.querySelector('[data-type="deadline_days_before"]')?.value || 0),
+    deadline_time: row.querySelector('[data-type="deadline_time"]')?.value.trim(),
+    menu_webhook: row.querySelector('[data-type="menu_webhook"]')?.value.trim(),
+    order_webhook: row.querySelector('[data-type="order_webhook"]')?.value.trim(),
+    airtable_record_id: row.querySelector('[data-type="airtable_record_id"]')?.value.trim(),
+    template_id: row.querySelector('[data-type="template_id"]')?.value.trim(),
     active:   row.querySelector('[data-type="active"]').checked,
   })).filter(t => t.id && t.title);
 }
