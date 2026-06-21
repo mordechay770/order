@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>סקיצות מסכי תפעול מטבח</title>
+  <style>
+    :root {
+      --ink: #17212b;
+      --muted: #65717f;
+      --line: #d9dee4;
+      --paper: #f5f7f8;
+      --panel: #ffffff;
+      --navy: #203a5f;
+      --navy-2: #14253d;
+      --gold: #b68a2b;
+      --green: #276749;
+      --red: #b42318;
+      --orange: #b45309;
+      --blue: #2563eb;
+      --violet: #6d4aff;
+      --shadow: 0 10px 24px rgba(23, 33, 43, .08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      letter-spacing: 0;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+    }
+
+    .side {
+      background: var(--navy-2);
+      color: white;
+      padding: 22px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .brand {
+      border-bottom: 1px solid rgba(255, 255, 255, .14);
+      padding-bottom: 18px;
+      margin-bottom: 18px;
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 19px;
+      margin-bottom: 6px;
+    }
+
+    .brand span {
+      color: rgba(255, 255, 255, .68);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .nav-group {
+      margin-bottom: 22px;
+    }
+
+    .nav-label {
+      color: rgba(255, 255, 255, .52);
+      font-size: 11px;
+      font-weight: 700;
+      margin: 0 8px 8px;
+      text-transform: uppercase;
+    }
+
+    .nav-btn {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: rgba(255, 255, 255, .78);
+      text-align: right;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .nav-btn:hover,
+    .nav-btn.active {
+      background: rgba(255, 255, 255, .1);
+      color: white;
+    }
+
+    .nav-pill {
+      min-width: 24px;
+      height: 22px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, .14);
+      display: inline-grid;
+      place-items: center;
+      padding: 0 7px;
+      font-size: 12px;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 24px;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 26px;
+      color: var(--navy-2);
+    }
+
+    .title p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 9px 13px;
+      cursor: pointer;
+      font-weight: 650;
+      min-height: 38px;
+    }
+
+    .btn.primary {
+      background: var(--navy);
+      color: white;
+      border-color: var(--navy);
+    }
+
+    .btn.success {
+      background: var(--green);
+      color: white;
+      border-color: var(--green);
+    }
+
+    .btn.danger {
+      background: var(--red);
+      color: white;
+      border-color: var(--red);
+    }
+
+    .btn.warn {
+      background: #fff7ed;
+      color: var(--orange);
+      border-color: #fed7aa;
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .kpi,
+    .panel,
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .kpi {
+      padding: 14px;
+    }
+
+    .kpi .value {
+      display: block;
+      font-size: 27px;
+      font-weight: 800;
+      color: var(--navy-2);
+      margin-bottom: 5px;
+    }
+
+    .kpi .label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(330px, .75fr);
+      gap: 14px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .panel {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfd;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 17px;
+      color: var(--navy-2);
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 8px;
+      background: #eef2f5;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      overflow-x: auto;
+    }
+
+    .tab {
+      border: 0;
+      background: transparent;
+      border-radius: 7px;
+      padding: 8px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .tab.active {
+      background: white;
+      color: var(--navy-2);
+      box-shadow: 0 1px 4px rgba(23, 33, 43, .08);
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 11px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: right;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      background: #fbfcfd;
+      font-weight: 800;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .status,
+    .risk,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 99px;
+      padding: 3px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status.pending { background: #fff7ed; color: var(--orange); }
+    .status.ok { background: #ecfdf3; color: var(--green); }
+    .status.work { background: #eff6ff; color: var(--blue); }
+    .status.problem { background: #fef3f2; color: var(--red); }
+    .status.review { background: #f5f3ff; color: var(--violet); }
+
+    .risk.high { background: #fef3f2; color: var(--red); }
+    .risk.mid { background: #fff7ed; color: var(--orange); }
+    .risk.low { background: #ecfdf3; color: var(--green); }
+
+    .tag {
+      background: #eef2f5;
+      color: #475569;
+      margin: 2px;
+    }
+
+    .order-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: white;
+    }
+
+    .order-card.selected {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(182, 138, 43, .14);
+    }
+
+    .order-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 9px;
+    }
+
+    .split {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .line:last-child {
+      border-bottom: 0;
+    }
+
+    .line strong {
+      color: var(--navy-2);
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+    }
+
+    .time-row {
+      display: grid;
+      grid-template-columns: 72px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .time {
+      color: var(--navy-2);
+      font-weight: 850;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .work-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+
+    .progress {
+      height: 9px;
+      background: #eef2f5;
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .bar {
+      height: 100%;
+      background: var(--green);
+      width: var(--w);
+    }
+
+    .note {
+      border-right: 3px solid var(--gold);
+      background: #fffaf0;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 10px;
+    }
+
+    .task {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: white;
+    }
+
+    .box {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--line);
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      color: var(--green);
+      font-weight: 900;
+    }
+
+    .box.done {
+      background: #ecfdf3;
+      border-color: var(--green);
+    }
+
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; }
+      .side {
+        position: relative;
+        height: auto;
+      }
+      .kpis,
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+      .top {
+        flex-direction: column;
+      }
+      .actions {
+        justify-content: stretch;
+      }
+      .actions .btn {
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">
+        <strong>מערכת תפעול מטבח</strong>
+        <span>Система кухни<br>סקיצת HTML למסכי מנהל, מטבח ומשגיח. הנתונים בדוגמה בלבד.</span>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">שפה / язык</div>
+        <button class="nav-btn active"><span>עברית</span><span class="nav-pill">HE</span></button>
+        <button class="nav-btn"><span>Русский</span><span class="nav-pill">RU</span></button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">מסכי מנהל</div>
+        <button class="nav-btn active" data-screen="manager"><span>אישור הזמנות</span><span class="nav-pill">7</span></button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">מסכי מטבח</div>
+        <button class="nav-btn" data-screen="kitchen"><span>לוח עבודה</span><span class="nav-pill">18</span></button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">מסכי משגיח</div>
+        <button class="nav-btn" data-screen="supervisor"><span>משימות השגחה</span><span class="nav-pill">9</span></button>
+      </div>
+
+      <div class="note">
+        תכנון מומלץ: מסך מנהל ומסך משגיח יהיו מוגנים. מסך מטבח יכול להיות פנימי בלבד.
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="screen active" id="manager">
+        <div class="top">
+          <div class="title">
+            <h1>מסך מנהל / Панель менеджера</h1>
+            <p>אישור הזמנות, בדיקת סיכוני מלאי, מעקב תשלום ושליחת הודעות ללקוח.</p>
+          </div>
+          <div class="actions">
+            <button class="btn">סינון לפי שעה</button>
+            <button class="btn">הצג רק סיכון מלאי</button>
+            <button class="btn primary">רענון הזמנות</button>
+          </div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi"><span class="value">7</span><span class="label">ממתינות לאישור</span></div>
+          <div class="kpi"><span class="value">3</span><span class="label">עם סיכון מלאי</span></div>
+          <div class="kpi"><span class="value">2</span><span class="label">דורשות בדיקת משגיח</span></div>
+          <div class="kpi"><span class="value">41,800</span><span class="label">סכום ממתין</span></div>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-page="manager-queue">תור אישורים</button>
+          <button class="tab" data-page="manager-detail">פרטי הזמנה</button>
+          <button class="tab" data-page="manager-stock">סיכוני מלאי</button>
+          <button class="tab" data-page="manager-status">סטטוסים ותשלום</button>
+          <button class="tab" data-page="manager-users">הרשאות</button>
+        </div>
+
+        <div class="page active" id="manager-queue">
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>הזמנות שממתינות להחלטה</h2>
+                <span class="status pending">מיון לפי דחיפות</span>
+              </div>
+              <div class="panel-body">
+                <div class="order-card selected">
+                  <div class="split">
+                    <h3>הזמנה 1042 · שבת</h3>
+                    <span class="risk high">מחסור בעוף</span>
+                  </div>
+                  <div class="meta"><span>לקוח: משפחת כהן</span><span>יום שישי 12:00</span><span>14,600 ₸</span></div>
+                  <div><span class="tag">שניצל עוף 18</span><span class="tag">חלות 6</span><span class="tag">סלט ירק 4</span></div>
+                </div>
+                <div class="order-card">
+                  <div class="split">
+                    <h3>הזמנה 1043 · מאפים</h3>
+                    <span class="risk mid">בדיקת בצק</span>
+                  </div>
+                  <div class="meta"><span>לקוח: בית ספר</span><span>מחר 09:30</span><span>8,400 ₸</span></div>
+                  <div><span class="tag">לחמניות 80</span><span class="tag">בורקס 40</span></div>
+                </div>
+                <div class="order-card">
+                  <div class="split">
+                    <h3>הזמנה 1044 · צהריים</h3>
+                    <span class="risk low">תקין</span>
+                  </div>
+                  <div class="meta"><span>לקוח: מחלקת נוער</span><span>היום 11:00</span><span>6,900 ₸</span></div>
+                  <div><span class="tag">מרק 22</span><span class="tag">אורז 22</span><span class="tag">סלט 22</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h2>החלטת מנהל</h2>
+                <span class="status review">הזמנה 1042</span>
+              </div>
+              <div class="panel-body">
+                <div class="list">
+                  <div class="line"><strong>עוף</strong><span class="risk high">חסר 6 ק"ג</span></div>
+                  <div class="line"><strong>בצק חלות</strong><span class="status review">משגיח</span></div>
+                  <div class="line"><strong>ירק לסלט</strong><span class="status review">בדיקה</span></div>
+                </div>
+                <div class="note" style="margin-top:12px;">
+                  הערת מערכת: משלוח עופות מתעכב. מומלץ להעביר לבדיקה או לאשר רק אחרי עדכון מלאי.
+                </div>
+                <div class="actions" style="margin-top:14px;">
+                  <button class="btn success">אישור</button>
+                  <button class="btn warn">לבדיקה</button>
+                  <button class="btn danger">דחייה</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="manager-detail">
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h2>פרטי הזמנה 1042</h2><span class="status pending">ממתין לאישור</span></div>
+              <div class="panel-body">
+                <table>
+                  <tbody>
+                    <tr><th>לקוח</th><td>משפחת כהן</td></tr>
+                    <tr><th>טלפון</th><td>+7 700 000 1122</td></tr>
+                    <tr><th>מסלול</th><td>שבת</td></tr>
+                    <tr><th>שעת ביצוע</th><td>יום שישי 12:00</td></tr>
+                    <tr><th>הערת לקוח</th><td>לארוז בנפרד לילדים</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2>פריטים</h2><span class="tag">5 שורות</span></div>
+              <div class="panel-body">
+                <div class="line"><strong>שניצל עוף</strong><span>18 מנות</span></div>
+                <div class="line"><strong>אורז לבן</strong><span>18 מנות</span></div>
+                <div class="line"><strong>סלט ירק</strong><span>4 קופסאות</span></div>
+                <div class="line"><strong>חלות</strong><span>6 יחידות</span></div>
+                <div class="line"><strong>קוגל</strong><span>2 תבניות</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="manager-stock">
+          <div class="panel">
+            <div class="panel-head"><h2>סיכוני מלאי להזמנות ממתינות</h2><span class="status problem">3 בעיות</span></div>
+            <div class="panel-body">
+              <table>
+                <thead>
+                  <tr><th>מוצר</th><th>נדרש</th><th>זמין</th><th>פער</th><th>מקור</th><th>פעולה</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>עוף</td><td>18 ק"ג</td><td>12 ק"ג</td><td><span class="risk high">6 ק"ג חסר</span></td><td>הזמנות 1042, 1046</td><td><button class="btn warn">לבדיקה</button></td></tr>
+                  <tr><td>בשר</td><td>9 ק"ג</td><td>0 ק"ג</td><td><span class="risk high">שחיטה לא תואמה</span></td><td>הזמנה 1045</td><td><button class="btn danger">עצור אישור</button></td></tr>
+                  <tr><td>ירק עלים</td><td>11 ק"ג</td><td>14 ק"ג</td><td><span class="risk mid">בדיקת משגיח</span></td><td>הזמנות 1042, 1044</td><td><button class="btn">שלח למשגיח</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="manager-status">
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h2>מעקב סטטוסים חכם</h2><span class="tag">Заказы</span></div>
+              <div class="panel-body">
+                <table>
+                  <thead>
+                    <tr><th>הזמנה</th><th>סטטוס הזמנה</th><th>סטטוס תשלום</th><th>פעולה</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>1042</td><td><span class="status pending">ממתין לאישור</span></td><td><span class="status problem">לא שולם</span></td><td><button class="btn warn">תזכורת תשלום</button></td></tr>
+                    <tr><td>1044</td><td><span class="status work">בהכנה</span></td><td><span class="status ok">שולם</span></td><td><button class="btn">הודעת עיכוב</button></td></tr>
+                    <tr><td>1045</td><td><span class="status review">לבדיקה</span></td><td><span class="status review">תשלום בבדיקה</span></td><td><button class="btn">בירור</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2>הודעה ללקוח</h2><span class="tag">Green API</span></div>
+              <div class="panel-body">
+                <div class="tabs" style="margin-bottom:10px;">
+                  <button class="tab active">עיכוב</button>
+                  <button class="tab">תשלום</button>
+                  <button class="tab">בירור</button>
+                  <button class="tab">חופשי</button>
+                </div>
+                <textarea style="width:100%; min-height:120px; border:1px solid var(--line); border-radius:8px; padding:10px;">שלום, ההזמנה שלך מתעכבת מעט. נעדכן אותך בהקדם.</textarea>
+                <div class="actions" style="margin-top:12px;">
+                  <button class="btn">תצוגה מקדימה</button>
+                  <button class="btn primary">שלח WhatsApp</button>
+                </div>
+                <p class="small">כל הודעה נשמרת בהיסטוריית ההזמנה.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="manager-users">
+          <div class="panel">
+            <div class="panel-head"><h2>משתמשים והרשאות</h2><span class="status review">תכנון</span></div>
+            <div class="panel-body">
+              <table>
+                <thead>
+                  <tr><th>משתמש</th><th>תפקיד</th><th>מה רואה</th><th>פעולות מותרות</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>שרה</td><td>אדמיניסטרטור</td><td>הכל</td><td>אישור, הודעות, תשלום, משתמשים</td></tr>
+                  <tr><td>שף ראשי</td><td>שף</td><td>כל תחנות המטבח</td><td>עדכון סטטוסים, בעיות</td></tr>
+                  <tr><td>אפייה</td><td>מטבח אפייה</td><td>מאפים ובצקים בלבד</td><td>סטטוס הכנה</td></tr>
+                  <tr><td>סלטים</td><td>מטבח סלטים</td><td>סלטים וירק בלבד</td><td>סטטוס הכנה</td></tr>
+                  <tr><td>משגיח</td><td>משגיח</td><td>משימות כשרות בלבד</td><td>סימון בדיקה</td></tr>
+                </tbody>
+              </table>
+              <div class="actions" style="margin-top:12px;">
+                <button class="btn primary">הוסף משתמש</button>
+                <button class="btn">ערוך תפקידים</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="kitchen">
+        <div class="top">
+          <div class="title">
+            <h1>מסך מטבח / Кухонный экран</h1>
+            <p>ניהול עבודה לפי הזמנות, מנות, חומרי גלם, שעות ותחנות מטבח.</p>
+          </div>
+          <div class="actions">
+            <button class="btn">היום</button>
+            <button class="btn">מחר</button>
+            <button class="btn primary">הדפס סיכום ייצור</button>
+          </div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi"><span class="value">18</span><span class="label">הזמנות מאושרות</span></div>
+          <div class="kpi"><span class="value">126</span><span class="label">מנות לייצור</span></div>
+          <div class="kpi"><span class="value">4</span><span class="label">הזמנות עם בעיה</span></div>
+          <div class="kpi"><span class="value">11:00</span><span class="label">שעה קרובה</span></div>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-page="kitchen-orders">לפי הזמנות</button>
+          <button class="tab" data-page="kitchen-products">לפי מנות</button>
+          <button class="tab" data-page="kitchen-time">לפי שעות</button>
+          <button class="tab" data-page="kitchen-stations">תחנות והרשאות</button>
+        </div>
+
+        <div class="page active" id="kitchen-orders">
+          <div class="grid-3">
+            <div class="card panel-body">
+              <div class="split"><h3>1044 · צהריים</h3><span class="status work">בהכנה</span></div>
+              <p class="small">11:00 · מחלקת נוער · 22 מנות</p>
+              <div class="line"><strong>מרק ירקות</strong><span>22</span></div>
+              <div class="line"><strong>אורז</strong><span>22</span></div>
+              <div class="progress"><div class="bar" style="--w:62%"></div></div>
+            </div>
+            <div class="card panel-body">
+              <div class="split"><h3>1042 · שבת</h3><span class="status pending">ממתין לביצוע</span></div>
+              <p class="small">שישי 12:00 · משפחת כהן · 18 מנות</p>
+              <div class="line"><strong>שניצל עוף</strong><span>18</span></div>
+              <div class="line"><strong>חלות</strong><span>6</span></div>
+              <div class="progress"><div class="bar" style="--w:12%"></div></div>
+            </div>
+            <div class="card panel-body">
+              <div class="split"><h3>1043 · מאפים</h3><span class="status problem">בעיה</span></div>
+              <p class="small">מחר 09:30 · בית ספר · 120 יחידות</p>
+              <div class="line"><strong>לחמניות</strong><span>80</span></div>
+              <div class="line"><strong>בורקס</strong><span>40</span></div>
+              <div class="note">ממתין לבדיקת משגיח על בצק.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="kitchen-products">
+          <div class="panel">
+            <div class="panel-head"><h2>סיכום ייצור לפי מנה</h2><span class="tag">היום ומחר</span></div>
+            <div class="panel-body">
+              <table>
+                <thead><tr><th>מנה</th><th>סה"כ</th><th>הזמנות</th><th>שעה קרובה</th><th>סטטוס</th></tr></thead>
+                <tbody>
+                  <tr><td>שניצל עוף</td><td>42 מנות</td><td>1042, 1046, 1050</td><td>11:00</td><td><span class="status pending">טרם התחיל</span></td></tr>
+                  <tr><td>אורז לבן</td><td>64 מנות</td><td>1042, 1044, 1049</td><td>11:00</td><td><span class="status work">בהכנה</span></td></tr>
+                  <tr><td>חלות</td><td>38 יחידות</td><td>1042, 1048</td><td>שישי 12:00</td><td><span class="status review">בדיקה</span></td></tr>
+                  <tr><td>סלט ירק</td><td>21 קופסאות</td><td>1042, 1044, 1047</td><td>11:00</td><td><span class="status review">משגיח</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="kitchen-time">
+          <div class="panel">
+            <div class="panel-head"><h2>ציר זמן יומי</h2><span class="status work">יום עבודה</span></div>
+            <div class="panel-body timeline">
+              <div class="time-row">
+                <div class="time">09:30</div>
+                <div><div class="work-card"><strong>מאפים לבית ספר</strong><p class="small">לחמניות 80, בורקס 40. ממתין לאישור משגיח.</p></div></div>
+              </div>
+              <div class="time-row">
+                <div class="time">11:00</div>
+                <div><div class="work-card"><strong>צהריים מחלקת נוער</strong><p class="small">מרק 22, אורז 22, סלט 22. בהכנה.</p></div></div>
+              </div>
+              <div class="time-row">
+                <div class="time">17:00</div>
+                <div><div class="work-card"><strong>ארוחת ערב</strong><p class="small">8 הזמנות פתוחות, 2 עם סטטוס בעיה.</p></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="kitchen-stations">
+          <div class="grid-3">
+            <div class="card panel-body">
+              <div class="split"><h3>מטבח אפייה</h3><span class="tag">Выпечка</span></div>
+              <p class="small">רואה רק מאפים, בצקים, חלות, לחמניות וקונדיטוריה.</p>
+              <div class="line"><strong>לחמניות</strong><span>80</span></div>
+              <div class="line"><strong>חלות</strong><span>38</span></div>
+              <div class="line"><strong>בורקס</strong><span>40</span></div>
+            </div>
+            <div class="card panel-body">
+              <div class="split"><h3>מטבח סלטים</h3><span class="tag">Салаты</span></div>
+              <p class="small">רואה סלטים, ירקות, אריזות סלטים ומשימות ירק.</p>
+              <div class="line"><strong>סלט ירק</strong><span>21 קופסאות</span></div>
+              <div class="line"><strong>ירק עלים לבדיקה</strong><span>11 ק"ג</span></div>
+            </div>
+            <div class="card panel-body">
+              <div class="split"><h3>מטבח בישול</h3><span class="tag">Горячий цех</span></div>
+              <p class="small">רואה תבשילים, מרקים, עוף, בשר ותוספות חמות.</p>
+              <div class="line"><strong>שניצל עוף</strong><span>42</span></div>
+              <div class="line"><strong>מרק ירקות</strong><span>22</span></div>
+              <div class="line"><strong>אורז</strong><span>64</span></div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:14px;">
+            <div class="panel-head"><h2>שף ראשי</h2><span class="status ok">רואה הכל</span></div>
+            <div class="panel-body">
+              <p class="small">השף רואה את כל התחנות, כל הבעיות, כל הסטטוסים וסיכומי הייצור.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="supervisor">
+        <div class="top">
+          <div class="title">
+            <h1>מסך משגיח / Экран машгиаха</h1>
+            <p>משימות השגחה לפי הזמנות ומוצרים עם הערות כשרות.</p>
+          </div>
+          <div class="actions">
+            <button class="btn">היום</button>
+            <button class="btn">מחר</button>
+            <button class="btn primary">סיכום שבועי</button>
+          </div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi"><span class="value">9</span><span class="label">משימות פתוחות</span></div>
+          <div class="kpi"><span class="value">3</span><span class="label">בדיקת ירק</span></div>
+          <div class="kpi"><span class="value">2</span><span class="label">בצקים</span></div>
+          <div class="kpi"><span class="value">1</span><span class="label">שחיטה / בשר</span></div>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-page="sup-today">היום</button>
+          <button class="tab" data-page="sup-week">מחר והשבוע</button>
+          <button class="tab" data-page="sup-detail">פרטי משימה</button>
+        </div>
+
+        <div class="page active" id="sup-today">
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h2>משימות היום</h2><span class="status review">לפי הזמנות</span></div>
+              <div class="panel-body checklist">
+                <div class="task">
+                  <div class="box"></div>
+                  <div><strong>בדיקת ירק לסלט</strong><p class="small">הזמנות 1042, 1044 · נדרש עד 10:15 · ירק עלים 11 ק"ג</p></div>
+                  <span class="risk mid">דחוף</span>
+                </div>
+                <div class="task">
+                  <div class="box done">✓</div>
+                  <div><strong>בדיקת בצק חלות</strong><p class="small">הזמנה 1042 · 6 חלות · בוצע 08:40</p></div>
+                  <span class="status ok">בוצע</span>
+                </div>
+                <div class="task">
+                  <div class="box"></div>
+                  <div><strong>אישור חומר גלם בשרי</strong><p class="small">הזמנה 1045 · בשר חסר · ממתין לעדכון שחיטה</p></div>
+                  <span class="risk high">בעיה</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h2>לפי סוג בדיקה</h2><span class="tag">היום</span></div>
+              <div class="panel-body">
+                <div class="line"><strong>בדיקת ירק</strong><span>3 משימות</span></div>
+                <div class="line"><strong>בצקים</strong><span>2 משימות</span></div>
+                <div class="line"><strong>בשר / שחיטה</strong><span>1 בעיה</span></div>
+                <div class="line"><strong>אריזות בשרי/חלבי</strong><span>4 בדיקות</span></div>
+                <div class="note" style="margin-top:10px;">המשימות נוצרות לפי המוצרים שבהם מופיעות הערות כשרות או סימון "דורש משגיח".</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="sup-week">
+          <div class="panel">
+            <div class="panel-head"><h2>מחר והשבוע</h2><span class="status pending">תכנון מראש</span></div>
+            <div class="panel-body">
+              <table>
+                <thead><tr><th>יום</th><th>משימה</th><th>הזמנות</th><th>כמות</th><th>סטטוס</th></tr></thead>
+                <tbody>
+                  <tr><td>מחר</td><td>בדיקת בצק לחמניות</td><td>1043</td><td>80 יחידות</td><td><span class="status pending">פתוח</span></td></tr>
+                  <tr><td>מחר</td><td>בדיקת ירק</td><td>1048, 1049</td><td>7 ק"ג</td><td><span class="status pending">פתוח</span></td></tr>
+                  <tr><td>חמישי</td><td>שחיטה / בשר</td><td>1051</td><td>12 ק"ג</td><td><span class="status review">לתיאום</span></td></tr>
+                  <tr><td>שישי</td><td>אישור אריזת שבת</td><td>1042, 1052</td><td>18 אריזות</td><td><span class="status pending">פתוח</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="sup-detail">
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h2>פרטי משימה</h2><span class="risk mid">בדיקת ירק</span></div>
+              <div class="panel-body">
+                <table>
+                  <tbody>
+                    <tr><th>משימה</th><td>בדיקת ירק לסלט</td></tr>
+                    <tr><th>מקור</th><td>מוצרים עם הערת כשרות: ירק עלים</td></tr>
+                    <tr><th>הזמנות</th><td>1042, 1044</td></tr>
+                    <tr><th>כמות</th><td>11 ק"ג</td></tr>
+                    <tr><th>מועד אחרון</th><td>היום 10:15</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2>עדכון משגיח</h2><span class="tag">פעולה</span></div>
+              <div class="panel-body">
+                <div class="actions">
+                  <button class="btn success">סומן כבוצע</button>
+                  <button class="btn warn">דורש בדיקה חוזרת</button>
+                  <button class="btn danger">בעיה כשרותית</button>
+                </div>
+                <textarea style="width:100%; min-height:120px; margin-top:12px; border:1px solid var(--line); border-radius:8px; padding:10px;" placeholder="הערת משגיח..."></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    document.querySelectorAll(".nav-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
+        button.classList.add("active");
+        document.getElementById(button.dataset.screen).classList.add("active");
+      });
+    });
+
+    document.querySelectorAll(".tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        const page = document.getElementById(button.dataset.page);
+        const parent = button.closest(".screen");
+        parent.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
+        parent.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
+        button.classList.add("active");
+        page.classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>
