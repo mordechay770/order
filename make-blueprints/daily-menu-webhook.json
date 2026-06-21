@@ -1,0 +1,143 @@
+{
+  "_comment": "ייבא סצנריה זו ב-Make.com: Scenarios → Create → Import Blueprint",
+  "_description": "תפריט יומי — סוגי הזמנות עם לוח תאריכים (צהריים/ערב/שבת)",
+  "_flow": "Webhook → Search סוגי הזמנות (by type+status+date) → Get תבנית → Iterator over מנות → Get מאכל → Aggregate by date → Respond",
+  "_modules_needed": [
+    "gateway:CustomWebHook",
+    "airtable:ActionSearchRecords v3",
+    "airtable:ActionGetRecord v3",
+    "util:Iterator",
+    "util:TextAggregator",
+    "gateway:WebhookRespond"
+  ],
+  "_airtable_connection_id": 3389085,
+  "_base": "appM61hkcOruhdBuv",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "mapper": {},
+      "parameters": { "maxResults": 1 },
+      "metadata": { "designer": { "x": 0, "y": 0 } }
+    },
+    {
+      "id": 2,
+      "_comment": "חפש שורות לוח עבור הסוג המבוקש — רק פתוח להזמנה, תאריך עתידי",
+      "module": "airtable:ActionSearchRecords",
+      "version": 3,
+      "mapper": {
+        "base": "appM61hkcOruhdBuv",
+        "table": "tblJ7a7d5HfORkMu4",
+        "formula": "AND({fldYgc5Vz5ZrFGHop}=\"פתוח להזמנה\",{flddj8yoiko7U4MWf}=\"{{1.type}}\",IS_AFTER({fldS3NWmxIaqyUm6g},TODAY()))",
+        "maxRecords": "14",
+        "useColumnId": true
+      },
+      "parameters": { "__IMTCONN__": 3389085 },
+      "metadata": { "designer": { "x": 300, "y": 0 } }
+    },
+    {
+      "id": 3,
+      "_comment": "Get תבנית המשויכת לשורת הלוח — רק אם יש תבנית מקושרת",
+      "filter": {
+        "name": "has template",
+        "conditions": [[{ "a": "{{length(2.fldmCacFFUVxp8CTz)}}", "b": "0", "o": "number:greater" }]]
+      },
+      "module": "airtable:ActionGetRecord",
+      "version": 3,
+      "mapper": {
+        "base": "appM61hkcOruhdBuv",
+        "table": "tbl0T5TTLqDr0uCGR",
+        "id": "{{2.fldmCacFFUVxp8CTz[1].value}}"
+      },
+      "parameters": { "__IMTCONN__": 3389085 },
+      "metadata": { "designer": { "x": 600, "y": 0 } }
+    },
+    {
+      "id": 4,
+      "_comment": "Iterator — פרק את מערך המנות מהתבנית (fldTkRa6caF2yl7YG = שדה מנות חדש)",
+      "module": "util:Iterator",
+      "version": 1,
+      "mapper": { "array": "{{3.fldTkRa6caF2yl7YG}}" },
+      "parameters": {},
+      "metadata": { "designer": { "x": 900, "y": 0 } }
+    },
+    {
+      "id": 5,
+      "_comment": "Get פרטי מאכל מ-מאכלים",
+      "module": "airtable:ActionGetRecord",
+      "version": 3,
+      "mapper": {
+        "base": "appM61hkcOruhdBuv",
+        "table": "tblhkNaiSGBiLRUxA",
+        "id": "{{4.value}}"
+      },
+      "parameters": { "__IMTCONN__": 3389085 },
+      "metadata": { "designer": { "x": 1200, "y": 0 } }
+    },
+    {
+      "id": 6,
+      "_comment": "Text Aggregator — מנות לכל תאריך (מקובץ לפי תאריך)",
+      "module": "util:TextAggregator",
+      "version": 1,
+      "mapper": {
+        "value": "{\"id\":\"{{5.ID}}\",\"name\":\"{{5.`שם המאכל ברוסית`}}\",\"price\":{{ifempty(5.`Цена`[]; 0)}},\"portion\":\"{{5.`משקל או נפח למנה`}}\"}"
+      },
+      "parameters": {
+        "feeder": 4,
+        "rowSeparator": "other",
+        "otherRowSeparator": ",",
+        "groupBy": "{{2.fldS3NWmxIaqyUm6g}}"
+      },
+      "metadata": { "designer": { "x": 1500, "y": 0 } }
+    },
+    {
+      "id": 7,
+      "_comment": "Text Aggregator — כל התאריכים עם המנות שלהם",
+      "module": "util:TextAggregator",
+      "version": 1,
+      "mapper": {
+        "value": "{\"date\":\"{{2.fldS3NWmxIaqyUm6g}}\",\"template\":\"{{3.fld0oUt0J8IiPpxY8}}\",\"dishes\":[{{6.text}}]}"
+      },
+      "parameters": {
+        "feeder": 2,
+        "rowSeparator": "other",
+        "otherRowSeparator": ","
+      },
+      "metadata": { "designer": { "x": 1800, "y": 0 } }
+    },
+    {
+      "id": 8,
+      "_comment": "Webhook Respond — מחזיר מערך תאריכים + מנות",
+      "module": "gateway:WebhookRespond",
+      "version": 1,
+      "mapper": {
+        "body": "[{{7.text}}]",
+        "status": "200",
+        "headers": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Access-Control-Allow-Origin", "value": "*" }
+        ]
+      },
+      "metadata": { "designer": { "x": 2100, "y": 0 } }
+    }
+  ],
+  "name": "מרדכי | תפריט יומי — לוח הזמנות",
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": { "orphans": [] },
+    "scenario": {
+      "dlq": false,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

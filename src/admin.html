@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
@@ -616,6 +616,7 @@
     <button class="tab-btn" onclick="switchTab('closure')">🕯 Выходные</button>
     <button class="tab-btn" onclick="switchTab('export')">💾 Экспорт</button>
     <button class="tab-btn" onclick="switchTab('events')">🎉 Мероприятия</button>
+    <button class="tab-btn" onclick="switchTab('menu')">📅 Меню</button>
   </div>
 
   <div class="admin-content">
@@ -1007,6 +1008,82 @@
       <button class="btn-save" onclick="saveSettings()">💾 Сохранить настройки мероприятий</button>
     </div>
 
+    <!-- ─── TAB: MENU CALENDAR ─── -->
+    <div id="tab-menu" class="tab-panel">
+
+      <!-- Webhook URL -->
+      <div class="admin-card">
+        <div class="admin-card-title">📅 Webhook — ежедневное меню</div>
+        <p style="color:var(--ink-2);margin-bottom:16px;line-height:1.6;">
+          Отдельный сценарий Make.com для типов заказов с датой (Обед / Ужин / Шаббат).
+          Укажите URL один раз — он будет применён ко всем трём типам автоматически.
+        </p>
+        <div class="form-row">
+          <label class="form-label">URL вебхука ежедневного меню</label>
+          <input class="form-input" id="cfg_daily_menu_webhook" placeholder="https://hook.eu1.make.com/..." />
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px;">
+          <button class="btn-save" onclick="applyDailyMenuWebhook()">✅ Применить к Обед / Ужин / Шаббат</button>
+          <button class="btn-save" onclick="saveSettings()" style="background:var(--navy-soft);">💾 Сохранить</button>
+        </div>
+        <p id="dailyWebhookStatus" style="margin-top:10px;font-size:13px;color:var(--success);display:none;">✓ URL применён к типам: Обед, Ужин, Шаббат</p>
+      </div>
+
+      <!-- Airtable links -->
+      <div class="admin-card">
+        <div class="admin-card-title">🗂 Управление в Airtable</div>
+        <p style="color:var(--ink-2);margin-bottom:16px;line-height:1.6;">
+          Всё меню управляется через Airtable. Здесь — быстрые ссылки.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <a href="https://airtable.com/appM61hkcOruhdBuv/tblJ7a7d5HfORkMu4" target="_blank" class="btn-save" style="text-decoration:none;text-align:center;">
+            📅 Открыть лоח תפריטים (Типы заказов + даты)
+          </a>
+          <a href="https://airtable.com/appM61hkcOruhdBuv/tbl0T5TTLqDr0uCGR" target="_blank" class="btn-save" style="text-decoration:none;text-align:center;background:var(--navy-soft);">
+            🍽 Открыть тבניות (Шаблоны меню)
+          </a>
+          <a href="https://airtable.com/appM61hkcOruhdBuv/tblhkNaiSGBiLRUxA" target="_blank" class="btn-save" style="text-decoration:none;text-align:center;background:var(--ink-2);">
+            🥗 Открыть мאכלים (Каталог блюд)
+          </a>
+        </div>
+      </div>
+
+      <!-- Weekly workflow guide -->
+      <div class="admin-card">
+        <div class="admin-card-title">📋 Рабочий процесс — каждую неделю</div>
+        <ol style="color:var(--ink-2);line-height:2;padding-left:20px;">
+          <li>Открыть <strong>тбнийот</strong> → создать/выбрать шаблон меню (или использовать существующий)</li>
+          <li>Связать шаблон с блюдами: вкладка <strong>מנות</strong> в записи шаблона</li>
+          <li>Открыть <strong>лоח заказов</strong> → создать строки для каждого дня (Обед / Ужин) и для Шаббата</li>
+          <li>Прикрепить нужный шаблон к каждой строке через поле <strong>תבנית</strong></li>
+          <li>Сменить статус с <strong>Черновик → Открыто для заказа</strong></li>
+          <li>Клиенты автоматически видят актуальное меню при открытии формы</li>
+        </ol>
+        <div style="margin-top:16px;padding:12px;background:var(--gold-tint);border-radius:var(--r-md);border:1px solid var(--gold-soft);">
+          <strong>Статусы лоха:</strong><br>
+          🔘 <strong>Черновик</strong> — в процессе планирования, клиенты не видят<br>
+          🟢 <strong>Открыто для заказа</strong> — отображается в форме заказа<br>
+          🔴 <strong>Закрыто</strong> — приём завершён
+        </div>
+      </div>
+
+      <!-- Make.com blueprint import -->
+      <div class="admin-card">
+        <div class="admin-card-title">⚙️ Make.com — импорт сценария ежедневного меню</div>
+        <p style="color:var(--ink-2);margin-bottom:12px;line-height:1.6;">
+          Blueprint сохранён в файле проекта. Импортируйте вручную в Make.com:
+        </p>
+        <ol style="color:var(--ink-2);line-height:2;padding-left:20px;">
+          <li>Make.com → Scenarios → <strong>Create a new scenario</strong></li>
+          <li>Нажмите <strong>Import Blueprint</strong></li>
+          <li>Загрузите файл <code>kitchen-orders/make-blueprints/daily-menu-webhook.json</code></li>
+          <li>Настройте подключение Airtable (connection ID: 3389085)</li>
+          <li>Активируйте сценарий → скопируйте URL вебхука сюда</li>
+        </ol>
+      </div>
+
+    </div><!-- /tab-menu -->
+
   </div><!-- /admin-content -->
 </div><!-- /adminPanel -->
 
@@ -1068,16 +1145,17 @@ const DEFAULT_SETTINGS = {
     hours:    '',
   },
   announcements: [],
+  daily_menu_webhook: '',
   order_types: [
-    { id:'breakfast',    icon:'🌅', title:'Завтрак',       sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'daily',    date_mode:'daily',   deadline_days_before:1, deadline_time:'20:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
-    { id:'lunch',        icon:'🍱', title:'Обед',           sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'daily',    date_mode:'daily',   deadline_days_before:0, deadline_time:'09:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
-    { id:'dinner',       icon:'🌙', title:'Ужин',           sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'daily',   deadline_days_before:0, deadline_time:'11:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
-    { id:'shabbat',      icon:'🕯', title:'Шаббат',         sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'shabbat', deadline_days_before:2, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
-    { id:'holiday',      icon:'✡',  title:'Праздник',       sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'holiday', deadline_days_before:2, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:false },
-    { id:'trip',         icon:'🎒', title:'В дорогу',       sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',    deadline_days_before:1, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
-    { id:'special',      icon:'⭐', title:'Спецзаказ',      sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',    deadline_days_before:1, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
-    { id:'bakery',       icon:'🥐', title:'Выпечка',        sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',    deadline_days_before:2, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
-    { id:'semifinished', icon:'🥟', title:'Полуфабрикаты',  sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',    deadline_days_before:3, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
+    { id:'בוקר',           icon:'🌅', title:'Завтрак',       sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'daily',    date_mode:'daily',   deadline_days_before:1, deadline_time:'20:00', menu_webhook:'', order_webhook:'', airtable_record_id:'recDz5Sci3DyvyCKk', template_id:'', active:true },
+    { id:'צהריים',         icon:'🍱', title:'Обед',           sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'daily',    date_mode:'daily',   deadline_days_before:0, deadline_time:'09:00', menu_webhook:'', order_webhook:'', airtable_record_id:'recmmHzVwIrqr0sjV', template_id:'', active:true },
+    { id:'ערב',            icon:'🌙', title:'Ужин',           sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'daily',   deadline_days_before:0, deadline_time:'11:00', menu_webhook:'', order_webhook:'', airtable_record_id:'recGOEHU1yDVuqC7o', template_id:'', active:true },
+    { id:'שבת',            icon:'🕯', title:'Шаббат',         sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'shabbat', deadline_days_before:2, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'recoLDzKzC6sfnW56', template_id:'', active:true },
+    { id:'חג',             icon:'✡',  title:'Праздник',       sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'holiday', deadline_days_before:2, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'rectNFuKg3pY7CBg1', template_id:'', active:false },
+    { id:'טיול',           icon:'🎒', title:'В дорогу',       sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',    deadline_days_before:1, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'recy6H9jMZxdCcFBw', template_id:'', active:true },
+    { id:'מיוחד',          icon:'⭐', title:'Спецзаказ',      sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',    deadline_days_before:1, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'recz3Gll8T4Uqqiqj', template_id:'', active:true },
+    { id:'מאפים',          icon:'🥐', title:'Выпечка',        sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',    deadline_days_before:2, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'recvS7pxL8ebNHyDX', template_id:'', active:true },
+    { id:'מוצרים מוכנים',  icon:'🥟', title:'Полуфабрикаты',  sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',    deadline_days_before:3, deadline_time:'12:00', menu_webhook:'', order_webhook:'', airtable_record_id:'', template_id:'', active:true },
   ],
   texts: {
     ru: { app_title: 'Заказ еды', app_subtitle: 'Выберите тип заказа' },
@@ -1241,6 +1319,7 @@ function loadAllFields() {
   document.getElementById('wh_event_services').value = ew.services || '';
   document.getElementById('wh_event_menu').value     = ew.menu     || '';
   document.getElementById('wh_event_order').value    = ew.order    || '';
+  document.getElementById('cfg_daily_menu_webhook').value = settings.daily_menu_webhook || '';
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1304,7 +1383,20 @@ function collectSettings() {
     halls:    collectEventHalls(),
     services: collectEventServices(),
   };
+  s.daily_menu_webhook = document.getElementById('cfg_daily_menu_webhook').value.trim();
   return s;
+}
+
+function applyDailyMenuWebhook() {
+  const url = document.getElementById('cfg_daily_menu_webhook').value.trim();
+  if (!url) { showStatus('Введите URL вебхука', 'error'); return; }
+  const daily_types = ['צהריים', 'ערב', 'שבת'];
+  (settings.order_types || []).forEach(t => {
+    if (daily_types.includes(t.id)) t.menu_webhook = url;
+  });
+  renderOrderTypesList();
+  document.getElementById('dailyWebhookStatus').style.display = 'block';
+  showStatus('URL применён к типам: Обед, Ужин, Шаббат', 'success');
 }
 
 // ════════════════════════════════════════════════════════════
