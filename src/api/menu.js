@@ -47,16 +47,15 @@ function atHeaders(token) {
 }
 
 async function atGet(path, token) {
-  const fullUrl = `${AT_BASE}/${path}`;
-  console.log('[atGet]', fullUrl.slice(0, 300));
+  // returnFieldsByFieldId=true ensures fields keyed by ID, not name
+  const sep = path.includes('?') ? '&' : '?';
+  const fullUrl = `${AT_BASE}/${path}${sep}returnFieldsByFieldId=true`;
   const r = await fetch(fullUrl, { headers: atHeaders(token) });
   if (!r.ok) {
     const txt = await r.text().catch(() => '');
     throw new Error(`Airtable ${r.status}: ${txt.slice(0, 200)}`);
   }
-  const json = await r.json();
-  console.log('[atGet] records:', (json.records || []).length);
-  return json;
+  return r.json();
 }
 
 /** Build Airtable-compatible query string (handles fields[], sort[0][field], etc.) */
@@ -117,18 +116,15 @@ async function fetchStaticMenu(type, token) {
 async function fetchDailyMenu(type, token) {
   const today = new Date().toISOString().slice(0, 10);
 
-  const formula = `{${FS_TYPE}}=${JSON.stringify(type)}`;
-  console.log('[daily] formula:', formula, 'today:', today);
+  const formula = `AND({${FS_TYPE}}=${JSON.stringify(type)},{${FS_STATUS}}="פתוח להזמנה",NOT(IS_BEFORE({${FS_DATE}},"${today}")))`;
 
-  console.log('[menu-daily] type:', type, 'formula:', formula);
   const slots = await atList(T_SLOTS, {
     filterByFormula: formula,
     fields: [FS_DATE, FS_TPL],
     sort: [{ field: FS_DATE, direction: 'asc' }],
   }, token);
 
-  console.log('[menu-daily] slots found:', slots.length, JSON.stringify(slots.slice(0,2)));
-  if (!slots.length) return [{ _debug_no_slots: true, formula, today }];
+  if (!slots.length) return [];
 
   // 2. Collect unique template IDs
   const tplIds = [...new Set(
@@ -200,9 +196,8 @@ export default async function handler(req, res) {
       ? await fetchDailyMenu(type, token)
       : await fetchStaticMenu(type, token);
 
-    // Cache on CDN for 5 min (data changes slowly)
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
-    return res.status(200).json({ _debug: true, count: data.length, data });
+    return res.status(200).json(data);
   } catch (err) {
     console.error('[menu api]', err.message, err.stack);
     return res.status(502).json({ error: 'Failed to fetch menu', detail: err.message });
