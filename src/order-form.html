@@ -986,7 +986,62 @@
     .delivery-banner-date { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
     .delivery-banner-time { font-size: 13px; opacity: .8; margin-top: 1px; }
 
-    /* ── MANUAL DATE PICKER ── */
+    /* ── DATE PICKER ── */
+    .dp-section { padding: 14px 16px 0; }
+    .dp-section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .dp-section-label::after { content:''; flex:1; height:1px; background: linear-gradient(to right, var(--line), transparent); }
+    .dp-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+    .dp-scroll::-webkit-scrollbar { display: none; }
+    .dp-card {
+      flex-shrink: 0; width: 72px;
+      border: 2px solid var(--line); border-radius: 16px;
+      background: var(--surface); color: var(--ink);
+      cursor: pointer; text-align: center;
+      padding: 12px 6px 10px;
+      font-family: inherit; transition: all .18s;
+      box-shadow: var(--shadow-xs);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .dp-card:hover { border-color: var(--gold); box-shadow: 0 4px 12px rgba(201,168,76,.2); transform: translateY(-1px); }
+    .dp-card:active { transform: scale(.96); }
+    .dp-card.selected {
+      border-color: var(--navy); background: linear-gradient(160deg, var(--navy-deep), var(--navy));
+      color: #fff; box-shadow: 0 6px 18px -6px rgba(14,34,70,.45);
+    }
+    .dp-card .dc-day  { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .65; margin-bottom: 4px; }
+    .dp-card .dc-num  { font-size: 22px; font-weight: 700; line-height: 1; margin-bottom: 2px; }
+    .dp-card .dc-mon  { font-size: 10px; opacity: .65; font-weight: 600; }
+    .dp-card .dc-time { font-size: 10px; font-weight: 600; margin-top: 5px; opacity: .8;
+      background: rgba(201,168,76,.18); border-radius: 6px; padding: 2px 4px; }
+    .dp-card.selected .dc-time { background: rgba(255,255,255,.15); opacity: 1; }
+    .dp-card--more { position: relative; border-style: dashed; border-color: var(--line); background: var(--paper); }
+
+    /* ── TIME SLOTS ── */
+    .ts-section { padding: 14px 16px 0; }
+    .ts-section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .ts-section-label::after { content:''; flex:1; height:1px; background: linear-gradient(to right, var(--line), transparent); }
+    .ts-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .ts-btn {
+      border: 2px solid var(--line); border-radius: 12px;
+      background: var(--surface); color: var(--ink);
+      padding: 10px 4px; text-align: center; cursor: pointer;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+      transition: all .15s; box-shadow: var(--shadow-xs);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ts-btn:hover { border-color: var(--gold); }
+    .ts-btn.selected {
+      border-color: var(--navy); background: var(--navy); color: #fff;
+      box-shadow: 0 4px 12px -4px rgba(14,34,70,.35);
+    }
+
+    /* ── MANUAL DATE PICKER (legacy alias — kept for compat) ── */
     .mdp-wrap { padding: 14px 16px 0; }
     .mdp-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 10px; }
     .mdp-dates { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
@@ -1446,6 +1501,7 @@ const T = {
     total_label: 'Итого', selected_label: 'Выбрано позиций', all_cats: 'Все',
     loading_dates: '⏳ Загружаем доступные даты…',
     no_dates: 'Нет доступных дат для этого типа заказа.',
+    date_delivery: 'Дата доставки', time_delivery: 'Время доставки', date_other: 'позже',
     no_dishes: 'Блюда для этого типа заказа пока не добавлены.',
     fixed_menu_label: 'Ежедневные блюда', fixed_menu_desc: 'Готовое меню от шеф-повара — выберите дату и получите блюда дня',
     shabbat_menu_label: 'Шаббат и праздники', shabbat_menu_desc: 'Заказ оформляется заранее — уточните сроки у администратора',
@@ -1471,6 +1527,8 @@ const T = {
     shabbat_menu_label: 'Shabbat & Holidays', shabbat_menu_desc: 'Order in advance — contact admin for deadlines',
     open_menu_label: 'Custom order', open_menu_desc: 'Choose any dishes from the menu in the quantity you need',
     preorder_menu_label: 'Pre-orders', preorder_menu_desc: 'Baked goods & semi-prepared — ordered in advance with minimum quantity',
+    date_delivery: 'Delivery date', time_delivery: 'Delivery time', date_other: 'other',
+    btn_new_order: 'New order',
   },
   he: {
     app_title: 'הזמנת אוכל', app_subtitle: 'בחרו סוג הזמנה',
@@ -1490,6 +1548,8 @@ const T = {
     shabbat_menu_label: 'שבת וחגים', shabbat_menu_desc: 'ההזמנה מתבצעת מראש — בדקו עם המנהל את המועדים',
     open_menu_label: 'הזמנה אישית', open_menu_desc: 'בחרו כל מנה מהתפריט בכמות הרצויה',
     preorder_menu_label: 'הזמנה מראש', preorder_menu_desc: 'מאפים וחצי מוכנים — מוזמן מראש עם כמות מינימום',
+    date_delivery: 'תאריך משלוח', time_delivery: 'שעת משלוח', date_other: 'אחר',
+    btn_new_order: 'הזמנה חדשה',
   },
 };
 
@@ -1516,7 +1576,8 @@ function applyLang() {
   if (document.getElementById('screen1')?.classList.contains('active')) renderTypeCards();
 }
 
-const MENU_API = '/api/menu';
+const MENU_API  = '/api/menu';
+const ORDER_API = '/api/order';
 
 const ORDER_TYPES = [
   // delivery_time: display time, lead_days: min days advance, lead_cutoff: order-by time same/prev day
@@ -1541,6 +1602,9 @@ let currentDeliveryDate = null, currentDeliveryTime = null;
 
 const RU_DAYS_FULL = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
 const RU_DAYS_SHORT = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const DAYS_SHORT = { ru:['Вс','Пн','Вт','Ср','Чт','Пт','Сб'], en:['Su','Mo','Tu','We','Th','Fr','Sa'], he:['א','ב','ג','ד','ה','ו','ש'] };
+function lDay(i) { return (DAYS_SHORT[currentLang]||DAYS_SHORT.ru)[i]; }
+function lMon(i) { return (MONTHS[currentLang]||MONTHS.ru)[i]; }
 const RU_MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const RU_MONTHS_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 
@@ -1553,7 +1617,7 @@ function setDeliveryDateTime(dateStr, timeStr) {
 function renderDeliveryBanner() {
   const el = document.getElementById('deliveryBanner');
   if (!currentDeliveryDate) { el.style.display = 'none'; return; }
-  const d = new Date(currentDeliveryDate);
+  const d = parseLocalDate(currentDeliveryDate);
   const dayName = RU_DAYS_FULL[d.getDay()];
   const dateStr = d.getDate() + ' ' + RU_MONTHS[d.getMonth()];
   const timeStr = currentDeliveryTime ? ' · ' + currentDeliveryTime : '';
@@ -1586,37 +1650,50 @@ function renderManualDatePicker(type) {
   const earliest = getEarliestDeliveryDate(type);
   const dates = []; let d = new Date(earliest);
   const isShabbatType = type.category === 'shabbat';
-  for (let i = 0; i < 21 && dates.length < 10; i++) {
+  for (let i = 0; i < 21 && dates.length < 7; i++) {
     if (isShabbatType ? d.getDay() === 6 : d.getDay() !== 6) dates.push(isoDate(d));
     d.setDate(d.getDate() + 1);
   }
   if (!dates.length) { dp.style.display = 'none'; return; }
   const needsTime = !type.delivery_time;
-  const timeLabel = type.delivery_time ? ` · ${type.delivery_time}` : '';
-  const timeRow = needsTime ? `
-    <div class="mdp-label" style="margin-top:14px;">Время доставки</div>
-    <input type="time" id="manualTimeInput" min="10:00" max="17:00"
-      value="${currentDeliveryTime || ''}"
-      onchange="selectManualTime(this.value)"
-      style="border:1.5px solid var(--line);border-radius:10px;padding:10px 14px;
-             font-size:16px;font-family:inherit;background:#fff;width:160px;
-             margin-top:4px;outline:none;color:var(--ink);" />` : '';
+  const fixedTime = type.delivery_time;
+
+  const TIME_SLOTS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+  const timeBlock = needsTime ? `
+    <div class="ts-section">
+      <div class="ts-section-label">${t('time_delivery')}</div>
+      <div class="ts-grid">
+        ${TIME_SLOTS.map(t => `<button class="ts-btn${t===currentDeliveryTime?' selected':''}" onclick="selectManualTime('${t}')">${t}</button>`).join('')}
+      </div>
+    </div>` : '';
+
+  const minIso = isoDate(earliest);
+  const maxIso = (() => { const mx = new Date(earliest); mx.setDate(mx.getDate() + 90); return isoDate(mx); })();
   dp.style.display = 'block';
-  dp.innerHTML = `<div class="mdp-wrap">
-    <div class="mdp-label">Дата доставки${timeLabel}</div>
-    <div class="mdp-dates">
+  dp.innerHTML = `<div class="dp-section">
+    <div class="dp-section-label">${t('date_delivery')}${fixedTime ? ' · ' + fixedTime : ''}</div>
+    <div class="dp-scroll">
       ${dates.map(iso => {
-        const dd = new Date(iso);
+        const dd = parseLocalDate(iso);
         const sel = iso === currentDeliveryDate;
-        return `<button class="mdp-btn${sel?' selected':''}" onclick="selectManualDate('${iso}')">
-          <div class="mdp-day">${RU_DAYS_SHORT[dd.getDay()]}</div>
-          <div class="mdp-num">${dd.getDate()}</div>
-          <div class="mdp-mon">${RU_MONTHS_SHORT[dd.getMonth()]}</div>
+        return `<button class="dp-card${sel?' selected':''}" onclick="selectManualDate('${iso}')">
+          <div class="dc-day">${lDay(dd.getDay())}</div>
+          <div class="dc-num">${dd.getDate()}</div>
+          <div class="dc-mon">${lMon(dd.getMonth())}</div>
+          ${fixedTime ? `<div class="dc-time">${fixedTime}</div>` : ''}
         </button>`;
       }).join('')}
+      <label class="dp-card dp-card--more" title="Выбрать другую дату">
+        <div class="dc-day" style="opacity:.5;">📆</div>
+        <div class="dc-num" style="font-size:14px;font-weight:700;margin-top:4px;">${t('date_other')}</div>
+        <div class="dc-mon" style="opacity:0;font-size:9px;">-</div>
+        <input type="date" id="customDateInput" min="${minIso}" max="${maxIso}"
+          value="${currentDeliveryDate || ''}"
+          onchange="selectManualDate(this.value)"
+          style="position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer;" />
+      </label>
     </div>
-    ${timeRow}
-  </div>`;
+  </div>${timeBlock}`;
 }
 
 function selectManualDate(dateStr) {
@@ -1847,34 +1924,31 @@ function applyMenuData(data, seq) {
   }
 }
 
+function parseLocalDate(iso) {
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
 function renderDatePicker() {
   const dp = document.getElementById('datePicker');
   if (!menuByDate || !menuByDate.length) { dp.style.display='none'; return; }
-  const dayNames = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
-  const monthNames = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  const fixedTime = currentType && currentType.delivery_time;
   dp.style.display = 'block';
-  dp.innerHTML = `
-    <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px;">Выберите дату</div>
-    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
+  dp.innerHTML = `<div class="dp-section">
+    <div class="dp-section-label">${t('choose_date')}</div>
+    <div class="dp-scroll">
       ${menuByDate.map(entry => {
-        const d = new Date(entry.date);
-        const isSelected = entry.date === selectedMenuDate;
-        const day = dayNames[d.getDay()];
-        const num = d.getDate();
-        const mon = monthNames[d.getMonth()];
-        return `<button onclick="selectMenuDate('${entry.date}')" style="
-          flex-shrink:0;border:2px solid ${isSelected?'var(--navy)':'var(--line)'};
-          background:${isSelected?'var(--navy)':'var(--surface)'};
-          color:${isSelected?'#fff':'var(--ink)'};
-          border-radius:12px;padding:8px 14px;cursor:pointer;text-align:center;min-width:56px;
-          font-family:inherit;transition:all .15s;">
-          <div style="font-size:11px;opacity:.7;">${day}</div>
-          <div style="font-size:18px;font-weight:700;">${num}</div>
-          <div style="font-size:11px;opacity:.7;">${mon}</div>
-          ${entry.template?`<div style="font-size:10px;margin-top:2px;opacity:.6;">${entry.template}</div>`:''}
+        const d = parseLocalDate(entry.date);
+        const sel = entry.date === selectedMenuDate;
+        return `<button class="dp-card${sel?' selected':''}" onclick="selectMenuDate('${entry.date}')">
+          <div class="dc-day">${RU_DAYS_SHORT[d.getDay()]}</div>
+          <div class="dc-num">${d.getDate()}</div>
+          <div class="dc-mon">${RU_MONTHS_SHORT[d.getMonth()]}</div>
+          ${fixedTime ? `<div class="dc-time">${fixedTime}</div>` : ''}
         </button>`;
       }).join('')}
-    </div>`;
+    </div>
+  </div>`;
 }
 
 function selectMenuDate(dateStr) {
@@ -2204,8 +2278,7 @@ async function doSubmitCombined() {
   if (!wa) return showCombinedError('Укажите ваш номер WhatsApp для уведомлений.');
   const payload = Object.assign({}, pendingOrderPayload, { payment_method:'combined', payment_breakdown:bd, customer_whatsapp:wa });
   const btn = document.getElementById('combinedSubmitBtn'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Отправляем…';
-  const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL);
-  if (!orderUrl || orderUrl === 'YOUR_ORDER_WEBHOOK_URL_HERE') { setTimeout(()=>{ clearCart(); showResult(true,'TEST-'+Math.floor(Math.random()*9999),'combined',bd); }, 900); return; }
+  const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL) || ORDER_API;
   try { const r = await fetch(orderUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error(); let num=''; try { const d=await r.json(); num=d.order_number||d.id||''; } catch(_) {} clearCart(); showResult(true,num,'combined',bd); }
   catch(_) { btn.disabled=false; btn.textContent='✅ Оформить заказ'; showCombinedError('Ошибка отправки. Попробуйте ещё раз.'); }
 }
@@ -2228,8 +2301,7 @@ async function doSubmitOrder(pm) {
   const sec = pm==='cash'?'paySectionCash':'paySectionKaspi';
   const btn = document.querySelector('#'+sec+' .btn-submit');
   if (btn) { btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Отправляем…'; }
-  const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL);
-  if (!orderUrl || orderUrl === 'YOUR_ORDER_WEBHOOK_URL_HERE') { setTimeout(()=>{ clearCart(); showResult(true,'TEST-'+Math.floor(Math.random()*9999),pm); }, 900); return; }
+  const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL) || ORDER_API;
   try { const r = await fetch(orderUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error(); let num=''; try { const d=await r.json(); num=d.order_number||d.id||''; } catch(_) {} clearCart(); showResult(true,num,pm); }
   catch(_) { if (btn) { btn.disabled=false; btn.textContent='✅ Подтвердить заказ'; } showResult(false); }
 }
