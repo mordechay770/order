@@ -113,19 +113,21 @@ async function fetchStaticMenu(type, token) {
 async function fetchDailyMenu(type, token) {
   const today = new Date().toISOString().slice(0, 10);
 
-  // 1. Get open future slots for this type
+  // 1. Get open future slots for this type (include today with >= comparison)
   const formula = `AND(
     {${FS_TYPE}} = ${JSON.stringify(type)},
     {${FS_STATUS}} = "פתוח להזמנה",
-    IS_AFTER({${FS_DATE}}, "${today}")
+    NOT(IS_BEFORE({${FS_DATE}}, "${today}"))
   )`.replace(/\s+/g, ' ');
 
+  console.log('[menu-daily] type:', type, 'formula:', formula);
   const slots = await atList(T_SLOTS, {
     filterByFormula: formula,
     fields: [FS_DATE, FS_TPL],
     sort: [{ field: FS_DATE, direction: 'asc' }],
   }, token);
 
+  console.log('[menu-daily] slots found:', slots.length, slots.map(s => s.fields[FS_DATE]));
   if (!slots.length) return [];
 
   // 2. Collect unique template IDs
