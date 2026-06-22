@@ -1689,6 +1689,7 @@ async function loadDishes(typeId, date) {
     if (Array.isArray(data) && data.length && data[0].date && Array.isArray(data[0].dishes)) {
       menuByDate = data;
       selectedMenuDate = null;
+      if (data.length === 1) { selectMenuDate(data[0].date); return; }
       renderDatePicker();
       dishes = []; buildCatBar(); renderDishes();
     } else if (Array.isArray(data) && data.length) {
