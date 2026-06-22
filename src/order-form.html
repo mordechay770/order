@@ -1055,6 +1055,9 @@
     <div class="step-pill">Шаг 1</div>
   </div>
 
+  <!-- Date picker — shown only for daily/shabbat types -->
+  <div id="datePicker" style="display:none;padding:12px 16px 0;"></div>
+
   <div id="catBar" class="cat-bar" style="display:none;"></div>
 
   <div class="page-body">
@@ -1495,6 +1498,7 @@ const ORDER_TYPES = [
 ];
 
 let currentType = null, currentSlot = null, dishes = [], quantities = {};
+let menuByDate = null, selectedMenuDate = null;
 let screen3OpenTime = 0, pendingOrderPayload = null;
 let paymentConfig = { methods: ['cash','kaspi','voucher','combined'], kaspi_phone: '' };
 let currentScreen = 1, activeCat = 'all';
@@ -1660,20 +1664,82 @@ function showSkeletons() {
   for (let i=0;i<6;i++) grid.innerHTML += `<div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>`;
 }
 
+function isDateBasedType(type) {
+  return type && (type.date_mode === 'daily' || type.date_mode === 'shabbat');
+}
+
 async function loadDishes(typeId, date) {
   const menuUrl = routeWebhook(currentType, 'menu_webhook', MENU_WEBHOOK_URL);
   if (!menuUrl || menuUrl === 'YOUR_MENU_WEBHOOK_URL_HERE') {
+    menuByDate = null; selectedMenuDate = null;
+    document.getElementById('datePicker').style.display = 'none';
     dishes = getSampleDishes(currentType ? currentType.id : typeId); activeCat='all'; buildCatBar(); renderDishes(); return;
   }
-  let url = menuUrl + '?type=' + encodeURIComponent(typeId); if (date) url += '&date=' + encodeURIComponent(date);
+  const url = menuUrl + '?type=' + encodeURIComponent(typeId);
   try {
     const resp = await fetch(url); if (!resp.ok) throw new Error();
     const data = await resp.json();
-    if (Array.isArray(data) && data.length) {
+    // Detect date-grouped format: [{date, dishes:[]}]
+    if (Array.isArray(data) && data.length && data[0].date && Array.isArray(data[0].dishes)) {
+      menuByDate = data;
+      selectedMenuDate = null;
+      renderDatePicker();
+      dishes = []; buildCatBar(); renderDishes();
+    } else if (Array.isArray(data) && data.length) {
+      menuByDate = null; selectedMenuDate = null;
+      document.getElementById('datePicker').style.display = 'none';
       dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||d['שם המאכל ברוסית']||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
-    } else { dishes = []; }
-  } catch(_) { dishes = getSampleDishes(typeId); }
-  activeCat='all'; buildCatBar(); renderDishes();
+      activeCat='all'; buildCatBar(); renderDishes();
+    } else {
+      menuByDate = null; dishes = [];
+      document.getElementById('datePicker').style.display = 'none';
+      buildCatBar(); renderDishes();
+    }
+  } catch(_) {
+    menuByDate = null; document.getElementById('datePicker').style.display = 'none';
+    dishes = getSampleDishes(typeId); activeCat='all'; buildCatBar(); renderDishes();
+  }
+}
+
+function renderDatePicker() {
+  const dp = document.getElementById('datePicker');
+  if (!menuByDate || !menuByDate.length) { dp.style.display='none'; return; }
+  const dayNames = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const monthNames = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  dp.style.display = 'block';
+  dp.innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px;">Выберите дату</div>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
+      ${menuByDate.map(entry => {
+        const d = new Date(entry.date);
+        const isSelected = entry.date === selectedMenuDate;
+        const day = dayNames[d.getDay()];
+        const num = d.getDate();
+        const mon = monthNames[d.getMonth()];
+        return `<button onclick="selectMenuDate('${entry.date}')" style="
+          flex-shrink:0;border:2px solid ${isSelected?'var(--navy)':'var(--line)'};
+          background:${isSelected?'var(--navy)':'var(--surface)'};
+          color:${isSelected?'#fff':'var(--ink)'};
+          border-radius:12px;padding:8px 14px;cursor:pointer;text-align:center;min-width:56px;
+          font-family:inherit;transition:all .15s;">
+          <div style="font-size:11px;opacity:.7;">${day}</div>
+          <div style="font-size:18px;font-weight:700;">${num}</div>
+          <div style="font-size:11px;opacity:.7;">${mon}</div>
+          ${entry.template?`<div style="font-size:10px;margin-top:2px;opacity:.6;">${entry.template}</div>`:''}
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
+function selectMenuDate(dateStr) {
+  selectedMenuDate = dateStr;
+  renderDatePicker();
+  const entry = menuByDate.find(e => e.date === dateStr);
+  if (entry && entry.dishes) {
+    dishes = entry.dishes.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
+  } else { dishes = []; }
+  quantities = {};
+  activeCat = 'all'; buildCatBar(); renderDishes();
 }
 
 function buildCatBar() {
@@ -1791,16 +1857,10 @@ async function restoreCart() {
     document.getElementById('s2Title').textContent = type.title;
     document.getElementById('s2Sub').textContent = currentSlot ? (currentSlot.name || type.sub) : type.sub;
     goToScreen(2); showSkeletons();
-    const savedDate = currentSlot ? currentSlot.date : null;
-    if (MENU_WEBHOOK_URL !== 'YOUR_MENU_WEBHOOK_URL_HERE') {
-      let url = MENU_WEBHOOK_URL + '?type=' + type.id; if (savedDate) url += '&date=' + savedDate;
-      const resp = await fetch(url); if (!resp.ok) throw new Error();
-      const data = await resp.json();
-      if (Array.isArray(data) && data.length) dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||'Блюдо', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
-    } else dishes = getSampleDishes(type.id);
+    await loadDishes(type.id, currentSlot ? currentSlot.date : null);
     quantities = {};
     Object.entries(saved.quantities||{}).forEach(([id,qty]) => { if (qty>0 && dishes.find(d=>d.id===id)) quantities[id] = qty; });
-    activeCat='all'; buildCatBar(); renderDishes();
+    buildCatBar(); renderDishes();
     Object.entries(quantities).forEach(([id,qty]) => { const el=document.getElementById('qty-'+id); if(el) el.textContent=qty; const c=document.getElementById('card-'+id); if (c) c.classList.toggle('selected', qty>0); });
     updateStickyTotal();
     if ((saved.screen||2) === 3) goToScreen(3);
