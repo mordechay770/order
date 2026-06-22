@@ -1483,18 +1483,18 @@ function applyLang() {
 
 const ORDER_TYPES = [
   // category: daily — fixed model, date picker (no Sat/Fri-eve), preset dishes
-  { id:'breakfast',    icon:'🌅', title:'Завтрак',        sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'daily',    date_mode:'daily' },
-  { id:'lunch',        icon:'🍱', title:'Обед',            sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'daily',    date_mode:'daily' },
-  { id:'dinner',       icon:'🌙', title:'Ужин',            sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'daily', skip_friday:true },
+  { id:'breakfast',    icon:'🌅', title:'Завтрак',        sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'daily',    date_mode:'daily',    menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'lunch',        icon:'🍱', title:'Обед',            sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'daily',    date_mode:'daily',    menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
+  { id:'dinner',       icon:'🌙', title:'Ужин',            sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'daily',    menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x', skip_friday:true },
   // category: shabbat — ordered in advance for Shabbat/holidays
-  { id:'shabbat',      icon:'🕯', title:'Шаббат',          sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'shabbat' },
-  { id:'holiday',      icon:'✡',  title:'Праздник',        sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'holiday', active:false },
+  { id:'shabbat',      icon:'🕯', title:'Шаббат',          sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'shabbat',  menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
+  { id:'holiday',      icon:'✡',  title:'Праздник',        sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'holiday',  menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x', active:false },
   // category: custom — open model, free selection
-  { id:'trip',         icon:'🎒', title:'В дорогу',        sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom' },
-  { id:'special',      icon:'⭐', title:'Спецзаказ',       sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom' },
+  { id:'trip',         icon:'🎒', title:'В дорогу',        sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',     menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'special',      icon:'⭐', title:'Спецзаказ',       sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',     menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
   // category: preorder — open model + min_qty + advance deadline
-  { id:'bakery',       icon:'🥐', title:'Выпечка',         sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder' },
-  { id:'semifinished', icon:'🥟', title:'Полуфабрикаты',   sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder' },
+  { id:'bakery',       icon:'🥐', title:'Выпечка',         sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',     menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'semifinished', icon:'🥟', title:'Полуфабрикаты',   sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',     menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
 ];
 
 let currentType = null, currentSlot = null, dishes = [], quantities = {};
@@ -2135,7 +2135,17 @@ async function loadSettings() {
     }
     if (cfg.contact) { Object.assign(SITE_CONFIG.contact, cfg.contact); renderContact(SITE_CONFIG.contact); }
     if (cfg.announcements) { SITE_CONFIG.announcements = cfg.announcements; renderAnnouncements(cfg.announcements); }
-    if (Array.isArray(cfg.order_types) && cfg.order_types.length) { ORDER_TYPES.length=0; cfg.order_types.forEach(t => ORDER_TYPES.push(t)); renderTypeCards(); }
+    if (Array.isArray(cfg.order_types) && cfg.order_types.length) {
+      const STATIC_WH  = 'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l';
+      const DAILY_WH   = 'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x';
+      const dailyIds   = ['צהריים','ערב','שבת','חג'];
+      ORDER_TYPES.length = 0;
+      cfg.order_types.forEach(t => {
+        if (!t.menu_webhook) t.menu_webhook = dailyIds.includes(t.id) ? DAILY_WH : STATIC_WH;
+        ORDER_TYPES.push(t);
+      });
+      renderTypeCards();
+    }
     if (cfg.lang_default && !localStorage.getItem('kc_lang')) { currentLang = cfg.lang_default; applyLang(); }
   } catch(_) {}
 }
