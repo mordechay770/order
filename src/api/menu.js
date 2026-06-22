@@ -200,6 +200,6 @@ export default async function handler(req, res) {
     return res.status(200).json(data);
   } catch (err) {
     console.error('[menu api]', err.message, err.stack);
-    return res.status(502).json({ error: 'Failed to fetch menu', detail: err.message });
+    return res.status(502).json({ error: 'Failed to fetch menu' });
   }
 }
