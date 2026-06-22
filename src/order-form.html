@@ -1011,7 +1011,7 @@
 
   <div class="hero">
     <div class="hero-inner">
-      <a href="https://src-sigma-ecru-25.vercel.app" style="font-size:12px;color:rgba(255,255,255,0.5);text-decoration:none;display:block;margin-bottom:8px;letter-spacing:0.04em;">← Главная</a>
+      <a href="index.html" style="font-size:12px;color:rgba(255,255,255,0.5);text-decoration:none;display:block;margin-bottom:8px;letter-spacing:0.04em;">← Главная</a>
       <div class="logo" id="siteLogoDisplay">🍽</div>
       <h1 id="heroTitle" data-i18n="app_title">Заказ еды</h1>
       <p  id="heroSub"   data-i18n="app_subtitle">Выберите тип заказа</p>
@@ -1502,6 +1502,7 @@ let menuByDate = null, selectedMenuDate = null;
 let screen3OpenTime = 0, pendingOrderPayload = null;
 let paymentConfig = { methods: ['cash','kaspi','voucher','combined'], kaspi_phone: '' };
 let currentScreen = 1, activeCat = 'all';
+let _loadSeq = 0;
 
 function goToScreen(n) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1618,12 +1619,14 @@ function getSmartDates(type) {
 }
 
 async function loadSlots(type) {
+  const seq = ++_loadSeq;
   const grid = document.getElementById('slotGrid');
   let slots = null;
   if (SLOTS_WEBHOOK_URL !== 'YOUR_SLOTS_WEBHOOK_URL_HERE') {
     grid.innerHTML = '<div class="slot-loading">' + t('loading_dates') + '</div>';
     try { const r = await fetch(SLOTS_WEBHOOK_URL + '?type=' + type.id); if (r.ok) { const d = await r.json(); if (Array.isArray(d) && d.length) slots = d; } } catch(_) {}
   }
+  if (seq !== _loadSeq) return;
   if (!slots) slots = getSmartDates(type);
   if (!slots || !slots.length) { grid.innerHTML = '<div class="slot-loading">' + t('no_dates') + '</div>'; return; }
   if (slots.length === 1) { await selectSlot(slots[0]); return; }
@@ -1669,8 +1672,10 @@ function isDateBasedType(type) {
 }
 
 async function loadDishes(typeId, date) {
+  const seq = ++_loadSeq;
   const menuUrl = routeWebhook(currentType, 'menu_webhook', MENU_WEBHOOK_URL);
   if (!menuUrl || menuUrl === 'YOUR_MENU_WEBHOOK_URL_HERE') {
+    if (seq !== _loadSeq) return;
     menuByDate = null; selectedMenuDate = null;
     document.getElementById('datePicker').style.display = 'none';
     dishes = getSampleDishes(currentType ? currentType.id : typeId); activeCat='all'; buildCatBar(); renderDishes(); return;
@@ -1679,6 +1684,7 @@ async function loadDishes(typeId, date) {
   try {
     const resp = await fetch(url); if (!resp.ok) throw new Error();
     const data = await resp.json();
+    if (seq !== _loadSeq) return;
     // Detect date-grouped format: [{date, dishes:[]}]
     if (Array.isArray(data) && data.length && data[0].date && Array.isArray(data[0].dishes)) {
       menuByDate = data;
@@ -1696,6 +1702,7 @@ async function loadDishes(typeId, date) {
       buildCatBar(); renderDishes();
     }
   } catch(_) {
+    if (seq !== _loadSeq) return;
     menuByDate = null; document.getElementById('datePicker').style.display = 'none';
     dishes = getSampleDishes(typeId); activeCat='all'; buildCatBar(); renderDishes();
   }
@@ -1736,7 +1743,7 @@ function selectMenuDate(dateStr) {
   renderDatePicker();
   const entry = menuByDate.find(e => e.date === dateStr);
   if (entry && entry.dishes) {
-    dishes = entry.dishes.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
+    dishes = entry.dishes.map((d,i)=>({id:d.id||`${dateStr}-${i}`, name:d.name||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
   } else { dishes = []; }
   quantities = {};
   activeCat = 'all'; buildCatBar(); renderDishes();
@@ -1852,10 +1859,13 @@ async function restoreCart() {
     const type = ORDER_TYPES.find(t => t.id===saved.typeId); if (!type) return;
     currentType = type;
     if (saved.slotId) currentSlot = { id: saved.slotId, name: saved.slotName, date: saved.slotDate };
+    document.getElementById('s1bTitle').textContent = type.icon + ' ' + type.title;
+    document.getElementById('s1bSub').textContent = t('choose_date_sub');
     document.getElementById('typeBadge').textContent = type.icon + ' ' + (currentSlot ? (currentSlot.name || type.title) : type.title);
     document.getElementById('s3TypeBadge').textContent = document.getElementById('typeBadge').textContent;
     document.getElementById('s2Title').textContent = type.title;
     document.getElementById('s2Sub').textContent = currentSlot ? (currentSlot.name || type.sub) : type.sub;
+    if (currentSlot) loadSlots(type);
     goToScreen(2); showSkeletons();
     await loadDishes(type.id, currentSlot ? currentSlot.date : null);
     quantities = {};

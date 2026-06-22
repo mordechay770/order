@@ -2,78 +2,102 @@
 
 ## על הפרויקט
 מערכת הזמנות למטבח מקצועי עם ממשק admin ו-order form.
-**יעד:** הפצה תחילת/אמצע שבוע 08.06.2026
 
-## שני מסלולי הזמנה
-- **מסלול קבוע** — ארוחת צהריים/ערב יומיומית, מוזמנת יום לפני, מחיר קבוע
-- **מסלול חופשי** — בחירת מנות ספציפיות, פרמיום, עם מגבלות:
-  - `min_qty_per_order` per-dish (הגדרה בטבלת מאכלים Airtable)
-  - `max_types_per_order` גלובלי (Data Store ב-Make.com)
-- **אישור אדמין חובה** לכל הזמנה → רק אחרי אישור המטבח רואה
+## ארכיטקטורת תפריטים — שתי סצנריות Make.com
 
-## Airtable — טבלאות מרכזיות
+### סצנריה 4907093 — תפריט סטטי (GET → רשימה שטוחה)
+- **Webhook:** `https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l`
+- **סוגי הזמנות:** בוקר, טיול, מיוחד, מאפים, מוצרים מוכנים
+- **קריאה:** `GET ?type=בוקר`
+- **תשובה:** `[{id, name, price, portion, photo_url, category}]`
+- **זרימה:** Webhook → Search מאכלים (לפי שדה `סוגי הזמנות`) → TextAggregator → Respond
+
+### סצנריה 6279260 — תפריט יומי (GET → מקובץ לפי תאריך)
+- **Webhook:** `https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x`
+- **סוגי הזמנות:** צהריים, ערב, שבת, חג
+- **קריאה:** `GET ?type=צהריים`
+- **תשובה:** `[{date, template, dishes:[{id, name, price, portion}]}]`
+- **זרימה:** Webhook → Search סוגי הזמנות (סטטוס=פתוח+תאריך עתידי) → Get תבנית → BasicFeeder מנות → Get מאכל → TextAggregator per date → TextAggregator all → Respond
+
+### סצנריה 4914420 — קבלת הזמנה (POST → שמירה ב-Airtable)
+- **Webhook:** (webhook ID 2684828)
+- **תפקיד:** מקבל JSON הזמנה → יוצר רשומה בהזמנות + שורות בכמויות הזמנה
+
+## Airtable — טבלאות ושדות
+
+### טבלאות מרכזיות
 | טבלה | ID | תפקיד |
 |------|----|--------|
-| הזמנות | tblMnlLwYCD27ou80 | POS — כל הזמנה |
+| הזמנות | tblMnlLwYCD27ou80 | POS |
 | כמויות הזמנה | tblcP1zvc3Tu9oQuL | שורות הזמנה |
-| מאכלים/תפריט | tblhkNaiSGBiLRUxA | תפריט + מחירים |
-| אנשי קשר | tbl9KpBHdGSzhNf0E | לקוחות פרטניים |
+| מאכלים | tblhkNaiSGBiLRUxA | תפריט + מחירים |
+| תבניות | tbl0T5TTLqDr0uCGR | תבניות תפריט יומי |
+| סוגי הזמנות | tblJ7a7d5HfORkMu4 | לוח תאריכים יומי |
+| אנשי קשר | tbl9KpBHdGSzhNf0E | לקוחות |
 | תשלומים | tblaNK6mYqr20YtT1 | תשלומים |
 
-**שדות קריטיים לפיתוח:**
-- `fldcekWvpJwdVVMK6` — סטטוס הזמנה (כולל "Ожидает подтверждения менеджера")
-- `fldcWbQXZM8Agv6ir` — כמויות (link)
-- **חסר:** `סוג מסלול` + `זמין במסלול חופשי` + `min_qty_per_order` — לבנות לפני פיתוח
+### שדות קריטיים — סוגי הזמנות (tblJ7a7d5HfORkMu4)
+- `fldYgc5Vz5ZrFGHop` — סטטוס (טיוטה / פתוח להזמנה / נסגר)
+- `flddj8yoiko7U4MWf` — סוג (צהריים/ערב/שבת/חג/בוקר/טיול/מיוחד/מאפים)
+- `fldS3NWmxIaqyUm6g` — תאריך
+- `fldmCacFFUVxp8CTz` — תבנית (link → תבניות)
 
-## מבנה תיקיות
+### שדות קריטיים — תבניות (tbl0T5TTLqDr0uCGR)
+- `fld0oUt0J8IiPpxY8` — שם התבנית
+- `fldTkRa6caF2yl7YG` — מנות (link → מאכלים) ← שדה חדש שנוסף
+- `fldD1XfdS3z9IeHqw` — סטטוס (Done = פעיל)
+
+### שדות קריטיים — מאכלים (tblhkNaiSGBiLRUxA)
+- `fld8ia1Q9b1WoZhE7` — שם המאכל ברוסית
+- `fldXNADlCSPdnowbQ` — מחיר מכירה (₸)
+- `fldNJXzWYU1yTabdc` — עלות (linked)
+
+## order-form.html — לוגיקת תפריטים
+
 ```
-kitchen-orders/
-├── src/              ← קוד חי (גרסה קנונית)
-│   ├── order-form.html
-│   ├── order-hub.html
-│   ├── admin.html
-│   └── index.html
-├── make-blueprints/  ← סצנריות Make.com (5a–5f)
-├── docs/             ← תיעוד
-│   ├── system-diagram.md
-│   └── NEXT_SESSION_PROMPT.md
-└── archive/v1/       ← גרסאות קודמות
+loadDishes(typeId) →
+  menuUrl = currentType.menu_webhook  ← per-type מ-admin settings
+  GET menuUrl?type=typeId →
+    if data[0].date exists:
+      menuByDate = data           ← תאריכי תפריט
+      renderDatePicker()          ← מציג כרטיסי תאריך
+      לחיצה על תאריך → selectMenuDate() → dishes = entry.dishes
+    else:
+      dishes = data               ← רשימה שטוחה (סטטי)
 ```
 
-## קבצים עיקריים
-- `src/order-form.html` — טופס הזמנה
-- `src/admin.html` — ממשק ניהול (כולל טאב 🎉 אולמות+שירותים)
-- `src/order-hub.html` — מרכז הזמנות
+**IDs עבריים ב-admin** (בוקר/צהריים/ערב/שבת) — לא אנגליים (breakfast/lunch).
+**Fallback:** אם localStorage ישן ו-menu_webhook ריק → order-form ממלא אוטומטית לפי סוג.
 
 ## 🌐 Deploy
 | | |
 |---|---|
-| **GitHub** | `github.com/mordechay770/order` |
+| **GitHub** | `github.com/mordechay770/order` (branch: master) |
 | **Vercel URL** | `https://src-sigma-ecru-25.vercel.app` |
-| **Root directory** | `src/` |
-| **פקודת deploy** | `cd kitchen-orders/src && vercel --prod` |
+| **פקודת deploy** | `cd kitchen-orders && vercel --prod` (אחרי שה-.vercel/project.json מוגדר ל-"src") |
+| **⚠️ חשוב** | `kitchen-orders/.vercel/project.json` חייב להכיל projectId של "src" (prj_AAJ63fl2wyX7VttMctNQ12HNI3a3) |
 
-> ⚠️ Vercel לא מחובר ל-GitHub אוטומטית — deploy ידני אחרי כל שינוי.
-> לחיבור אוטומטי: Vercel dashboard → Settings → Git → Connect `mordechay770/order` → Root: `src`
+## בעיות ידועות לתיקון (שיחה הבאה)
+1. **ניווט** — חזרה ממסך 2 למסך 1, מעבר בין סוגי הזמנות, רענון דף
+2. **סצנריה 6279260** — לבדוק שה-BasicFeeder מפרק נכון את `fldTkRa6caF2yl7YG`
+3. **שדה Цена** — בסצנריה הסטטית 4907093 משתמש ב-`Цена[]` (linked) אבל החדשה משתמשת ב-`fldXNADlCSPdnowbQ` — לאחד
+4. **admin.html** — לוודא שלאחר שמירה ה-localStorage מתעדכן עם webhooks
 
-## ניווט בין דפים
-- `src/index.html` → דף ראשי (hub) — מפנה ל: order-form, event-form, recipes
-- `src/order-form.html` → קישור "← Главная" חוזר ל-Vercel URL
-- `src/order-hub.html` → קישור "← Главная" חוזר ל-Vercel URL
-- מתכונים: `recipes-ivory-xi.vercel.app` → קישור "← Кухня" חוזר ל-Vercel URL
-
-## סוכנים רלוונטיים
-- ⚙️ **מפתח צד-שרת** — Make.com, webhooks
-- 🎨 **מפתח ממשקים** — טפסים, admin UI
-- 🍽️ **מומחה מטבח** — ולידציה מקצועית
-
-## ארכיטקטורה
-- admin.html שומר הגדרות: `localStorage('kc_admin_settings')`
-- event-booking/event-form.html קורא מאותו key
-- Make.com: webhooks לכל שלב בהזמנה
-- Webhook URLs — אין בקוד! נקראים בלבד מ-localStorage
+## מבנה תיקיות
+```
+kitchen-orders/
+├── src/              ← קוד חי
+│   ├── order-form.html
+│   ├── admin.html
+│   ├── order-hub.html
+│   └── index.html
+├── make-blueprints/  ← daily-menu-webhook.json (לייבוא ידני)
+├── docs/
+└── .vercel/          ← חייב לצדד ל-project "src"
+```
 
 ## כללים קריטיים
-- שינוי ב-`kc_admin_settings` schema → חייב לעדכן גם ב-event-booking!
-- כל שינוי מבני (תיקיות, URLs, deploy) → עדכן סעיף זה ב-CLAUDE.md
-- כל שינוי קוד → עדכן CHANGELOG.md
+- Deploy: `cd kitchen-orders && vercel --prod` (לא מ-src/)
+- שינוי schema ב-`kc_admin_settings` → לעדכן גם ב-event-booking!
+- Airtable base: `appM61hkcOruhdBuv`
+- Make.com teamId: `7464` | Airtable connection: `3389085`
