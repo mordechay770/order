@@ -1681,31 +1681,46 @@ async function loadDishes(typeId, date) {
     dishes = getSampleDishes(currentType ? currentType.id : typeId); activeCat='all'; buildCatBar(); renderDishes(); return;
   }
   const url = menuUrl + '?type=' + encodeURIComponent(typeId);
+  // cache per type, 5-minute TTL
+  const cacheKey = 'kc_menu_' + typeId;
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+    if (cached && cached.ts && Date.now() - cached.ts < 5 * 60 * 1000 && Array.isArray(cached.data)) {
+      if (seq !== _loadSeq) return;
+      applyMenuData(cached.data, seq); return;
+    }
+  } catch(_) {}
   try {
     const resp = await fetch(url); if (!resp.ok) throw new Error();
     const data = await resp.json();
+    try { sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data })); } catch(_) {}
     if (seq !== _loadSeq) return;
-    // Detect date-grouped format: [{date, dishes:[]}]
-    if (Array.isArray(data) && data.length && data[0].date && Array.isArray(data[0].dishes)) {
-      menuByDate = data;
-      selectedMenuDate = null;
-      if (data.length === 1) { selectMenuDate(data[0].date); return; }
-      renderDatePicker();
-      dishes = []; buildCatBar(); renderDishes();
-    } else if (Array.isArray(data) && data.length) {
-      menuByDate = null; selectedMenuDate = null;
-      document.getElementById('datePicker').style.display = 'none';
-      dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||d['שם המאכל ברוסית']||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
-      activeCat='all'; buildCatBar(); renderDishes();
-    } else {
-      menuByDate = null; dishes = [];
-      document.getElementById('datePicker').style.display = 'none';
-      buildCatBar(); renderDishes();
-    }
+    applyMenuData(data, seq);
   } catch(_) {
     if (seq !== _loadSeq) return;
     menuByDate = null; document.getElementById('datePicker').style.display = 'none';
     dishes = getSampleDishes(typeId); activeCat='all'; buildCatBar(); renderDishes();
+  }
+}
+
+function applyMenuData(data, seq) {
+  if (seq !== undefined && seq !== _loadSeq) return;
+  // date-grouped format: [{date, dishes:[]}]
+  if (Array.isArray(data) && data.length && data[0].date && Array.isArray(data[0].dishes)) {
+    menuByDate = data;
+    selectedMenuDate = null;
+    if (data.length === 1) { selectMenuDate(data[0].date); return; }
+    renderDatePicker();
+    dishes = []; buildCatBar(); renderDishes();
+  } else if (Array.isArray(data) && data.length) {
+    menuByDate = null; selectedMenuDate = null;
+    document.getElementById('datePicker').style.display = 'none';
+    dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||d['שם המאכל ברוסית']||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
+    activeCat='all'; buildCatBar(); renderDishes();
+  } else {
+    menuByDate = null; dishes = [];
+    document.getElementById('datePicker').style.display = 'none';
+    buildCatBar(); renderDishes();
   }
 }
 
@@ -1768,7 +1783,12 @@ function renderDishes() {
   const grid = document.getElementById('dishGrid');
   grid.innerHTML = '';
   const visible = activeCat==='all' ? dishes : dishes.filter(d=>d.category===activeCat);
-  if (!visible.length) { grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:14px;">${t('no_dishes')}</div>`; return; }
+  if (!visible.length) {
+    const msg = menuByDate && !selectedMenuDate
+      ? `<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--muted);font-size:15px;">👆 Выберите дату чтобы увидеть меню</div>`
+      : `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:14px;">${t('no_dishes')}</div>`;
+    grid.innerHTML = msg; return;
+  }
   if (activeCat === 'all') {
     const hasCats = dishes.some(d => d.category);
     if (hasCats) {
