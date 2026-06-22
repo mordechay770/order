@@ -1516,17 +1516,19 @@ function applyLang() {
   if (document.getElementById('screen1')?.classList.contains('active')) renderTypeCards();
 }
 
+const MENU_API = '/api/menu';
+
 const ORDER_TYPES = [
   // delivery_time: display time, lead_days: min days advance, lead_cutoff: order-by time same/prev day
-  { id:'בוקר',           icon:'🌅', title:'Завтрак',        sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'09:30', lead_days:1, lead_cutoff:'20:00', menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  { id:'צהריים',          icon:'🍱', title:'Обед',            sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'11:00', lead_days:0, lead_cutoff:'09:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
-  { id:'ערב',             icon:'🌙', title:'Ужин',            sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'17:00', lead_days:0, lead_cutoff:'11:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
-  { id:'שבת',             icon:'🕯', title:'Шаббат',          sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:2, lead_cutoff:'12:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
-  { id:'חג',              icon:'✡',  title:'Праздник',        sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:3, lead_cutoff:'12:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x', active:false },
-  { id:'טיול',            icon:'🎒', title:'В дорогу',        sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'20:00', min_qty:1,  menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  { id:'מיוחד',           icon:'⭐', title:'Спецзаказ',       sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'12:00', min_qty:1,  menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  { id:'מאפים',           icon:'🥐', title:'Выпечка',         sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:2, lead_cutoff:'20:00', min_qty:5,  menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  { id:'מוצרים מוכנים',  icon:'🥟', title:'Полуфабрикаты',   sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:3, lead_cutoff:'20:00', min_qty:10, menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'בוקר',           icon:'🌅', title:'Завтрак',        sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'09:30', lead_days:1, lead_cutoff:'20:00' },
+  { id:'צהריים',          icon:'🍱', title:'Обед',            sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'11:00', lead_days:0, lead_cutoff:'09:00' },
+  { id:'ערב',             icon:'🌙', title:'Ужин',            sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'17:00', lead_days:0, lead_cutoff:'11:00' },
+  { id:'שבת',             icon:'🕯', title:'Шаббат',          sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:2, lead_cutoff:'12:00' },
+  { id:'חג',              icon:'✡',  title:'Праздник',        sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:3, lead_cutoff:'12:00', active:false },
+  { id:'טיול',            icon:'🎒', title:'В дорогу',        sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'20:00', min_qty:1 },
+  { id:'מיוחד',           icon:'⭐', title:'Спецзаказ',       sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'12:00', min_qty:1 },
+  { id:'מאפים',           icon:'🥐', title:'Выпечка',         sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:2, lead_cutoff:'20:00', min_qty:5 },
+  { id:'מוצרים מוכנים',  icon:'🥟', title:'Полуфабрикаты',   sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:3, lead_cutoff:'20:00', min_qty:10 },
 ];
 
 let currentType = null, currentSlot = null, dishes = [], quantities = {};
@@ -1800,14 +1802,7 @@ function isDateBasedType(type) {
 
 async function loadDishes(typeId, date) {
   const seq = ++_loadSeq;
-  const menuUrl = routeWebhook(currentType, 'menu_webhook', MENU_WEBHOOK_URL);
-  if (!menuUrl || menuUrl === 'YOUR_MENU_WEBHOOK_URL_HERE') {
-    if (seq !== _loadSeq) return;
-    menuByDate = null; selectedMenuDate = null;
-    document.getElementById('datePicker').style.display = 'none';
-    dishes = getSampleDishes(currentType ? currentType.id : typeId); activeCat='all'; buildCatBar(); renderDishes(); return;
-  }
-  const url = menuUrl + '?type=' + encodeURIComponent(typeId);
+  const url = MENU_API + '?type=' + encodeURIComponent(typeId);
   // cache per type, 5-minute TTL
   const cacheKey = 'kc_menu_' + typeId;
   try {
@@ -1842,7 +1837,7 @@ function applyMenuData(data, seq) {
   } else if (Array.isArray(data) && data.length) {
     menuByDate = null; selectedMenuDate = null;
     const typeMinQty = currentType && currentType.min_qty > 0 ? currentType.min_qty : 1;
-    dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||d['שם המאכל ברוסית']||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||'', min_qty: d.min_qty||typeMinQty}));
+    dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||d['שם המאכל ברוסית']||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||'', min_qty: d.min_qty > 0 ? d.min_qty : typeMinQty}));
     if (currentType) renderManualDatePicker(currentType);
     activeCat='all'; buildCatBar(); renderDishes();
   } else {
@@ -2492,17 +2487,13 @@ async function checkClosure() {
 
 function prewarmMenuCache() {
   // fire-and-forget: fetch all menus in background so first click is instant
-  const seen = new Set();
-  ORDER_TYPES.forEach(type => {
-    const url = type.menu_webhook;
-    if (!url || url === 'YOUR_MENU_WEBHOOK_URL_HERE' || seen.has(url + type.id)) return;
-    seen.add(url + type.id);
+  ORDER_TYPES.filter(t => t.active !== false).forEach(type => {
     const cacheKey = 'kc_menu_' + type.id;
     try {
       const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
-      if (cached && cached.ts && Date.now() - cached.ts < 5 * 60 * 1000) return; // already fresh
+      if (cached && cached.ts && Date.now() - cached.ts < 5 * 60 * 1000) return;
     } catch(_) {}
-    fetch(url + '?type=' + encodeURIComponent(type.id))
+    fetch(MENU_API + '?type=' + encodeURIComponent(type.id))
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data })); })
       .catch(() => {});
