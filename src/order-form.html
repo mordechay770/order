@@ -1523,10 +1523,10 @@ const ORDER_TYPES = [
   { id:'ערב',             icon:'🌙', title:'Ужин',            sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'17:00', lead_days:0, lead_cutoff:'11:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
   { id:'שבת',             icon:'🕯', title:'Шаббат',          sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:2, lead_cutoff:'12:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
   { id:'חג',              icon:'✡',  title:'Праздник',        sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:3, lead_cutoff:'12:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x', active:false },
-  { id:'טיול',            icon:'🎒', title:'В дорогу',        sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',    delivery_time:null,    lead_days:1, lead_cutoff:'20:00', menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  { id:'מיוחד',           icon:'⭐', title:'Спецзаказ',       sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',    delivery_time:null,    lead_days:1, lead_cutoff:'12:00', menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  { id:'מאפים',           icon:'🥐', title:'Выпечка',         sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',    delivery_time:null,    lead_days:2, lead_cutoff:'20:00', menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  { id:'מוצרים מוכנים',  icon:'🥟', title:'Полуфабрикаты',   sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null,    lead_days:3, lead_cutoff:'20:00', menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'טיול',            icon:'🎒', title:'В дорогу',        sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'20:00', min_qty:1,  menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'מיוחד',           icon:'⭐', title:'Спецзаказ',       sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'12:00', min_qty:1,  menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'מאפים',           icon:'🥐', title:'Выпечка',         sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:2, lead_cutoff:'20:00', min_qty:5,  menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'מוצרים מוכנים',  icon:'🥟', title:'Полуфабрикаты',   sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:3, lead_cutoff:'20:00', min_qty:10, menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
 ];
 
 let currentType = null, currentSlot = null, dishes = [], quantities = {};
@@ -1579,10 +1579,11 @@ function getEarliestDeliveryDate(type) {
   return base;
 }
 
+const TIME_SLOTS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+
 function renderManualDatePicker(type) {
   const dp = document.getElementById('datePicker');
   const earliest = getEarliestDeliveryDate(type);
-  // generate up to 10 valid dates (skip Saturday for non-shabbat)
   const dates = []; let d = new Date(earliest);
   const isShabbatType = type.category === 'shabbat';
   for (let i = 0; i < 21 && dates.length < 10; i++) {
@@ -1590,10 +1591,21 @@ function renderManualDatePicker(type) {
     d.setDate(d.getDate() + 1);
   }
   if (!dates.length) { dp.style.display = 'none'; return; }
+  const needsTime = !type.delivery_time;
   const timeLabel = type.delivery_time ? ` · ${type.delivery_time}` : '';
+  const timeRow = needsTime ? `
+    <div class="mdp-label" style="margin-top:14px;">Время доставки</div>
+    <div class="mdp-dates" style="flex-wrap:wrap;">
+      ${TIME_SLOTS.map(t => {
+        const sel = t === currentDeliveryTime;
+        return `<button class="mdp-btn${sel?' selected':''}" style="min-width:52px;padding:6px 10px;" onclick="selectManualTime('${t}')">
+          <div class="mdp-num" style="font-size:14px;">${t}</div>
+        </button>`;
+      }).join('')}
+    </div>` : '';
   dp.style.display = 'block';
   dp.innerHTML = `<div class="mdp-wrap">
-    <div class="mdp-label">Выберите дату доставки${timeLabel}</div>
+    <div class="mdp-label">Дата доставки${timeLabel}</div>
     <div class="mdp-dates">
       ${dates.map(iso => {
         const dd = new Date(iso);
@@ -1605,12 +1617,19 @@ function renderManualDatePicker(type) {
         </button>`;
       }).join('')}
     </div>
+    ${timeRow}
   </div>`;
 }
 
 function selectManualDate(dateStr) {
   currentDeliveryDate = dateStr;
-  setDeliveryDateTime(dateStr, currentType && currentType.delivery_time);
+  setDeliveryDateTime(dateStr, currentDeliveryTime || (currentType && currentType.delivery_time));
+  if (currentType) renderManualDatePicker(currentType);
+}
+
+function selectManualTime(timeStr) {
+  currentDeliveryTime = timeStr;
+  setDeliveryDateTime(currentDeliveryDate, timeStr);
   if (currentType) renderManualDatePicker(currentType);
 }
 
@@ -1826,7 +1845,8 @@ function applyMenuData(data, seq) {
     dishes = []; buildCatBar(); renderDishes();
   } else if (Array.isArray(data) && data.length) {
     menuByDate = null; selectedMenuDate = null;
-    dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||d['שם המאכל ברוסית']||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
+    const typeMinQty = currentType && currentType.min_qty > 0 ? currentType.min_qty : 1;
+    dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||d['שם המאכל ברוסית']||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||'', min_qty: d.min_qty||typeMinQty}));
     if (currentType) renderManualDatePicker(currentType);
     activeCat='all'; buildCatBar(); renderDishes();
   } else {
@@ -1929,6 +1949,7 @@ function appendDishCard(grid, dish) {
     <div class="dish-card-body">
       <div class="dish-card-name">${dish.name}</div>
       ${dish.portion ? `<div class="dish-card-portion">⚖ ${dish.portion}</div>` : ''}
+      ${dish.min_qty > 1 ? `<div class="dish-card-portion" style="color:var(--warn);">мин. ${dish.min_qty} шт.</div>` : ''}
       <div class="dish-card-price" id="price-${dish.id}">${dish.price > 0 ? dish.price + ' ₸' : '—'}</div>
       <div class="dish-card-breakdown" id="breakdown-${dish.id}">
         <div class="bd-row"><span class="bd-label">Цена / ед.</span><span class="bd-value" id="bd-unit-${dish.id}">${dish.price>0?dish.price+' ₸':'—'}</span></div>
@@ -1947,13 +1968,14 @@ function appendDishCard(grid, dish) {
 
 function changeQty(dishId, delta) {
   const dish = dishes.find(d => d.id===dishId);
+  const minQ = (dish && dish.min_qty > 0) ? dish.min_qty : 1;
   const prev = quantities[dishId] || 0;
   let next = prev + delta;
   if (next < 0) next = 0;
-  // open model: once selected, can't go below min_qty (only fully remove on second minus)
-  if (delta < 0 && currentType?.model === 'open' && dish?.min_qty > 0 && prev > 0) {
-    if (next > 0 && next < dish.min_qty) next = 0;
-  }
+  // jump to min_qty when first selecting
+  if (delta > 0 && prev === 0 && minQ > 1) next = minQ;
+  // when going below min_qty (but > 0), snap to 0 (remove entirely)
+  if (delta < 0 && prev > 0 && next > 0 && next < minQ) next = 0;
   quantities[dishId] = next;
   const qty = next;
   document.getElementById('qty-'+dishId).textContent = qty;
