@@ -14,18 +14,18 @@ const T_TPLS   = 'tbl0T5TTLqDr0uCGR'; // תבניות
 const T_PRICES = 'tblMe5ZQp6Ygfca5W'; // אבלת מחירי מאכלים
 
 // Fields — dishes (מאכלים)
-const FD_NAME    = 'fld8ia1Q9b1WoZhE7'; // שם ברוסית
-const FD_PORTION = 'fldXNADlCSPdnowbQ'; // משקל או נפח למנה (גרמים/מ"ל)
-const FD_TYPES   = 'flddm1dEMqIXBfieF'; // סוגי הזמנות (multipleSelects)
-const FD_MINQTY  = 'fldnDpI70fL8sRXKF'; // min_qty_per_order
-const FD_STATUS  = 'fldnxpBolUFbfUxNX'; // סטטוס
-// FD_PRICES_LINK = 'fldosw1NlPlqWbcWI' — link → T_PRICES (used for filter, not fetched)
+const FD_NAME      = 'fld8ia1Q9b1WoZhE7'; // שם ברוסית
+const FD_PORTION   = 'fldXNADlCSPdnowbQ'; // משקל או נפח למנה (גרמים/מ"ל)
+const FD_TYPES     = 'flddm1dEMqIXBfieF'; // סוגי הזמנות (multipleSelects)
+const FD_MINQTY    = 'fldnDpI70fL8sRXKF'; // min_qty_per_order
+const FD_STATUS    = 'fldnxpBolUFbfUxNX'; // סטטוס
+const FD_PRC_LINK  = 'fldosw1NlPlqWbcWI'; // link → T_PRICES (price record IDs per dish)
 
 // Fields — prices (אבלת מחירי מאכלים)
-const FP_DISH    = 'fldlsT3qYsuBDX2oP'; // link → מאכלים
+// NOTE: FP_DISH links to the recipes/BOM table, NOT to מאכלים — do not filter by dish ID
 const FP_PRICE   = 'fldiDyytpcE9CZlc0'; // Цена, תג.
-const FP_TYPE    = 'fldxQeaawfV911vMK'; // סוג הזמנה (singleSelect — new)
-const FP_STATUS  = 'fldlZrO5MbI7AelWC'; // סטטוס מחיר
+const FP_TYPE    = 'fldxQeaawfV911vMK'; // סוג הזמנה (singleSelect)
+// status values: "Действующая цена" = active — not used in filter (we select by record ID)
 
 // Fields — slots (סוגי הזמנות)
 const FS_TYPE   = 'flddj8yoiko7U4MWf'; // סוג
@@ -101,48 +101,53 @@ function formatDish(rec, priceMap) {
   const price = priceMap?.[rec.id] ?? 0;
   return {
     id:      rec.id,
-    name:    rec.fields[FD_NAME]    || '',
-    price:   Number(price)          || 0,
-    portion: rec.fields[FD_PORTION] || 0,
-    min_qty: rec.fields[FD_MINQTY]  || 0,
+    name:    rec.fields[FD_NAME]     || '',
+    price:   Number(price)           || 0,
+    portion: rec.fields[FD_PORTION]  || 0,
+    min_qty: rec.fields[FD_MINQTY]   || 0,
   };
 }
 
 /**
- * Fetch prices from T_PRICES for given dish IDs and order type.
- * Returns a map { dishId → price }.
- * Logic: prefer type-specific price; fall back to row with no type (default).
+ * Fetch prices from T_PRICES for a list of dish records.
+ * dishPriceLinks: array of { dishId, priceRecIds: string[] }
+ * Returns map { dishId → price } using type-specific price with default fallback.
+ *
+ * NOTE: FP_DISH in T_PRICES links to the BOM/recipes table, NOT to מאכלים.
+ * We therefore select price rows directly by record ID (from FD_PRC_LINK on each dish).
  */
-async function fetchPrices(dishIds, orderType, token) {
-  if (!dishIds.length) return {};
+async function fetchPrices(dishPriceLinks, orderType, token) {
+  // Collect all price record IDs
+  const allPriceIds = [...new Set(dishPriceLinks.flatMap(d => d.priceRecIds))];
+  if (!allPriceIds.length) return {};
 
-  // Build filter: rows linked to any of our dish IDs
-  const dishFilter = `OR(${dishIds.map(id => `FIND("${id}",ARRAYJOIN({${FP_DISH}}))`).join(',')})`;
-  const formula    = `AND(${dishFilter},{${FP_STATUS}}="Активен")`;
-
+  // Fetch price rows by record ID via OR filter
+  const formula = `OR(${allPriceIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
   const rows = await atList(T_PRICES, {
     filterByFormula: formula,
-    fields: [FP_DISH, FP_PRICE, FP_TYPE],
+    fields: [FP_PRICE, FP_TYPE],
   }, token);
 
-  // Build map: dishId → { default: price, [type]: price }
-  const byDish = {};
+  // Map priceRecId → { price, type }
+  const priceById = {};
   for (const row of rows) {
-    const ids  = row.fields[FP_DISH] || [];
-    const price = Number(row.fields[FP_PRICE]) || 0;
-    const rowType = row.fields[FP_TYPE] || null; // null = default (no order type set)
-    for (const id of ids) {
-      if (!byDish[id]) byDish[id] = {};
-      if (rowType) byDish[id][rowType] = price;
-      else         byDish[id]['__default__'] = price;
-    }
+    priceById[row.id] = {
+      price:   Number(row.fields[FP_PRICE]) || 0,
+      rowType: row.fields[FP_TYPE] || null,
+    };
   }
 
-  // Resolve: prefer type-specific, fallback to default
+  // Resolve per dish: prefer type-specific, fallback to default (no type set)
   const result = {};
-  for (const id of dishIds) {
-    const entry = byDish[id] || {};
-    result[id] = entry[orderType] ?? entry['__default__'] ?? 0;
+  for (const { dishId, priceRecIds } of dishPriceLinks) {
+    let specific = null, fallback = null;
+    for (const recId of priceRecIds) {
+      const p = priceById[recId];
+      if (!p) continue;
+      if (p.rowType === orderType) specific = p.price;
+      else if (!p.rowType)         fallback  = p.price;
+    }
+    result[dishId] = specific ?? fallback ?? 0;
   }
   return result;
 }
@@ -154,11 +159,14 @@ async function fetchStaticMenu(type, token) {
 
   const records = await atList(T_DISHES, {
     filterByFormula: formula,
-    fields: [FD_NAME, FD_PORTION, FD_MINQTY],
+    fields: [FD_NAME, FD_PORTION, FD_MINQTY, FD_PRC_LINK],
   }, token);
 
-  const dishIds  = records.map(r => r.id);
-  const priceMap = await fetchPrices(dishIds, type, token);
+  const dishPriceLinks = records.map(r => ({
+    dishId:      r.id,
+    priceRecIds: (r.fields[FD_PRC_LINK] || []),
+  }));
+  const priceMap = await fetchPrices(dishPriceLinks, type, token);
 
   return records.map(r => formatDish(r, priceMap));
 }
@@ -200,9 +208,13 @@ async function fetchDailyMenu(type, token) {
   const dishFormula = `OR(${dishIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
   const dishRecords = await atList(T_DISHES, {
     filterByFormula: dishFormula,
-    fields: [FD_NAME, FD_PORTION, FD_MINQTY],
+    fields: [FD_NAME, FD_PORTION, FD_MINQTY, FD_PRC_LINK],
   }, token);
-  const priceMap = await fetchPrices(dishIds, type, token);
+  const dishPriceLinks = dishRecords.map(r => ({
+    dishId:      r.id,
+    priceRecIds: (r.fields[FD_PRC_LINK] || []),
+  }));
+  const priceMap = await fetchPrices(dishPriceLinks, type, token);
   const dishMap  = Object.fromEntries(dishRecords.map(r => [r.id, formatDish(r, priceMap)]));
 
   // 6. Build output: one entry per slot date
