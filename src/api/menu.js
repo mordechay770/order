@@ -11,14 +11,21 @@ const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
 const T_DISHES = 'tblhkNaiSGBiLRUxA';
 const T_SLOTS  = 'tblJ7a7d5HfORkMu4'; // סוגי הזמנות
 const T_TPLS   = 'tbl0T5TTLqDr0uCGR'; // תבניות
+const T_PRICES = 'tblMe5ZQp6Ygfca5W'; // אבלת מחירי מאכלים
 
 // Fields — dishes (מאכלים)
 const FD_NAME    = 'fld8ia1Q9b1WoZhE7'; // שם ברוסית
-const FD_PRICE   = 'fldNJXzWYU1yTabdc'; // Цена — מחיר מכירה (multipleLookupValues → take [0])
 const FD_PORTION = 'fldXNADlCSPdnowbQ'; // משקל או נפח למנה (גרמים/מ"ל)
 const FD_TYPES   = 'flddm1dEMqIXBfieF'; // סוגי הזמנות (multipleSelects)
 const FD_MINQTY  = 'fldnDpI70fL8sRXKF'; // min_qty_per_order
 const FD_STATUS  = 'fldnxpBolUFbfUxNX'; // סטטוס
+// FD_PRICES_LINK = 'fldosw1NlPlqWbcWI' — link → T_PRICES (used for filter, not fetched)
+
+// Fields — prices (אבלת מחירי מאכלים)
+const FP_DISH    = 'fldlsT3qYsuBDX2oP'; // link → מאכלים
+const FP_PRICE   = 'fldiDyytpcE9CZlc0'; // Цена, תג.
+const FP_TYPE    = 'fldxQeaawfV911vMK'; // סוג הזמנה (singleSelect — new)
+const FP_STATUS  = 'fldlZrO5MbI7AelWC'; // סטטוס מחיר
 
 // Fields — slots (סוגי הזמנות)
 const FS_TYPE   = 'flddj8yoiko7U4MWf'; // סוג
@@ -90,17 +97,54 @@ async function atList(tableId, params, token) {
   return records;
 }
 
-function formatDish(rec) {
-  // FD_PRICE is multipleLookupValues — Airtable returns an array; take first element
-  const priceArr = rec.fields[FD_PRICE];
-  const price    = Array.isArray(priceArr) ? (priceArr[0] ?? 0) : (priceArr || 0);
+function formatDish(rec, priceMap) {
+  const price = priceMap?.[rec.id] ?? 0;
   return {
     id:      rec.id,
     name:    rec.fields[FD_NAME]    || '',
     price:   Number(price)          || 0,
-    portion: rec.fields[FD_PORTION] || 0,  // weight/volume in g or ml
+    portion: rec.fields[FD_PORTION] || 0,
     min_qty: rec.fields[FD_MINQTY]  || 0,
   };
+}
+
+/**
+ * Fetch prices from T_PRICES for given dish IDs and order type.
+ * Returns a map { dishId → price }.
+ * Logic: prefer type-specific price; fall back to row with no type (default).
+ */
+async function fetchPrices(dishIds, orderType, token) {
+  if (!dishIds.length) return {};
+
+  // Build filter: rows linked to any of our dish IDs
+  const dishFilter = `OR(${dishIds.map(id => `FIND("${id}",ARRAYJOIN({${FP_DISH}}))`).join(',')})`;
+  const formula    = `AND(${dishFilter},{${FP_STATUS}}="Активен")`;
+
+  const rows = await atList(T_PRICES, {
+    filterByFormula: formula,
+    fields: [FP_DISH, FP_PRICE, FP_TYPE],
+  }, token);
+
+  // Build map: dishId → { default: price, [type]: price }
+  const byDish = {};
+  for (const row of rows) {
+    const ids  = row.fields[FP_DISH] || [];
+    const price = Number(row.fields[FP_PRICE]) || 0;
+    const rowType = row.fields[FP_TYPE] || null; // null = default (no order type set)
+    for (const id of ids) {
+      if (!byDish[id]) byDish[id] = {};
+      if (rowType) byDish[id][rowType] = price;
+      else         byDish[id]['__default__'] = price;
+    }
+  }
+
+  // Resolve: prefer type-specific, fallback to default
+  const result = {};
+  for (const id of dishIds) {
+    const entry = byDish[id] || {};
+    result[id] = entry[orderType] ?? entry['__default__'] ?? 0;
+  }
+  return result;
 }
 
 // ── static menu (בוקר, טיול, מיוחד, מאפים, מוצרים מוכנים) ──────────────────
@@ -110,10 +154,13 @@ async function fetchStaticMenu(type, token) {
 
   const records = await atList(T_DISHES, {
     filterByFormula: formula,
-    fields: [FD_NAME, FD_PRICE, FD_PORTION, FD_MINQTY],
+    fields: [FD_NAME, FD_PORTION, FD_MINQTY],
   }, token);
 
-  return records.map(formatDish);
+  const dishIds  = records.map(r => r.id);
+  const priceMap = await fetchPrices(dishIds, type, token);
+
+  return records.map(r => formatDish(r, priceMap));
 }
 
 // ── daily menu (צהריים, ערב, שבת, חג) ────────────────────────────────────────
@@ -153,9 +200,10 @@ async function fetchDailyMenu(type, token) {
   const dishFormula = `OR(${dishIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
   const dishRecords = await atList(T_DISHES, {
     filterByFormula: dishFormula,
-    fields: [FD_NAME, FD_PRICE, FD_PORTION, FD_MINQTY],
+    fields: [FD_NAME, FD_PORTION, FD_MINQTY],
   }, token);
-  const dishMap = Object.fromEntries(dishRecords.map(r => [r.id, formatDish(r)]));
+  const priceMap = await fetchPrices(dishIds, type, token);
+  const dishMap  = Object.fromEntries(dishRecords.map(r => [r.id, formatDish(r, priceMap)]));
 
   // 6. Build output: one entry per slot date
   return slots.map(slot => {
