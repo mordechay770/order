@@ -2052,9 +2052,13 @@ function changeQty(dishId, delta) {
       bdQty.textContent = qty + ' ' + (dish.unit || 'шт.');
       bdTotal.textContent = dish.price > 0 ? (qty*dish.price)+' ₸' : '—';
       if (bdWeight && dish.portion) {
-        const m = dish.portion.match(/([\d.]+)\s*([^\d]*)/);
-        if (m) { bdWeight.textContent = (qty*parseFloat(m[1])) + ' ' + (m[2].trim()||'г'); }
-        else bdWeight.textContent = qty+' × '+dish.portion;
+        const p = Number(dish.portion);
+        if (!isNaN(p) && p > 0) {
+          bdWeight.textContent = (qty * p) + ' г';
+        } else {
+          const m = String(dish.portion).match(/([\d.]+)\s*([^\d]*)/);
+          bdWeight.textContent = m ? (qty*parseFloat(m[1]))+' '+(m[2].trim()||'г') : qty+' × '+dish.portion;
+        }
       }
     } else { bdQty.textContent='—'; bdTotal.textContent='—'; if (bdWeight) bdWeight.textContent='—'; }
   }
