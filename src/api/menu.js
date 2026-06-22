@@ -117,8 +117,8 @@ async function fetchStaticMenu(type, token) {
 async function fetchDailyMenu(type, token) {
   const today = new Date().toISOString().slice(0, 10);
 
-  // DEBUG: type filter only
   const formula = `{${FS_TYPE}}=${JSON.stringify(type)}`;
+  console.log('[daily] formula:', formula, 'today:', today);
 
   console.log('[menu-daily] type:', type, 'formula:', formula);
   const slots = await atList(T_SLOTS, {
@@ -127,8 +127,8 @@ async function fetchDailyMenu(type, token) {
     sort: [{ field: FS_DATE, direction: 'asc' }],
   }, token);
 
-  console.log('[menu-daily] slots found:', slots.length, slots.map(s => s.fields[FS_DATE]));
-  if (!slots.length) return [];
+  console.log('[menu-daily] slots found:', slots.length, JSON.stringify(slots.slice(0,2)));
+  if (!slots.length) return [{ _debug_no_slots: true, formula, today }];
 
   // 2. Collect unique template IDs
   const tplIds = [...new Set(
@@ -202,7 +202,7 @@ export default async function handler(req, res) {
 
     // Cache on CDN for 5 min (data changes slowly)
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
-    return res.status(200).json(data);
+    return res.status(200).json({ _debug: true, count: data.length, data });
   } catch (err) {
     console.error('[menu api]', err.message, err.stack);
     return res.status(502).json({ error: 'Failed to fetch menu', detail: err.message });
