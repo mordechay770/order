@@ -47,12 +47,16 @@ function atHeaders(token) {
 }
 
 async function atGet(path, token) {
-  const r = await fetch(`${AT_BASE}/${path}`, { headers: atHeaders(token) });
+  const fullUrl = `${AT_BASE}/${path}`;
+  console.log('[atGet]', fullUrl.slice(0, 300));
+  const r = await fetch(fullUrl, { headers: atHeaders(token) });
   if (!r.ok) {
     const txt = await r.text().catch(() => '');
     throw new Error(`Airtable ${r.status}: ${txt.slice(0, 200)}`);
   }
-  return r.json();
+  const json = await r.json();
+  console.log('[atGet] records:', (json.records || []).length);
+  return json;
 }
 
 /** Build Airtable-compatible query string (handles fields[], sort[0][field], etc.) */
