@@ -113,8 +113,8 @@ async function fetchStaticMenu(type, token) {
 async function fetchDailyMenu(type, token) {
   const today = new Date().toISOString().slice(0, 10);
 
-  // 1. Get open future slots for this type
-  const formula = `AND({${FS_TYPE}}=${JSON.stringify(type)},{${FS_STATUS}}="פתוח להזמנה",NOT(IS_BEFORE({${FS_DATE}},"${today}")))`;
+  // DEBUG: type filter only
+  const formula = `{${FS_TYPE}}=${JSON.stringify(type)}`;
 
   console.log('[menu-daily] type:', type, 'formula:', formula);
   const slots = await atList(T_SLOTS, {
