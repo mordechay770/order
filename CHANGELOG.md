@@ -1,5 +1,40 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-06-22 — מעבר ל-Vercel API Route + אבטחה
+
+### בוצע
+- **`src/api/menu.js`** — Vercel Serverless Function חדשה שמחליפה את Make.com webhooks לטעינת תפריטים
+  - קריאה ישירה ל-Airtable API (טוקן server-side בלבד, לא נחשף ל-client)
+  - type parameter עובר דרך whitelist של 9 ערכים מורשים — כל שאר הבקשות מחזירות 400
+  - CORS נעול לדומיין הייצור בלבד
+  - CDN Cache 5 דקות (s-maxage=300)
+  - לוגיקה: static types (בוקר/טיול/מיוחד/מאפים/מוצרים מוכנים) → query מאכלים; daily types (צהריים/ערב/שבת/חג) → query slots → templates → dishes
+  - `returnFieldsByFieldId=true` על כל קריאות Airtable (שדות לפי ID לא שם)
+  - תמיכה ב-`min_qty` per-dish מ-Airtable (`fldnDpI70fL8sRXKF`)
+- **`src/order-form.html`** — עודכן לקרוא `/api/menu?type=X` במקום Make.com
+  - `MENU_API = '/api/menu'` — קבוע אחד במקום webhook URLs בכל ORDER_TYPE
+  - `prewarmMenuCache` עודכן להשתמש ב-MENU_API
+- **`src/package.json`** — נוסף עם `engines: {node: "20.x"}`
+- **`AIRTABLE_TOKEN`** — הוגדר כ-environment variable ב-Vercel
+
+### ביצועים
+- זמן תגובה: **761ms** במקום 4-5 שניות עם Make.com
+
+### אבטחה
+- API key לא מגיע ל-client בשום מצב
+- whitelist חסום injection/enumeration
+- CORS חסום cross-origin
+
+### החלטות
+- Make.com נשאר **רק** ל-POST הזמנות (4914420) — לא לקריאת תפריטים
+- מעבר ל-API נעשה בשלב א'; Supabase migration — לאחר השקה
+
+### ידוע לטיפול
+- UI/UX כולו לסקירה: בחירת תאריך, שעות, layout כרטיסי מנות
+- POST הזמנה — עדיין דרך Make.com webhook; לשקול Vercel API Route גם שם
+
+---
+
 ## 2026-06-09 — הרחבת סקיצות: שפות, סטטוסים והרשאות
 
 ### בוצע

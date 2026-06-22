@@ -77,11 +77,26 @@ loadDishes(typeId) →
 | **פקודת deploy** | `cd kitchen-orders && vercel --prod` (אחרי שה-.vercel/project.json מוגדר ל-"src") |
 | **⚠️ חשוב** | `kitchen-orders/.vercel/project.json` חייב להכיל projectId של "src" (prj_AAJ63fl2wyX7VttMctNQ12HNI3a3) |
 
+## ארכיטקטורת API — עודכן 2026-06-22
+
+### `/api/menu` — Vercel Serverless (פעיל)
+- **קובץ:** `src/api/menu.js`
+- **קריאה:** `GET /api/menu?type=צהריים`
+- **אבטחה:** whitelist | CORS | token server-side בלבד
+- **לוגיקה:**
+  - Static types (בוקר/טיול/מיוחד/מאפים/מוצרים מוכנים) → query `מאכלים` by `flddm1dEMqIXBfieF`
+  - Daily types (צהריים/ערב/שבת/חג) → query `סוגי הזמנות` (פתוח+עתידי) → `תבניות` → `מאכלים`
+- **שדות קריטיים ב-מאכלים:** `fld8ia1Q9b1WoZhE7` (שם רוסית), `fldXNADlCSPdnowbQ` (מחיר), `fldnDpI70fL8sRXKF` (min_qty), `flddm1dEMqIXBfieF` (סוגי הזמנות)
+- **חובה:** `returnFieldsByFieldId=true` על כל קריאת Airtable
+
+### `/api/order` — טרם נוצר
+- POST הזמנה — עדיין דרך Make.com scenario 4914420
+- לשקול Vercel API Route בשיחה הבאה
+
 ## בעיות ידועות לתיקון (שיחה הבאה)
-1. **ניווט** — חזרה ממסך 2 למסך 1, מעבר בין סוגי הזמנות, רענון דף
-2. **סצנריה 6279260** — לבדוק שה-BasicFeeder מפרק נכון את `fldTkRa6caF2yl7YG`
-3. **שדה Цена** — בסצנריה הסטטית 4907093 משתמש ב-`Цена[]` (linked) אבל החדשה משתמשת ב-`fldXNADlCSPdnowbQ` — לאחד
-4. **admin.html** — לוודא שלאחר שמירה ה-localStorage מתעדכן עם webhooks
+1. **UI/UX כולו** — נדרשת סקירת עיצוב מלאה: layout, בחירת תאריך, בחירת שעה, כרטיסי מנות
+2. **POST הזמנה** — לעבור ל-Vercel API Route (`/api/order`) במקום Make.com
+3. **admin.html** — לוודא שלאחר שמירה ה-localStorage מתעדכן
 
 ## מבנה תיקיות
 ```
