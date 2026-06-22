@@ -970,6 +970,38 @@
       flex-shrink: 0;
     }
 
+    /* ── DELIVERY BANNER ── */
+    .delivery-banner {
+      margin: 10px 16px 0;
+      background: linear-gradient(135deg, var(--navy-deep) 0%, var(--navy) 100%);
+      color: #fff;
+      border-radius: var(--r-md);
+      padding: 12px 16px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: var(--shadow-md);
+    }
+    .delivery-banner-icon { font-size: 22px; flex-shrink: 0; }
+    .delivery-banner-body { flex: 1; }
+    .delivery-banner-label { font-size: 11px; opacity: .65; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 2px; }
+    .delivery-banner-date { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+    .delivery-banner-time { font-size: 13px; opacity: .8; margin-top: 1px; }
+
+    /* ── MANUAL DATE PICKER ── */
+    .mdp-wrap { padding: 14px 16px 0; }
+    .mdp-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 10px; }
+    .mdp-dates { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+    .mdp-btn {
+      flex-shrink: 0; border: 2px solid var(--line);
+      background: var(--surface); color: var(--ink);
+      border-radius: 12px; padding: 8px 14px; cursor: pointer; text-align: center; min-width: 60px;
+      font-family: inherit; transition: all .15s;
+    }
+    .mdp-btn:hover { border-color: var(--navy); }
+    .mdp-btn.selected { border-color: var(--navy); background: var(--navy); color: #fff; }
+    .mdp-btn .mdp-day { font-size: 11px; opacity: .7; }
+    .mdp-btn .mdp-num { font-size: 18px; font-weight: 700; }
+    .mdp-btn .mdp-mon { font-size: 11px; opacity: .7; }
+
     /* ── RTL SUPPORT ── */
     [dir="rtl"] .back-btn  { transform: scaleX(-1); }
     [dir="rtl"] .slot-card-arrow { transform: scaleX(-1); }
@@ -1055,8 +1087,11 @@
     <div class="step-pill">Шаг 1</div>
   </div>
 
-  <!-- Date picker — shown only for daily/shabbat types -->
+  <!-- Date picker — from webhook (daily types) or manual (fixed/open types) -->
   <div id="datePicker" style="display:none;padding:12px 16px 0;"></div>
+
+  <!-- Delivery banner — shown once date is selected -->
+  <div id="deliveryBanner" style="display:none;"></div>
 
   <div id="catBar" class="cat-bar" style="display:none;"></div>
 
@@ -1482,19 +1517,16 @@ function applyLang() {
 }
 
 const ORDER_TYPES = [
-  // category: daily — fixed model, date picker comes from daily webhook response
-  { id:'בוקר',           icon:'🌅', title:'Завтрак',        sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'daily',    date_mode:'none',    menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  { id:'צהריים',          icon:'🍱', title:'Обед',            sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'daily',    date_mode:'none',    menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
-  { id:'ערב',             icon:'🌙', title:'Ужин',            sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'none',    menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
-  // category: shabbat
-  { id:'שבת',             icon:'🕯', title:'Шаббат',          sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'none',    menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
-  { id:'חג',              icon:'✡',  title:'Праздник',        sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'none',    menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x', active:false },
-  // category: custom — open model, free selection
-  { id:'טיול',            icon:'🎒', title:'В дорогу',        sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',    menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  { id:'מיוחד',           icon:'⭐', title:'Спецзаказ',       sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',    menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  // category: preorder
-  { id:'מאפים',           icon:'🥐', title:'Выпечка',         sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',    menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
-  { id:'מוצרים מוכנים',  icon:'🥟', title:'Полуфабрикаты',   sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',    menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  // delivery_time: display time, lead_days: min days advance, lead_cutoff: order-by time same/prev day
+  { id:'בוקר',           icon:'🌅', title:'Завтрак',        sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'09:30', lead_days:1, lead_cutoff:'20:00', menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'צהריים',          icon:'🍱', title:'Обед',            sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'11:00', lead_days:0, lead_cutoff:'09:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
+  { id:'ערב',             icon:'🌙', title:'Ужин',            sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'17:00', lead_days:0, lead_cutoff:'11:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
+  { id:'שבת',             icon:'🕯', title:'Шаббат',          sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:2, lead_cutoff:'12:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x' },
+  { id:'חג',              icon:'✡',  title:'Праздник',        sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:3, lead_cutoff:'12:00', menu_webhook:'https://hook.eu1.make.com/xvyoj33anotp4izeokbg26cl2j52cj2x', active:false },
+  { id:'טיול',            icon:'🎒', title:'В дорогу',        sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',    delivery_time:null,    lead_days:1, lead_cutoff:'20:00', menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'מיוחד',           icon:'⭐', title:'Спецзаказ',       sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',    delivery_time:null,    lead_days:1, lead_cutoff:'12:00', menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'מאפים',           icon:'🥐', title:'Выпечка',         sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',    delivery_time:null,    lead_days:2, lead_cutoff:'20:00', menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
+  { id:'מוצרים מוכנים',  icon:'🥟', title:'Полуфабрикаты',   sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null,    lead_days:3, lead_cutoff:'20:00', menu_webhook:'https://hook.eu1.make.com/9nn5o1g799illwe59ddkjuycp7mx3p9l' },
 ];
 
 let currentType = null, currentSlot = null, dishes = [], quantities = {};
@@ -1503,6 +1535,84 @@ let screen3OpenTime = 0, pendingOrderPayload = null;
 let paymentConfig = { methods: ['cash','kaspi','voucher','combined'], kaspi_phone: '' };
 let currentScreen = 1, activeCat = 'all';
 let _loadSeq = 0;
+let currentDeliveryDate = null, currentDeliveryTime = null;
+
+const RU_DAYS_FULL = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+const RU_DAYS_SHORT = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const RU_MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const RU_MONTHS_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+
+function setDeliveryDateTime(dateStr, timeStr) {
+  currentDeliveryDate = dateStr;
+  currentDeliveryTime = timeStr || (currentType && currentType.delivery_time) || null;
+  renderDeliveryBanner();
+}
+
+function renderDeliveryBanner() {
+  const el = document.getElementById('deliveryBanner');
+  if (!currentDeliveryDate) { el.style.display = 'none'; return; }
+  const d = new Date(currentDeliveryDate);
+  const dayName = RU_DAYS_FULL[d.getDay()];
+  const dateStr = d.getDate() + ' ' + RU_MONTHS[d.getMonth()];
+  const timeStr = currentDeliveryTime ? ' · ' + currentDeliveryTime : '';
+  el.style.display = 'block';
+  el.innerHTML = `<div class="delivery-banner">
+    <div class="delivery-banner-icon">📅</div>
+    <div class="delivery-banner-body">
+      <div class="delivery-banner-label">Доставка</div>
+      <div class="delivery-banner-date">${dayName}, ${dateStr}${timeStr}</div>
+    </div>
+  </div>`;
+}
+
+function getEarliestDeliveryDate(type) {
+  const now = new Date();
+  const leadDays = type.lead_days || 0;
+  const cutoff = type.lead_cutoff || '23:59';
+  const [ch, cm] = cutoff.split(':').map(Number);
+  let base = new Date(now); base.setHours(0,0,0,0);
+  // if past cutoff today, can't order for today+leadDays — need one more day
+  if (now.getHours() > ch || (now.getHours() === ch && now.getMinutes() >= cm)) {
+    base.setDate(base.getDate() + 1);
+  }
+  base.setDate(base.getDate() + leadDays);
+  return base;
+}
+
+function renderManualDatePicker(type) {
+  const dp = document.getElementById('datePicker');
+  const earliest = getEarliestDeliveryDate(type);
+  // generate up to 10 valid dates (skip Saturday for non-shabbat)
+  const dates = []; let d = new Date(earliest);
+  const isShabbatType = type.category === 'shabbat';
+  for (let i = 0; i < 21 && dates.length < 10; i++) {
+    if (isShabbatType ? d.getDay() === 6 : d.getDay() !== 6) dates.push(isoDate(d));
+    d.setDate(d.getDate() + 1);
+  }
+  if (!dates.length) { dp.style.display = 'none'; return; }
+  const timeLabel = type.delivery_time ? ` · ${type.delivery_time}` : '';
+  dp.style.display = 'block';
+  dp.innerHTML = `<div class="mdp-wrap">
+    <div class="mdp-label">Выберите дату доставки${timeLabel}</div>
+    <div class="mdp-dates">
+      ${dates.map(iso => {
+        const dd = new Date(iso);
+        const sel = iso === currentDeliveryDate;
+        return `<button class="mdp-btn${sel?' selected':''}" onclick="selectManualDate('${iso}')">
+          <div class="mdp-day">${RU_DAYS_SHORT[dd.getDay()]}</div>
+          <div class="mdp-num">${dd.getDate()}</div>
+          <div class="mdp-mon">${RU_MONTHS_SHORT[dd.getMonth()]}</div>
+        </button>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function selectManualDate(dateStr) {
+  currentDeliveryDate = dateStr;
+  setDeliveryDateTime(dateStr, currentType && currentType.delivery_time);
+  if (currentType) renderManualDatePicker(currentType);
+}
 
 function goToScreen(n) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1565,6 +1675,8 @@ function renderTypeCards() {
 
 async function selectType(type) {
   currentType = type; currentSlot = null; quantities = {}; dishes = [];
+  currentDeliveryDate = null; currentDeliveryTime = null;
+  document.getElementById('deliveryBanner').style.display = 'none';
   document.getElementById('typeBadge').textContent = type.icon + ' ' + type.title;
   document.getElementById('s3TypeBadge').textContent = type.icon + ' ' + type.title;
   hideStickyTotal();
@@ -1714,12 +1826,12 @@ function applyMenuData(data, seq) {
     dishes = []; buildCatBar(); renderDishes();
   } else if (Array.isArray(data) && data.length) {
     menuByDate = null; selectedMenuDate = null;
-    document.getElementById('datePicker').style.display = 'none';
     dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||d['שם המאכל ברוסית']||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
+    if (currentType) renderManualDatePicker(currentType);
     activeCat='all'; buildCatBar(); renderDishes();
   } else {
     menuByDate = null; dishes = [];
-    document.getElementById('datePicker').style.display = 'none';
+    if (currentType) renderManualDatePicker(currentType);
     buildCatBar(); renderDishes();
   }
 }
@@ -1756,6 +1868,7 @@ function renderDatePicker() {
 
 function selectMenuDate(dateStr) {
   selectedMenuDate = dateStr;
+  setDeliveryDateTime(dateStr, currentType && currentType.delivery_time);
   renderDatePicker();
   const entry = menuByDate.find(e => e.date === dateStr);
   if (entry && entry.dishes) {
@@ -1913,7 +2026,14 @@ function renderSummary() {
   const sel = dishes.filter(d => quantities[d.id]>0);
   const total = sel.reduce((s,d)=> s + d.price*quantities[d.id], 0);
   const list = document.getElementById('orderSummaryList');
-  list.innerHTML = sel.map(d => {
+  // delivery date row
+  let deliveryRow = '';
+  if (currentDeliveryDate) {
+    const d = new Date(currentDeliveryDate);
+    const label = RU_DAYS_FULL[d.getDay()] + ', ' + d.getDate() + ' ' + RU_MONTHS[d.getMonth()] + (currentDeliveryTime ? ' · ' + currentDeliveryTime : '');
+    deliveryRow = `<li class="summary-delivery-row"><span>📅 Доставка</span><span style="font-weight:700;color:var(--navy)">${label}</span></li>`;
+  }
+  list.innerHTML = deliveryRow + sel.map(d => {
     const sub = d.price>0 ? (d.price*quantities[d.id])+' ₸' : quantities[d.id]+' шт.';
     const name = d.name + (quantities[d.id]>1 ? ' × '+quantities[d.id] : '');
     return `<li><span>${name}</span><span>${sub}</span></li>`;
@@ -1957,7 +2077,7 @@ function goToPayment() {
   if (!sel.length) { alert('Выберите хотя бы одно блюдо.'); return; }
   const items = sel.map(d => ({ dish_id: d.id, dish_name: d.name, quantity: quantities[d.id], unit_price: d.price }));
   const total = items.reduce((s,i)=> s + i.unit_price*i.quantity, 0);
-  pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_model: currentType?currentType.model||null:null, order_category: currentType?currentType.category||null:null, order_type_record_id: currentType?currentType.airtable_record_id||null:null, order_template_id: currentType?currentType.template_id||null:null, order_date: currentSlot?currentSlot.date:null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString() };
+  pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_model: currentType?currentType.model||null:null, order_category: currentType?currentType.category||null:null, order_type_record_id: currentType?currentType.airtable_record_id||null:null, order_template_id: currentType?currentType.template_id||null:null, order_date: currentDeliveryDate||null, delivery_time: currentDeliveryTime||null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString() };
   document.getElementById('payTotalAmount').textContent = total>0 ? total+' ₸' : '—';
   const methods = paymentConfig.methods;
   document.getElementById('payCardCash').style.display = methods.includes('cash')?'':'none';
