@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Статус заказа</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f0f4f8; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
+  .logo { font-size: 28px; margin-bottom: 24px; }
+  .card { background: #fff; border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 420px; box-shadow: 0 4px 24px rgba(0,0,0,.07); }
+  h1 { font-size: 20px; color: #0f172a; margin-bottom: 6px; }
+  .sub { color: #64748b; font-size: 14px; margin-bottom: 24px; }
+  .input-row { display: flex; gap: 8px; }
+  input[type=number] { flex: 1; border: 2px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; font-size: 18px; font-weight: 700; color: #0f172a; outline: none; transition: border .15s; }
+  input[type=number]:focus { border-color: #6366f1; }
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  button { background: #0f172a; color: #fff; border: none; border-radius: 10px; padding: 12px 20px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background .15s; }
+  button:hover { background: #1e293b; }
+  button:disabled { background: #94a3b8; cursor: default; }
+
+  .result { margin-top: 20px; }
+  .status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 99px; font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+  .status-badge.waiting  { background: #fef9c3; color: #854d0e; }
+  .status-badge.approved { background: #dcfce7; color: #166534; }
+  .status-badge.ready    { background: #fff7ed; color: #9a3412; }
+  .status-badge.rejected { background: #fee2e2; color: #991b1b; }
+  .status-badge.default  { background: #f1f5f9; color: #475569; }
+
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 15px; }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label { color: #64748b; }
+  .detail-value { font-weight: 600; color: #0f172a; text-align: right; }
+
+  .err { color: #ef4444; font-size: 15px; margin-top: 16px; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #e2e8f0; border-top-color: #6366f1; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .back { margin-top: 32px; color: #6366f1; font-size: 14px; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="logo">🍽️</div>
+
+<div class="card">
+  <h1>Статус заказа</h1>
+  <p class="sub">Введите номер заказа, чтобы узнать статус</p>
+
+  <div class="input-row">
+    <input type="number" id="orderNumInput" placeholder="№ заказа" min="1" max="99999" inputmode="numeric">
+    <button id="checkBtn" onclick="checkStatus()">Проверить</button>
+  </div>
+
+  <div id="result" class="result" style="display:none"></div>
+  <div id="errMsg" class="err" style="display:none"></div>
+</div>
+
+<a class="back" href="/">← На главную</a>
+
+<script>
+const STATUS_LABELS = {
+  'Ожидает подтверждения менеджера': { label: '⏳ Ожидает подтверждения', cls: 'waiting' },
+  'Ожидает':                          { label: '⏳ Ожидает подтверждения', cls: 'waiting' },
+  'Подтверждён':                      { label: '✅ Подтверждён',           cls: 'approved' },
+  'Готов к выдаче':                   { label: '🍽️ Готов к выдаче',        cls: 'ready' },
+  'Отменён':                          { label: '❌ Отменён',               cls: 'rejected' },
+};
+
+function formatDate(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const days = ['вс','пн','вт','ср','чт','пт','сб'];
+  const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} · ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+}
+
+async function checkStatus() {
+  const num = document.getElementById('orderNumInput').value.trim();
+  const btn = document.getElementById('checkBtn');
+  const result = document.getElementById('result');
+  const errMsg = document.getElementById('errMsg');
+
+  if (!num || num < 1) { errMsg.textContent = 'Введите номер заказа.'; errMsg.style.display = ''; result.style.display = 'none'; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  result.style.display = 'none';
+  errMsg.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/order-status?num=' + encodeURIComponent(num));
+    if (r.status === 404) { errMsg.textContent = 'Заказ №' + num + ' не найден.'; errMsg.style.display = ''; return; }
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+
+    const st = STATUS_LABELS[d.status] || { label: d.status || '—', cls: 'default' };
+    const rows = [
+      d.order_type   ? ['Тип заказа', d.order_type]                    : null,
+      d.delivery_at  ? ['Дата/время',  formatDate(d.delivery_at)]      : null,
+      d.total        ? ['Сумма',       d.total + ' ₸']                 : null,
+      d.item_count   ? ['Позиций',     d.item_count + ' шт.']          : null,
+    ].filter(Boolean);
+
+    result.innerHTML = `
+      <div><span class="status-badge ${st.cls}">${st.label}</span></div>
+      <div style="margin-top:4px">
+        ${rows.map(([l,v]) => `<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${v}</span></div>`).join('')}
+      </div>
+    `;
+    result.style.display = '';
+  } catch(_) {
+    errMsg.textContent = 'Ошибка подключения. Попробуйте позже.';
+    errMsg.style.display = '';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Проверить';
+  }
+}
+
+document.getElementById('orderNumInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkStatus(); });
+
+// auto-fill from URL ?num=123
+const urlNum = new URLSearchParams(location.search).get('num');
+if (urlNum) { document.getElementById('orderNumInput').value = urlNum; checkStatus(); }
+</script>
+</body>
+</html>

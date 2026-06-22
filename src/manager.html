@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Управление заказом</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
+  .logo { font-size: 28px; margin-bottom: 20px; color: #fff; }
+  .card { background: #1e293b; border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 460px; color: #f1f5f9; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  h1 { font-size: 20px; }
+  .num-badge { background: #6366f1; color: #fff; border-radius: 99px; padding: 4px 12px; font-size: 13px; font-weight: 700; }
+
+  .status-row { margin-bottom: 20px; }
+  .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 99px; font-size: 14px; font-weight: 700; }
+  .status-badge.waiting  { background: #fef9c322; color: #fde047; }
+  .status-badge.approved { background: #dcfce722; color: #86efac; }
+  .status-badge.ready    { background: #fff7ed22; color: #fdba74; }
+  .status-badge.rejected { background: #fee2e222; color: #fca5a5; }
+  .status-badge.default  { background: #334155; color: #94a3b8; }
+
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #334155; font-size: 15px; }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label { color: #94a3b8; }
+  .detail-value { font-weight: 600; color: #f1f5f9; text-align: right; }
+
+  .section-title { font-size: 13px; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: .05em; margin: 20px 0 8px; }
+
+  .actions { display: grid; gap: 10px; margin-top: 24px; }
+  .btn { border: none; border-radius: 12px; padding: 15px; font-size: 16px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn-approve { background: #22c55e; color: #fff; }
+  .btn-ready   { background: #f59e0b; color: #fff; }
+  .btn-reject  { background: #ef4444; color: #fff; }
+  .btn-status  { background: #334155; color: #94a3b8; font-size: 14px; padding: 11px; }
+
+  .done-msg { text-align: center; padding: 24px 0 8px; }
+  .done-msg .icon { font-size: 52px; margin-bottom: 12px; }
+  .done-msg h2 { font-size: 20px; color: #f1f5f9; margin-bottom: 6px; }
+  .done-msg p { color: #94a3b8; font-size: 14px; }
+
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid #ffffff44; border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .err { color: #fca5a5; font-size: 14px; margin-top: 12px; text-align: center; }
+  .loading-state { text-align: center; padding: 40px 0; color: #64748b; }
+</style>
+</head>
+<body>
+
+<div class="logo">🍽️</div>
+<div class="card" id="card">
+  <div class="loading-state"><span class="spinner"></span><p style="margin-top:12px">Загрузка...</p></div>
+</div>
+
+<script>
+const params  = new URLSearchParams(location.search);
+const orderId = params.get('id');    // Airtable record ID
+const token   = params.get('token'); // manager token
+
+const STATUS_LABELS = {
+  'Ожидает подтверждения менеджера': { label: '⏳ Ожидает',       cls: 'waiting' },
+  'Ожидает':                          { label: '⏳ Ожидает',       cls: 'waiting' },
+  'Подтверждён':                      { label: '✅ Подтверждён',   cls: 'approved' },
+  'Готов к выдаче':                   { label: '🍽️ Готов',         cls: 'ready' },
+  'Отменён':                          { label: '❌ Отменён',       cls: 'rejected' },
+};
+
+function formatDate(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const days = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} · ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+}
+
+async function doAction(action) {
+  const btns = document.querySelectorAll('.btn');
+  btns.forEach(b => b.disabled = true);
+  const activeBtn = document.getElementById('btn-' + action);
+  if (activeBtn) activeBtn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const url = `/api/manager-action?id=${encodeURIComponent(orderId)}&action=${action}&token=${encodeURIComponent(token)}`;
+    const r = await fetch(url);
+    // manager-action returns HTML — redirect to it so they see the confirmation page
+    location.href = url;
+  } catch(_) {
+    btns.forEach(b => b.disabled = false);
+    document.getElementById('errMsg').textContent = 'Ошибка. Попробуйте ещё раз.';
+  }
+}
+
+async function loadOrder() {
+  if (!orderId || !token) {
+    document.getElementById('card').innerHTML = `<div class="err" style="padding:40px 0;font-size:16px">🚫 Недействительная ссылка.<br><br>Запросите новую ссылку у системы.</div>`;
+    return;
+  }
+
+  try {
+    const r = await fetch(`/api/order-status?id=${encodeURIComponent(orderId)}`);
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+
+    const st = STATUS_LABELS[d.status] || { label: d.status || '—', cls: 'default' };
+    const isDone = ['Подтверждён','Отменён','Готов к выдаче'].includes(d.status);
+
+    const details = [
+      d.customer    ? ['👤 Клиент',     d.customer]                  : null,
+      d.order_type  ? ['📋 Тип',        d.order_type]                : null,
+      d.delivery_at ? ['📅 Доставка',   formatDate(d.delivery_at)]   : null,
+      d.total       ? ['💰 Сумма',      d.total + ' ₸']             : null,
+      d.item_count  ? ['📦 Позиций',    d.item_count + ' шт.']       : null,
+    ].filter(Boolean);
+
+    const actionBtns = isDone ? `
+      <div class="done-msg">
+        <div class="icon">${st.cls === 'approved' ? '✅' : st.cls === 'ready' ? '🍽️' : '❌'}</div>
+        <h2>${d.status}</h2>
+        <p>Действие уже выполнено.</p>
+      </div>
+    ` : `
+      <div class="section-title">Действие</div>
+      <div class="actions">
+        <button class="btn btn-approve" id="btn-approve" onclick="doAction('approve')">✅ Подтвердить заказ</button>
+        <button class="btn btn-ready"   id="btn-ready"   onclick="doAction('ready')">🍽️ Готов к выдаче</button>
+        <button class="btn btn-reject"  id="btn-reject"  onclick="doAction('reject')">❌ Отменить заказ</button>
+      </div>
+    `;
+
+    document.getElementById('card').innerHTML = `
+      <div class="card-header">
+        <h1>Заказ</h1>
+        <span class="num-badge">№${d.order_number}</span>
+      </div>
+      <div class="status-row"><span class="status-badge ${st.cls}">${st.label}</span></div>
+      <div class="section-title">Детали</div>
+      ${details.map(([l,v]) => `<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${v}</span></div>`).join('')}
+      ${actionBtns}
+      <div id="errMsg" class="err"></div>
+    `;
+  } catch(_) {
+    document.getElementById('card').innerHTML = `<div class="err" style="padding:40px 0;font-size:16px">⚠️ Не удалось загрузить заказ.<br><br><small>Проверьте соединение и попробуйте снова.</small></div>`;
+  }
+}
+
+loadOrder();
+</script>
+</body>
+</html>
