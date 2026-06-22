@@ -1579,8 +1579,6 @@ function getEarliestDeliveryDate(type) {
   return base;
 }
 
-const TIME_SLOTS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
-
 function renderManualDatePicker(type) {
   const dp = document.getElementById('datePicker');
   const earliest = getEarliestDeliveryDate(type);
@@ -1595,14 +1593,12 @@ function renderManualDatePicker(type) {
   const timeLabel = type.delivery_time ? ` · ${type.delivery_time}` : '';
   const timeRow = needsTime ? `
     <div class="mdp-label" style="margin-top:14px;">Время доставки</div>
-    <div class="mdp-dates" style="flex-wrap:wrap;">
-      ${TIME_SLOTS.map(t => {
-        const sel = t === currentDeliveryTime;
-        return `<button class="mdp-btn${sel?' selected':''}" style="min-width:52px;padding:6px 10px;" onclick="selectManualTime('${t}')">
-          <div class="mdp-num" style="font-size:14px;">${t}</div>
-        </button>`;
-      }).join('')}
-    </div>` : '';
+    <input type="time" id="manualTimeInput" min="10:00" max="17:00"
+      value="${currentDeliveryTime || ''}"
+      onchange="selectManualTime(this.value)"
+      style="border:1.5px solid var(--line);border-radius:10px;padding:10px 14px;
+             font-size:16px;font-family:inherit;background:#fff;width:160px;
+             margin-top:4px;outline:none;color:var(--ink);" />` : '';
   dp.style.display = 'block';
   dp.innerHTML = `<div class="mdp-wrap">
     <div class="mdp-label">Дата доставки${timeLabel}</div>
@@ -1628,9 +1624,9 @@ function selectManualDate(dateStr) {
 }
 
 function selectManualTime(timeStr) {
+  if (!timeStr) return;
   currentDeliveryTime = timeStr;
   setDeliveryDateTime(currentDeliveryDate, timeStr);
-  if (currentType) renderManualDatePicker(currentType);
 }
 
 function goToScreen(n) {
@@ -2491,7 +2487,27 @@ async function checkClosure() {
   if (typeId) { const f = ORDER_TYPES.find(t => t.id===typeId); if (f) { await selectType(f); return; } }
   if (sessionStorage.getItem('kc_cart')) { await restoreCart(); return; }
   renderTypeCards();
+  prewarmMenuCache();
 })();
+
+function prewarmMenuCache() {
+  // fire-and-forget: fetch all menus in background so first click is instant
+  const seen = new Set();
+  ORDER_TYPES.forEach(type => {
+    const url = type.menu_webhook;
+    if (!url || url === 'YOUR_MENU_WEBHOOK_URL_HERE' || seen.has(url + type.id)) return;
+    seen.add(url + type.id);
+    const cacheKey = 'kc_menu_' + type.id;
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+      if (cached && cached.ts && Date.now() - cached.ts < 5 * 60 * 1000) return; // already fresh
+    } catch(_) {}
+    fetch(url + '?type=' + encodeURIComponent(type.id))
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data })); })
+      .catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
