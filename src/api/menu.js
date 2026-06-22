@@ -98,11 +98,7 @@ function formatDish(rec) {
 // ── static menu (בוקר, טיול, מיוחד, מאפים, מוצרים מוכנים) ──────────────────
 
 async function fetchStaticMenu(type, token) {
-  // Filter: dish has this type in its multipleSelects field + סטטוס = פעיל
-  const formula = `AND(
-    FIND(${JSON.stringify(type)}, ARRAYJOIN({${FD_TYPES}}, ",")),
-    {${FD_STATUS}} = "פעיל"
-  )`.replace(/\s+/g, ' ');
+  const formula = `FIND(${JSON.stringify(type)}, ARRAYJOIN({${FD_TYPES}}, ","))`;
 
   const records = await atList(T_DISHES, {
     filterByFormula: formula,
