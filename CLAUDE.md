@@ -49,8 +49,25 @@
 
 ### שדות קריטיים — מאכלים (tblhkNaiSGBiLRUxA)
 - `fld8ia1Q9b1WoZhE7` — שם המאכל ברוסית
-- `fldXNADlCSPdnowbQ` — מחיר מכירה (₸)
-- `fldNJXzWYU1yTabdc` — עלות (linked)
+- `fldXNADlCSPdnowbQ` — **משקל או נפח למנה** (גרמים/מ"ל) ← לא מחיר! ← `portion`
+- `fldNJXzWYU1yTabdc` — Цена (multipleLookupValues — לא בשימוש ישיר, ראה T_PRICES)
+- `fldnDpI70fL8sRXKF` — min_qty_per_order
+- `flddm1dEMqIXBfieF` — סוגי הזמנות (multipleSelects)
+- `fldosw1NlPlqWbcWI` — link → אבלת מחירי מאכלים
+
+### אבלת מחירי מאכלים (tblMe5ZQp6Ygfca5W)
+- `fldlsT3qYsuBDX2oP` — link → מאכלים
+- `fldiDyytpcE9CZlc0` — Цена, תג. (המחיר האמיתי)
+- `fldxQeaawfV911vMK` — סוג הזמנה (singleSelect) — **חדש 2026-06-22** — ריק = ברירת מחדל
+- `fldlZrO5MbI7AelWC` — סטטוס מחיר (Активен/...)
+- **לוגיקת fallback:** מחיר per-type → ברירת מחדל (שורה ללא סוג הזמנה)
+
+### שדות קריטיים — כמויות (tblcP1zvc3Tu9oQuL)
+- `fld4DlEIkuKYTJIwr` — link → הזמנות
+- `fldYKuxwzyR0zsA6W` — link → מאכלים (**עדיף** — קישור אמיתי)
+- `fldermtin9p2JInVx` — מאכל (טקסט חופשי) — fallback בלבד
+- `fldZI30djxv54dm8j` — כמות
+- `fld2hjBAMbg4NeRef` — עלות מנה בזמן ההזמנה
 
 ## order-form.html — לוגיקת תפריטים
 
@@ -86,17 +103,46 @@ loadDishes(typeId) →
 - **לוגיקה:**
   - Static types (בוקר/טיול/מיוחד/מאפים/מוצרים מוכנים) → query `מאכלים` by `flddm1dEMqIXBfieF`
   - Daily types (צהריים/ערב/שבת/חג) → query `סוגי הזמנות` (פתוח+עתידי) → `תבניות` → `מאכלים`
-- **שדות קריטיים ב-מאכלים:** `fld8ia1Q9b1WoZhE7` (שם רוסית), `fldXNADlCSPdnowbQ` (מחיר), `fldnDpI70fL8sRXKF` (min_qty), `flddm1dEMqIXBfieF` (סוגי הזמנות)
+- **שדות קריטיים ב-מאכלים:** `fld8ia1Q9b1WoZhE7` (שם רוסית), `fldXNADlCSPdnowbQ` (גרמים ← לא מחיר!), `fldnDpI70fL8sRXKF` (min_qty), `flddm1dEMqIXBfieF` (סוגי הזמנות)
+- **מחיר:** נשלף מ-`tblMe5ZQp6Ygfca5W` דרך `fetchPrices(dishIds, orderType, token)`
 - **חובה:** `returnFieldsByFieldId=true` על כל קריאת Airtable
 
-### `/api/order` — טרם נוצר
-- POST הזמנה — עדיין דרך Make.com scenario 4914420
-- לשקול Vercel API Route בשיחה הבאה
+### `/api/order` — Vercel Serverless (פעיל מ-2026-06-22)
+- **קובץ:** `src/api/order.js`
+- **קריאה:** `POST /api/order` עם JSON body
+- **שדות חובה:** `customer_name`, `customer_phone`, `items[]`
+- **שדות אופציונלים:** `delivery_address`, `notes`, `order_type_title`, `order_date`, `delivery_time`, `payment_method`, `total_price`
+- **לוגיקה:** יוצר רשומה ב-`הזמנות` + שורות ב-`כמויות` (parallel)
+- **מחזיר:** `{success, order_id, order_number}` (order_number = autoNumber מ-Airtable)
+- **סטטוס ברירת מחדל:** `Ожидает`
+- **Timezone:** delivery time מנורמל ל-UTC+5 (אלמטי)
+- Make.com scenario 4914420 עדיין תומך כ-override דרך admin settings
 
-## בעיות ידועות לתיקון (שיחה הבאה)
-1. **UI/UX כולו** — נדרשת סקירת עיצוב מלאה: layout, בחירת תאריך, בחירת שעה, כרטיסי מנות
-2. **POST הזמנה** — לעבור ל-Vercel API Route (`/api/order`) במקום Make.com
-3. **admin.html** — לוודא שלאחר שמירה ה-localStorage מתעדכן
+## משימות פתוחות לשיחה הבאה
+
+### P0 — לפני השקה
+- **שפות** — לבדוק שכל ה-i18n עובד: RU/EN/HE — תאריכים, כפתורים, שגיאות, summary
+- **בדיקת flow end-to-end** — בחירת תפריט → תאריך → שעה → פרטים → שליחה → Airtable
+- **double-submit** — מניעת לחיצה כפולה על כפתור שליחה
+- **min_qty validation** — לפני submit Combined/open
+
+### P1 — אבטחה (מצאג CTO + Security)
+- Rate limiting על `/api/order` (vercel.json או middleware)
+- Idempotency key
+- `vercel.json` security headers (X-Frame-Options, CSP)
+- `admin.html` — הגנה בסיסית
+
+### P2 — WhatsApp notifications
+- Fire-and-forget webhook ל-Make.com scenario 5a אחרי הזמנה
+- הודעה ללקוח + למנהל
+- `/api/manager-action` — אישור/דחייה
+- `manager.html`
+
+### P3 — UX improvements
+- Vertical list option לבחירת מנות
+- Summary bar קבוע בתחתית
+- Deadlines שעברו — greyed out + הסבר
+- Save-as-draft
 
 ## מבנה תיקיות
 ```

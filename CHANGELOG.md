@@ -1,5 +1,73 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-06-22 — UI/UX + תמחור לפי סוג הזמנה + תיקוני שדות
+
+### בוצע
+
+#### UI — בחירת תאריך ושעה
+- **`order-form.html`** — עיצוב מחדש של date/time picker:
+  - כרטיסי תאריך גדולים (72px) עם יום/תאריך/חודש + שעת משלוח קבועה על הכרטיס (לסוגים fixed)
+  - 7 תאריכים + כפתור "📆 אחר" (native date picker עד 3 חודשים קדימה)
+  - בחירת שעה: 9 כפתורי slots (09:00–17:00) במקום native `<input type="time">`
+  - **תיקון timezone:** `parseLocalDate(iso)` — מונע יום שגוי ב-UTC+5 (אלמטי)
+  - **i18n:** שמות ימים וחודשים מותאמים לשפה (RU/EN/HE) דרך `lDay()`/`lMon()`
+  - תוספת מפתחות תרגום: `date_delivery`, `time_delivery`, `date_other` בכל 3 שפות
+
+#### תיקונים ב-`/api/menu`
+- **שדה מחיר שגוי תוקן:** `fldXNADlCSPdnowbQ` הוא "משקל או נפח למנה" (גרמים) — לא מחיר
+- **מחיר אמיתי:** עכשיו שולף מ-`tblMe5ZQp6Ygfca5W` (אבלת מחירי מאכלים) לפי dish ID + סוג הזמנה
+- **גודל מנה:** `portion` מוחזר כ-field נפרד (גרמים) ומוצג בכרטיס: "⚖ 240 г"
+- **תמחור לפי סוג הזמנה:** שדה חדש `סוג הזמנה` (fldxQeaawfV911vMK) נוצר ב-Airtable
+  - fallback hierarchy: מחיר ספציפי לסוג → מחיר ברירת מחדל (שורה ללא סוג)
+
+#### תיקונים ב-`/api/order`
+- **קישור מנה לרשומה:** `FQ_DISH_LNK = 'fldYKuxwzyR0zsA6W'` — link אמיתי ל-מאכלים
+  - אם `dish_id` הוא record ID תקין (`rec...`) → נשמר כקישור; אחרת fallback לטקסט חופשי
+- **payment_method whitelist:** רק `מזומן`/`כספי` — ערכים לא מוכרים מחזירים 400
+- **הגבלת items:** מקסימום 50 פריטים לבקשה
+
+### שדות Airtable חדשים
+| טבלה | שדה | ID | תפקיד |
+|---|---|---|---|
+| אבלת מחירי מאכלים | סוג הזמנה | fldxQeaawfV911vMK | מחיר per-type |
+
+### קבועים חשובים שהתעדכנו
+```js
+// menu.js
+T_PRICES = 'tblMe5ZQp6Ygfca5W'   // טבלת מחירים
+FP_DISH  = 'fldlsT3qYsuBDX2oP'   // link → מאכלים
+FP_PRICE = 'fldiDyytpcE9CZlc0'   // Цена, תג.
+FP_TYPE  = 'fldxQeaawfV911vMK'   // סוג הזמנה (חדש)
+FD_PORTION = 'fldXNADlCSPdnowbQ' // גרמים (לא מחיר!)
+
+// order.js
+FQ_DISH_LNK = 'fldYKuxwzyR0zsA6W' // link → מאכלים (חדש)
+```
+
+---
+
+## 2026-06-22 — `/api/order` — שמירת הזמנות ישירות ל-Airtable
+
+### בוצע
+- **`src/api/order.js`** — Vercel Serverless Function חדשה שמחליפה Make.com scenario 4914420
+  - POST קבלת הזמנה → שמירה ב-`הזמנות` (tblMnlLwYCD27ou80) + שורות ב-`כמויות` (tblcP1zvc3Tu9oQuL)
+  - כותב: שם לקוח, טלפון, כתובת, הערות, תאריך, מחיר, צורת תשלום, סטטוס (Ожидает)
+  - שורות כמות: קישור להזמנה, שם מאכל, כמות, מחיר ליחידה — במקביל (Promise.all)
+  - מחזיר: `{success, order_id, order_number}` (autoNumber מ-Airtable)
+  - אבטחה: CORS נעול, token server-side בלבד
+- **`src/order-form.html`** — עודכן להשתמש ב-`/api/order` כברירת מחדל
+  - הוסף `ORDER_API = '/api/order'`
+  - `doSubmitOrder` + `doSubmitCombined` — fallback ל-`ORDER_API` כאשר אין URL מוגדר ב-admin
+  - הוסרה לוגיקת TEST mode (הוחלפה ב-API אמיתי)
+  - Make.com webhook עדיין תומך אם מוגדר ב-admin settings (עדיפות ראשונה)
+
+### החלטות
+- Make.com scenario 4914420 עדיין קיים כ-override אם admin מגדיר webhook URL
+- Delivery time מנורמל ל-UTC+5 (שעון אלמטי)
+- singleSelect values: Ожидает / מזומן / כספי / תלוש / מעורב / כן / לא
+
+---
+
 ## 2026-06-22 — מעבר ל-Vercel API Route + אבטחה
 
 ### בוצע
