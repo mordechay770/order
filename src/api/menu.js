@@ -13,11 +13,12 @@ const T_SLOTS  = 'tblJ7a7d5HfORkMu4'; // סוגי הזמנות
 const T_TPLS   = 'tbl0T5TTLqDr0uCGR'; // תבניות
 
 // Fields — dishes (מאכלים)
-const FD_NAME   = 'fld8ia1Q9b1WoZhE7'; // שם ברוסית
-const FD_PRICE  = 'fldXNADlCSPdnowbQ'; // מחיר מכירה
-const FD_TYPES  = 'flddm1dEMqIXBfieF'; // סוגי הזמנות (multipleSelects)
-const FD_MINQTY = 'fldnDpI70fL8sRXKF'; // min_qty_per_order
-const FD_STATUS = 'fldnxpBolUFbfUxNX'; // סטטוס
+const FD_NAME    = 'fld8ia1Q9b1WoZhE7'; // שם ברוסית
+const FD_PRICE   = 'fldNJXzWYU1yTabdc'; // Цена — מחיר מכירה (multipleLookupValues → take [0])
+const FD_PORTION = 'fldXNADlCSPdnowbQ'; // משקל או נפח למנה (גרמים/מ"ל)
+const FD_TYPES   = 'flddm1dEMqIXBfieF'; // סוגי הזמנות (multipleSelects)
+const FD_MINQTY  = 'fldnDpI70fL8sRXKF'; // min_qty_per_order
+const FD_STATUS  = 'fldnxpBolUFbfUxNX'; // סטטוס
 
 // Fields — slots (סוגי הזמנות)
 const FS_TYPE   = 'flddj8yoiko7U4MWf'; // סוג
@@ -90,11 +91,15 @@ async function atList(tableId, params, token) {
 }
 
 function formatDish(rec) {
+  // FD_PRICE is multipleLookupValues — Airtable returns an array; take first element
+  const priceArr = rec.fields[FD_PRICE];
+  const price    = Array.isArray(priceArr) ? (priceArr[0] ?? 0) : (priceArr || 0);
   return {
     id:      rec.id,
-    name:    rec.fields[FD_NAME]   || '',
-    price:   rec.fields[FD_PRICE]  || 0,
-    min_qty: rec.fields[FD_MINQTY] || 0,
+    name:    rec.fields[FD_NAME]    || '',
+    price:   Number(price)          || 0,
+    portion: rec.fields[FD_PORTION] || 0,  // weight/volume in g or ml
+    min_qty: rec.fields[FD_MINQTY]  || 0,
   };
 }
 
@@ -105,7 +110,7 @@ async function fetchStaticMenu(type, token) {
 
   const records = await atList(T_DISHES, {
     filterByFormula: formula,
-    fields: [FD_NAME, FD_PRICE, FD_MINQTY],
+    fields: [FD_NAME, FD_PRICE, FD_PORTION, FD_MINQTY],
   }, token);
 
   return records.map(formatDish);
@@ -148,7 +153,7 @@ async function fetchDailyMenu(type, token) {
   const dishFormula = `OR(${dishIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
   const dishRecords = await atList(T_DISHES, {
     filterByFormula: dishFormula,
-    fields: [FD_NAME, FD_PRICE, FD_MINQTY],
+    fields: [FD_NAME, FD_PRICE, FD_PORTION, FD_MINQTY],
   }, token);
   const dishMap = Object.fromEntries(dishRecords.map(r => [r.id, formatDish(r)]));
 

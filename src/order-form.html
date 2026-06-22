@@ -2013,13 +2013,13 @@ function appendDishCard(grid, dish) {
     ${photoHtml}
     <div class="dish-card-body">
       <div class="dish-card-name">${dish.name}</div>
-      ${dish.portion ? `<div class="dish-card-portion">⚖ ${dish.portion}</div>` : ''}
+      ${dish.portion > 0 ? `<div class="dish-card-portion">⚖ ${dish.portion} г</div>` : ''}
       ${dish.min_qty > 1 ? `<div class="dish-card-portion" style="color:var(--warn);">мин. ${dish.min_qty} шт.</div>` : ''}
       <div class="dish-card-price" id="price-${dish.id}">${dish.price > 0 ? dish.price + ' ₸' : '—'}</div>
       <div class="dish-card-breakdown" id="breakdown-${dish.id}">
         <div class="bd-row"><span class="bd-label">Цена / ед.</span><span class="bd-value" id="bd-unit-${dish.id}">${dish.price>0?dish.price+' ₸':'—'}</span></div>
         <div class="bd-row"><span class="bd-label">Кол-во</span><span class="bd-value" id="bd-qty-${dish.id}">—</span></div>
-        ${dish.portion ? `<div class="bd-row"><span class="bd-label">Выход / ед.</span><span class="bd-value">${dish.portion}</span></div><div class="bd-row"><span class="bd-label">Общий вес</span><span class="bd-value" id="bd-weight-${dish.id}">—</span></div>`:''}
+        ${dish.portion > 0 ? `<div class="bd-row"><span class="bd-label">Выход / ед.</span><span class="bd-value">${dish.portion} г</span></div><div class="bd-row"><span class="bd-label">Общий вес</span><span class="bd-value" id="bd-weight-${dish.id}">—</span></div>`:''}
         <div class="bd-row bd-total"><span class="bd-label">Итого</span><span class="bd-value" id="bd-total-${dish.id}">—</span></div>
       </div>
     </div>
