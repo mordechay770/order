@@ -55,14 +55,31 @@ async function atGet(path, token) {
   return r.json();
 }
 
+/** Build Airtable-compatible query string (handles fields[], sort[0][field], etc.) */
+function buildQS(params, offset) {
+  const parts = [];
+  for (const [k, v] of Object.entries(params)) {
+    if (k === 'sort' && Array.isArray(v)) {
+      v.forEach((s, i) => {
+        parts.push(`sort[${i}][field]=${encodeURIComponent(s.field)}`);
+        parts.push(`sort[${i}][direction]=${encodeURIComponent(s.direction)}`);
+      });
+    } else if (k === 'fields' && Array.isArray(v)) {
+      v.forEach(f => parts.push(`fields[]=${encodeURIComponent(f)}`));
+    } else {
+      parts.push(`${k}=${encodeURIComponent(v)}`);
+    }
+  }
+  if (offset) parts.push(`offset=${encodeURIComponent(offset)}`);
+  return parts.join('&');
+}
+
 /** Fetch all pages of an Airtable table query, returns records[] */
 async function atList(tableId, params, token) {
   const records = [];
   let offset = '';
   do {
-    const qs = new URLSearchParams(params);
-    if (offset) qs.set('offset', offset);
-    const data = await atGet(`${tableId}?${qs}`, token);
+    const data = await atGet(`${tableId}?${buildQS(params, offset)}`, token);
     records.push(...(data.records || []));
     offset = data.offset || '';
   } while (offset);
