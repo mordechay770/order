@@ -477,13 +477,21 @@ function renderProductionView(records) {
 
   // Create form (manager/chef only)
   if (['manager','chef'].includes(currentRole)) {
-    const opts = prodRecipes.map(r=>`<option value="${r.id}">${esc(r.name_ru)}</option>`).join('');
+    const opts = prodRecipes.map(r=>{
+      const unitInfo = r.unit ? ` (${r.unit_qty ? r.unit_qty+' ' : ''}${r.unit})` : '';
+      return `<option value="${r.id}" data-unit="${esc(r.unit||'')}" data-uqty="${r.unit_qty||''}">${esc(r.name_ru)}${unitInfo}</option>`;
+    }).join('');
     const todayISO = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Almaty'});
+    const destOpts = currentRole === 'manager'
+      ? `<option value="למלאי">→ Склад кухни</option><option value="לחנות">→ Магазин</option>`
+      : `<option value="למלאי">→ Склад кухни</option>`;
     html += `<div class="create-prod-bar">
-      <h3>➕ Новый заказ на производство (кухня)</h3>
+      <h3>➕ Новый заказ на производство</h3>
       <div class="cpf-row">
-        <select id="cpf-recipe"><option value="">— Выбрать рецепт —</option>${opts}</select>
+        <select id="cpf-recipe" onchange="onRecipeChange(this)">${opts.length ? '<option value="">— Выбрать рецепт —</option>'+opts : '<option>Загрузка...</option>'}</select>
+        <select id="cpf-dest">${destOpts}</select>
         <input type="number" id="cpf-qty" placeholder="Кол-во" min="1">
+        <span id="cpf-unit" style="color:#64748b;font-size:13px;white-space:nowrap;align-self:center"></span>
         <input type="date" id="cpf-date" value="${todayISO}">
         <button class="cpf-submit" onclick="submitCreateProd()">Заказать</button>
       </div>
@@ -515,17 +523,25 @@ function renderProductionView(records) {
   content.innerHTML = html;
 }
 
+function onRecipeChange(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const unit = opt?.dataset?.unit || '';
+  const uqty = opt?.dataset?.uqty || '';
+  document.getElementById('cpf-unit').textContent = unit ? `ед.: ${uqty ? uqty+' ' : ''}${unit}` : '';
+}
+
 async function submitCreateProd() {
-  const recipe_id  = document.getElementById('cpf-recipe').value;
-  const qty        = parseInt(document.getElementById('cpf-qty').value, 10);
-  const date       = document.getElementById('cpf-date').value;
+  const recipe_id   = document.getElementById('cpf-recipe').value;
+  const qty         = parseInt(document.getElementById('cpf-qty').value, 10);
+  const date        = document.getElementById('cpf-date').value;
+  const destination = document.getElementById('cpf-dest')?.value || 'למלאי';
   if (!recipe_id || !qty || !date) { showToast('Заполните все поля','error'); return; }
   const btn = document.querySelector('.cpf-submit');
   btn.disabled = true; btn.textContent = '...';
   try {
     const r = await fetch(`${API}/production?token=${encodeURIComponent(managerToken)}`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ recipe_id, requested_qty: qty, date, destination:'למטבח', ordered_by:'שף' })
+      body: JSON.stringify({ recipe_id, requested_qty: qty, date, destination, ordered_by: currentRole })
     });
     if (!r.ok) throw new Error(await r.text());
     showToast('✅ Заказ создан!','success');

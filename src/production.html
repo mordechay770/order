@@ -374,7 +374,10 @@ function renderCreateForm() {
     return;
   }
   const today = new Date().toISOString().slice(0,10);
-  const recipeOptions = recipes.map(r => `<option value="${r.id}">${esc(r.name_ru)}${r.category?' ('+r.category+')':''}</option>`).join('');
+  const recipeOptions = recipes.map(r => {
+    const unit = r.unit ? ` — ${r.unit_qty||''}${r.unit}` : '';
+    return `<option value="${r.id}" data-unit="${esc(r.unit||'')}" data-uqty="${r.unit_qty||''}">${esc(r.name_ru)}${r.category?' ('+r.category+')':''}${unit}</option>`;
+  }).join('');
 
   document.getElementById('main-content').innerHTML = `
     <div class="create-form">
@@ -382,7 +385,8 @@ function renderCreateForm() {
       <div class="form-grid">
         <div class="field" style="grid-column:1/-1">
           <label>Изделие / рецепт *</label>
-          <select id="f-recipe"><option value="">— Выберите рецепт —</option>${recipeOptions}</select>
+          <select id="f-recipe" onchange="onFRecipeChange(this)"><option value="">— Выберите рецепт —</option>${recipeOptions}</select>
+          <div id="f-unit-info" style="font-size:12px;color:#64748b;margin-top:4px"></div>
         </div>
         <div class="field">
           <label>Заказанное количество *</label>
@@ -422,6 +426,14 @@ function renderCreateForm() {
         <span id="form-msg" style="font-size:13px;color:#64748b"></span>
       </div>
     </div>`;
+}
+
+function onFRecipeChange(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const unit = opt?.dataset?.unit || '';
+  const uqty = opt?.dataset?.uqty || '';
+  const info = document.getElementById('f-unit-info');
+  if (info) info.textContent = unit ? `Единица: ${uqty ? uqty+' ' : ''}${unit}` : '';
 }
 
 async function submitOrder() {

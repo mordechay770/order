@@ -30,6 +30,8 @@ const FR_NAME_RU = 'fldXtH3CltgJys99x';
 const FR_NAME_HE = 'fldarNAEQRzJURY5w';
 const FR_STATUS  = 'fldYk09K4bn6aJCdA';
 const FR_CAT     = 'flddqXsD7nVlRs2tV';
+const FR_UNIT    = 'fldgon416A0P43cC9'; // יחידת חישוב למנה
+const FR_UNIT_QTY= 'fldZqgFJTvUX6Hrtx'; // כמות ליחידה
 
 // Delivery table fields
 const FD_DATE    = 'fldrIvECb7iSLQfy8';
@@ -174,19 +176,20 @@ async function handlePatch(req, res, airtableToken, role) {
   return res.status(200).json({ ok: true });
 }
 
-// GET /api/production/recipes — list active recipes for product picker
+// GET /api/production?recipes=1 — list all recipes for product picker
 async function handleRecipeList(res, airtableToken) {
-  const formula = `{סטטוס}='Меню доступно в системе IIKO'`;
-  const fields  = [FR_NAME_RU, FR_NAME_HE, FR_CAT];
-  const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FR_NAME_RU}`;
+  const fields = [FR_NAME_RU, FR_NAME_HE, FR_CAT, FR_UNIT, FR_UNIT_QTY];
+  const qs = `${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FR_NAME_RU}&sort[0][direction]=asc`;
   const r = await fetch(`${AT_BASE}/${T_RECIPES}?${qs}`, { headers: atH(airtableToken) });
   if (!r.ok) throw new Error(`Airtable recipes ${r.status}`);
   const data = await r.json();
   const list = (data.records || []).map(rec => ({
-    id:      rec.id,
-    name_ru: rec.fields[FR_NAME_RU] || '',
-    name_he: rec.fields[FR_NAME_HE] || '',
-    category:selectName(rec.fields[FR_CAT]),
+    id:       rec.id,
+    name_ru:  rec.fields[FR_NAME_RU] || '',
+    name_he:  rec.fields[FR_NAME_HE] || '',
+    category: selectName(rec.fields[FR_CAT]),
+    unit:     selectName(rec.fields[FR_UNIT]) || '',
+    unit_qty: rec.fields[FR_UNIT_QTY] || null,
   })).filter(x => x.name_ru);
   return res.status(200).json({ recipes: list });
 }
