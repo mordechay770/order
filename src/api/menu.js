@@ -99,16 +99,20 @@ async function atList(tableId, params, token) {
   return records;
 }
 
+function extractAiText(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'string') return raw || null;
+  // aiText field: { state: 'generated'|'loading'|'error', value: string|null }
+  return (raw.state === 'generated' && raw.value) ? raw.value : null;
+}
+
 function formatDish(rec, priceMap) {
   const price  = priceMap?.[rec.id] ?? 0;
-  const heRaw  = rec.fields[FD_NAME_HE];
-  // aiText field returns { state, value } — only use when generated and non-null
-  const nameHe = (heRaw && heRaw.state === 'generated' && heRaw.value) ? heRaw.value : null;
   return {
     id:      rec.id,
     name:    rec.fields[FD_NAME]    || '',
-    name_he: nameHe,
-    name_en: rec.fields[FD_NAME_EN] || null,
+    name_he: extractAiText(rec.fields[FD_NAME_HE]),
+    name_en: extractAiText(rec.fields[FD_NAME_EN]),
     price:   Number(price)          || 0,
     portion: rec.fields[FD_PORTION] || 0,
     min_qty: rec.fields[FD_MINQTY]  || 0,

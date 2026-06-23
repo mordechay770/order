@@ -99,6 +99,15 @@ function atHeaders(token) {
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 }
 
+async function atGet(path, token) {
+  const sep = path.includes('?') ? '&' : '?';
+  const r = await fetch(`${AT_BASE}/${path}${sep}returnFieldsByFieldId=true`, {
+    headers: atHeaders(token),
+  });
+  if (!r.ok) { const txt = await r.text().catch(() => ''); throw new Error(`Airtable GET ${r.status}: ${txt.slice(0,200)}`); }
+  return r.json();
+}
+
 async function atPost(path, body, token) {
   const r = await fetch(`${AT_BASE}/${path}?returnFieldsByFieldId=true`, {
     method: 'POST',
@@ -178,7 +187,9 @@ export default async function handler(req, res) {
     // 1. Create order
     const orderResp = await atPost(T_ORDERS, { fields: orderFields }, token);
     const orderId  = orderResp.id;
-    const orderNum = orderResp.fields?.[FO_SERIAL] ?? null;
+    // autoNumber is not returned in POST response — fetch it via GET
+    const orderGet = await atGet(`${T_ORDERS}/${orderId}`, token);
+    const orderNum = orderGet.fields?.[FO_SERIAL] ?? null;
 
     // 2. Create qty rows in parallel
     await Promise.all(
