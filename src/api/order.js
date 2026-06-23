@@ -62,17 +62,26 @@ function toWaId(phone) {
   return norm + '@c.us';
 }
 
+/** Returns true if message was sent successfully, false otherwise */
 async function sendWa(phone, message) {
   const instance = (process.env.GREEN_API_INSTANCE || '').trim();
   const apiToken = (process.env.GREEN_API_TOKEN   || '').trim();
-  if (!instance || !apiToken) return; // env not configured — skip silently
+  if (!instance || !apiToken) return false;
+  if (!phone || toWaId(phone) === '@c.us') return false;
 
   const url = `https://api.green-api.com/waInstance${instance}/sendMessage/${apiToken}`;
-  await fetch(url, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ chatId: toWaId(phone), message }),
-  }).catch(e => console.error('[green-api]', e.message));
+  try {
+    const r = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ chatId: toWaId(phone), message }),
+    });
+    const data = await r.json().catch(() => ({}));
+    return r.ok && !!data.idMessage;
+  } catch (e) {
+    console.error('[green-api]', e.message);
+    return false;
+  }
 }
 
 function formatDelivery(orderDate, deliveryTime) {
@@ -260,15 +269,17 @@ export default async function handler(req, res) {
       managerLink ? `\n${mt.link}:\n${managerLink}` : '',
     ].filter(Boolean).join('\n');
 
-    Promise.all([
-      sendWa(custPhone, custMsg),
-      managerPhone ? sendWa(managerPhone, mgrMsg) : Promise.resolve(),
-    ]).catch(() => {});
+    // Customer WhatsApp — await result so client knows if it succeeded
+    const wa_sent = await sendWa(custPhone, custMsg);
+
+    // Manager notification — fire-and-forget
+    if (managerPhone) sendWa(managerPhone, mgrMsg).catch(() => {});
 
     return res.status(200).json({
       success:      true,
       order_id:     orderId,
       order_number: orderNum,
+      wa_sent,
     });
 
   } catch (err) {

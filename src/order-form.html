@@ -1200,8 +1200,9 @@
       <div class="field">
         <label for="customerPhone" data-i18n="label_phone">Телефон *</label>
         <input type="tel" id="customerPhone" data-i18n-placeholder="ph_phone"
-          placeholder="+7 700 000 0000" required autocomplete="tel"
-          oninput="saveFormFields()" />
+          placeholder="+7 700 000 0000" autocomplete="tel"
+          oninput="this.value=this.value.replace(/[^\d\s\+\-\(\)]/g,''); saveFormFields()" />
+        <div class="hint" data-i18n="ph_phone_hint">Мин. 10 цифр · формат: +7 700 000 0000</div>
       </div>
       <div class="field">
         <label for="deliveryAddress" data-i18n="label_address">Адрес доставки</label>
@@ -1221,9 +1222,10 @@
       </div>
     </div>
 
+    <div id="submitBtnError" style="display:none;color:#ef4444;font-size:13px;text-align:center;margin-bottom:8px;"></div>
     <button type="button" class="btn-submit" id="submitBtn"
       onclick="goToPayment()"
-      onkeydown="event.preventDefault()">
+      onkeydown="if(event.key==='Enter')goToPayment()">
       <span>Далее — оплата →</span>
     </button>
 
@@ -1455,6 +1457,49 @@
   </div>
 </div>
 
+<!-- SCREEN WA-FAILED — WhatsApp not delivered -->
+<div id="screenWaFailed" class="screen">
+  <div class="header">
+    <div class="header-text">
+      <h1 id="waFailedTitle">Заказ принят!</h1>
+      <p id="waFailedSub">Не удалось отправить уведомление</p>
+    </div>
+  </div>
+  <div class="page-body" style="padding-bottom:24px;max-width:480px;margin:0 auto;">
+    <div class="section-block" style="text-align:center;padding:24px 20px;">
+      <div style="font-size:48px;margin-bottom:12px;">📱</div>
+      <div id="waFailedOrderNum" style="font-size:18px;font-weight:700;color:var(--navy);margin-bottom:8px;"></div>
+      <p id="waFailedMsg" style="color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 20px;"></p>
+    </div>
+
+    <div class="section-block" id="waPhoneFixBlock">
+      <div class="section-label" id="waPhoneFixLabel">Исправить номер WhatsApp</div>
+      <div class="field">
+        <label id="waPhoneLabel">Ваш номер WhatsApp *</label>
+        <input type="tel" id="waPhoneInput" class="pay-confirm-input"
+          placeholder="+7 700 000 0000" autocomplete="tel"
+          style="width:100%;box-sizing:border-box;" />
+        <div class="hint" id="waPhoneHint">Минимум 10 цифр · формат: +7 700 000 0000</div>
+        <div id="waPhoneError" style="display:none;color:#ef4444;font-size:13px;margin-top:4px;"></div>
+      </div>
+      <button class="btn-submit" id="waRetryBtn" onclick="retryWaSend()" style="margin-top:8px;">
+        <span id="waRetryBtnText">📩 Отправить уведомление</span>
+      </button>
+    </div>
+
+    <div class="section-block" style="text-align:center;">
+      <button class="btn-secondary" id="waSkipBtn" onclick="waSkipNoPhone()" style="width:100%;">
+        <span id="waSkipBtnText">Нет WhatsApp — продолжить без уведомления</span>
+      </button>
+    </div>
+
+    <div id="waNoPhoneResult" style="display:none;text-align:center;padding:16px;background:#f8fafc;border-radius:12px;margin-top:8px;">
+      <p id="waNoPhoneMsg" style="color:var(--muted);font-size:14px;margin:0;line-height:1.6;"></p>
+      <button class="btn-secondary" onclick="resetAll()" style="margin-top:16px;" id="waNewOrderBtn">Новый заказ</button>
+    </div>
+  </div>
+</div>
+
 <!-- SCREEN 4 — RESULT -->
 <div id="screen4" class="screen">
   <div id="resultBox" class="result-box success">
@@ -1513,6 +1558,21 @@ const T = {
     hint_address: 'Оставьте пустым, если будете забирать сами',
     btn_submit: 'Отправить заказ', btn_sending: 'Отправляем…',
     btn_checkout: 'Оформить →', btn_new_order: 'Новый заказ',
+    err_name_required: 'Пожалуйста, укажите имя.',
+    err_phone_short: 'Номер телефона должен содержать не менее 10 цифр.',
+    err_date_required: 'Пожалуйста, выберите дату доставки.',
+    err_time_required: 'Пожалуйста, выберите время доставки.',
+    err_no_dishes: 'Выберите хотя бы одно блюдо.',
+    ph_phone_hint: 'Мин. 10 цифр · формат: +7 700 000 0000',
+    wa_failed_title: 'Заказ принят!',
+    wa_failed_sub: 'Не удалось отправить WhatsApp-уведомление',
+    wa_failed_msg: 'Заказ #{num} успешно сохранён, но уведомление в WhatsApp не было доставлено. Проверьте номер телефона или продолжите без уведомления.',
+    wa_phone_fix_label: 'Введите корректный номер WhatsApp',
+    wa_phone_label: 'Ваш номер WhatsApp',
+    wa_retry_btn: '📩 Отправить уведомление',
+    wa_skip_btn: 'Нет WhatsApp — продолжить без уведомления',
+    wa_no_phone_msg: 'Заказ #{num} сохранён. Для уточнения статуса обратитесь к менеджеру напрямую.',
+    wa_success_msg: '✅ Уведомление отправлено! Заказ #{num} принят.',
     choose_date: 'Выберите дату', choose_date_sub: 'Доступные даты для заказа',
     total_label: 'Итого', selected_label: 'Выбрано позиций', all_cats: 'Все',
     loading_dates: '⏳ Загружаем доступные даты…',
@@ -1534,6 +1594,21 @@ const T = {
     ph_address: 'Street, house number (optional)', ph_notes: 'Requests: no onion, spicier, by 1 pm…',
     hint_address: 'Leave empty for self-pickup',
     btn_submit: 'Place order', btn_sending: 'Sending…', btn_checkout: 'Checkout →',
+    err_name_required: 'Please enter your name.',
+    err_phone_short: 'Phone number must have at least 10 digits.',
+    err_date_required: 'Please select a delivery date.',
+    err_time_required: 'Please select a delivery time.',
+    err_no_dishes: 'Please select at least one dish.',
+    ph_phone_hint: 'Min. 10 digits · format: +7 700 000 0000',
+    wa_failed_title: 'Order received!',
+    wa_failed_sub: 'WhatsApp notification could not be delivered',
+    wa_failed_msg: 'Order #{num} was saved successfully, but the WhatsApp notification failed. Please check your phone number or continue without notification.',
+    wa_phone_fix_label: 'Enter correct WhatsApp number',
+    wa_phone_label: 'Your WhatsApp number',
+    wa_retry_btn: '📩 Send notification',
+    wa_skip_btn: 'No WhatsApp — continue without notification',
+    wa_no_phone_msg: 'Order #{num} saved. Please contact the manager directly to track your order status.',
+    wa_success_msg: '✅ Notification sent! Order #{num} received.',
     choose_date: 'Select date', choose_date_sub: 'Available order dates',
     total_label: 'Total', selected_label: 'Selected items', all_cats: 'All',
     loading_dates: '⏳ Loading available dates…',
@@ -1556,6 +1631,21 @@ const T = {
     ph_address: 'רחוב ומספר בית (אופציונלי)', ph_notes: 'בקשות…',
     hint_address: 'השאירו ריק לאיסוף עצמי',
     btn_submit: 'שלח הזמנה', btn_sending: '…שולח', btn_checkout: '← לתשלום',
+    err_name_required: 'נא להזין שם.',
+    err_phone_short: 'מספר הטלפון חייב להכיל לפחות 10 ספרות.',
+    err_date_required: 'נא לבחור תאריך משלוח.',
+    err_time_required: 'נא לבחור שעת משלוח.',
+    err_no_dishes: 'נא לבחור לפחות מנה אחת.',
+    ph_phone_hint: 'מינ. 10 ספרות · פורמט: 050-000-0000',
+    wa_failed_title: 'ההזמנה התקבלה!',
+    wa_failed_sub: 'לא הצלחנו לשלוח הודעת WhatsApp',
+    wa_failed_msg: 'הזמנה #{num} נשמרה בהצלחה, אך הודעת WhatsApp לא נשלחה. בדקו את המספר או המשיכו ללא הודעה.',
+    wa_phone_fix_label: 'תקנו את מספר ה-WhatsApp',
+    wa_phone_label: 'מספר WhatsApp שלכם',
+    wa_retry_btn: '📩 שלח הודעה',
+    wa_skip_btn: 'אין לי WhatsApp — המשך ללא הודעה',
+    wa_no_phone_msg: 'הזמנה #{num} נשמרה. לבירור סטטוס פנו למנהל ישירות.',
+    wa_success_msg: '✅ הודעה נשלחה! הזמנה #{num} התקבלה.',
     choose_date: 'בחרו תאריך', choose_date_sub: 'תאריכים זמינים',
     total_label: 'סה״כ', selected_label: 'מנות שנבחרו', all_cats: 'הכל',
     loading_dates: '…⏳ טוענים תאריכים זמינים',
@@ -1741,7 +1831,7 @@ function goToScreen(n) {
     if (sb) { sb.disabled = false; sb.innerHTML = '<span>Далее — оплата →</span>'; }
     try { const raw = sessionStorage.getItem('kc_cart'); if (raw) restoreFormData(JSON.parse(raw).formData); } catch (_) {}
   }
-  if (n !== 4) saveCart();
+  if (n !== 4 && n !== 'WaFailed') saveCart();
 }
 
 function goBackFromDishes() { goToScreen(currentSlot ? '1b' : 1); }
@@ -2182,12 +2272,109 @@ function showResult(success, orderNum, paymentMethod, breakdown) {
   goToScreen(4);
 }
 
+// ── WhatsApp failed flow ──────────────────────────────────────────────────────
+
+let _waFailedOrderNum = '', _waFailedOrderId = '', _waFailedPm = '';
+
+function showWaFailed(orderNum, orderId, pm) {
+  _waFailedOrderNum = orderNum || '';
+  _waFailedOrderId  = orderId  || '';
+  _waFailedPm       = pm       || '';
+  const numStr = orderNum ? `№${orderNum}` : '';
+  const fill = (id, key, num) => { const el=document.getElementById(id); if(el) el.textContent=(t(key)||'').replace('#{num}', numStr||num||''); };
+  fill('waFailedTitle',   'wa_failed_title');
+  fill('waFailedSub',     'wa_failed_sub');
+  fill('waFailedOrderNum', 'wa_failed_title');
+  document.getElementById('waFailedOrderNum').textContent = numStr;
+  fill('waFailedMsg',     'wa_failed_msg');
+  fill('waPhoneFixLabel', 'wa_phone_fix_label');
+  fill('waPhoneLabel',    'wa_phone_label');
+  document.getElementById('waRetryBtnText').textContent   = t('wa_retry_btn')  || '📩 Отправить';
+  document.getElementById('waSkipBtnText').textContent    = t('wa_skip_btn')   || 'Нет WhatsApp';
+  // Pre-fill with original phone
+  const origPhone = pendingOrderPayload ? pendingOrderPayload.customer_phone : '';
+  document.getElementById('waPhoneInput').value = origPhone || '';
+  document.getElementById('waPhoneError').style.display = 'none';
+  document.getElementById('waPhoneFixBlock').style.display = '';
+  document.getElementById('waNoPhoneResult').style.display = 'none';
+  goToScreen('WaFailed');
+}
+
+async function retryWaSend() {
+  const phone = (document.getElementById('waPhoneInput').value || '').trim();
+  const digits = phone.replace(/\D/g, '');
+  const errEl = document.getElementById('waPhoneError');
+  if (digits.length < 10) {
+    errEl.textContent = t('err_phone_short') || 'Минимум 10 цифр.';
+    errEl.style.display = '';
+    return;
+  }
+  errEl.style.display = 'none';
+  const btn = document.getElementById('waRetryBtn');
+  btn.disabled = true; document.getElementById('waRetryBtnText').textContent = '⏳…';
+  try {
+    const instance = ''; // server-side only — use dedicated endpoint
+    const r = await fetch('/api/send-wa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, order_id: _waFailedOrderId, order_number: _waFailedOrderNum, lang: currentLang || 'ru' }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (d.sent) {
+      const msg = (t('wa_success_msg') || '✅ Уведомление отправлено!').replace('#{num}', _waFailedOrderNum ? `№${_waFailedOrderNum}` : '');
+      showResult(true, _waFailedOrderNum, _waFailedPm);
+    } else {
+      errEl.textContent = d.error || (t('err_phone_short') || 'Не удалось отправить. Проверьте номер.');
+      errEl.style.display = '';
+      btn.disabled = false;
+      document.getElementById('waRetryBtnText').textContent = t('wa_retry_btn') || '📩 Отправить';
+    }
+  } catch(e) {
+    errEl.textContent = 'Ошибка соединения.';
+    errEl.style.display = '';
+    btn.disabled = false;
+    document.getElementById('waRetryBtnText').textContent = t('wa_retry_btn') || '📩 Отправить';
+  }
+}
+
+function waSkipNoPhone() {
+  const numStr = _waFailedOrderNum ? `№${_waFailedOrderNum}` : '';
+  const msg = (t('wa_no_phone_msg') || 'Заказ сохранён. Обратитесь к менеджеру.').replace('#{num}', numStr);
+  document.getElementById('waNoPhoneMsg').textContent = msg;
+  document.getElementById('waPhoneFixBlock').style.display = 'none';
+  document.getElementById('waNoPhoneResult').style.display = '';
+  document.getElementById('waNewOrderBtn').textContent = t('btn_new_order') || 'Новый заказ';
+  const skipBtn = document.getElementById('waSkipBtn');
+  if (skipBtn) skipBtn.style.display = 'none';
+}
+
+function _showSubmitError(msg) {
+  const el = document.getElementById('submitBtnError');
+  if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+}
+
 function goToPayment() {
-  const name = document.getElementById('customerName').value.trim();
-  const phone = document.getElementById('customerPhone').value.trim();
-  if (!name || !phone) { alert('Пожалуйста, заполните имя и телефон.'); return; }
-  const sel = dishes.filter(d => quantities[d.id]>0);
-  if (!sel.length) { alert('Выберите хотя бы одно блюдо.'); return; }
+  try {
+    _showSubmitError('');
+    const name  = (document.getElementById('customerName')?.value  || '').trim();
+    const phone = (document.getElementById('customerPhone')?.value || '').trim();
+    const digits = phone.replace(/\D/g, '');
+
+    if (!name)         { _showSubmitError(t('err_name_required')  || 'Укажите имя.'); return; }
+    if (digits.length < 10) { _showSubmitError(t('err_phone_short') || 'Телефон должен содержать не менее 10 цифр.'); return; }
+
+    // Date/time required if type has date picker
+    const needsDate = !!(currentType && !currentSlot);
+    if (needsDate && !currentDeliveryDate) {
+      _showSubmitError(t('err_date_required') || 'Выберите дату доставки.'); return;
+    }
+    const needsTime = !!(currentType && !currentType.delivery_time && currentDeliveryDate);
+    if (needsTime && !currentDeliveryTime) {
+      _showSubmitError(t('err_time_required') || 'Выберите время доставки.'); return;
+    }
+
+    const sel = dishes.filter(d => quantities[d.id] > 0);
+    if (!sel.length) { _showSubmitError(t('err_no_dishes') || 'Выберите хотя бы одно блюдо.'); return; }
   const items = sel.map(d => ({ dish_id: d.id, dish_name: d.name_ru || d.name, quantity: quantities[d.id], unit_price: d.price }));
   const total = items.reduce((s,i)=> s + i.unit_price*i.quantity, 0);
   const _adminCfg = getAdminSettings();
@@ -2205,6 +2392,7 @@ function goToPayment() {
   ['Cash','Kaspi','Voucher','Combined','Stripe'].forEach(m => { const el=document.getElementById('paySection'+m); if(el) el.style.display='none'; });
   if (methods.length === 1) selectPayMethod(methods[0]);
   goToScreen('Pay');
+  } catch(e) { _showSubmitError('Ошибка: ' + e.message); console.error('[goToPayment]', e); }
 }
 
 function selectPayMethod(method) {
@@ -2336,10 +2524,22 @@ async function doSubmitOrder(pm) {
   const payload = Object.assign({}, pendingOrderPayload, extra);
   const sec = pm==='cash'?'paySectionCash':'paySectionKaspi';
   const btn = document.querySelector('#'+sec+' .btn-submit');
-  if (btn) { btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Отправляем…'; }
+  if (btn) { btn.disabled=true; btn.innerHTML='<span class="spinner"></span> ' + (t('btn_sending')||'Отправляем…'); }
   const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL) || ORDER_API;
-  try { const r = await fetch(orderUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error(); let num=''; try { const d=await r.json(); num=d.order_number||d.id||''; } catch(_) {} clearCart(); showResult(true,num,pm); }
-  catch(_) { if (btn) { btn.disabled=false; btn.textContent='✅ Подтвердить заказ'; } showResult(false); }
+  try {
+    const r = await fetch(orderUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json().catch(()=>({}));
+    clearCart();
+    if (d.wa_sent === false) {
+      showWaFailed(d.order_number, d.order_id, pm);
+    } else {
+      showResult(true, d.order_number||d.id||'', pm);
+    }
+  } catch(_) {
+    if (btn) { btn.disabled=false; btn.innerHTML='✅ ' + (t('btn_submit')||'Подтвердить заказ'); }
+    showResult(false);
+  }
 }
 
 const STRIPE_LINK = 'https://donate.stripe.com/4gw5kH4Q3gtU2gE14a';
