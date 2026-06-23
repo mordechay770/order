@@ -230,9 +230,18 @@ export default async function handler(req, res) {
     const numStr       = orderNum ? `№${orderNum}` : '';
     const custLang     = body.lang || 'ru';
     const mgrLang      = body.manager_lang || 'he';
-    const itemLines    = (body.items || []).map(i => {
+    // Item lines — dish name in customer language, fallback to Russian
+    const itemLines = (body.items || []).map(i => {
+      let name = i.dish_name || '';
+      if (custLang === 'he' && i.dish_name_he) name = i.dish_name_he;
+      else if (custLang === 'en' && i.dish_name_en) name = i.dish_name_en;
       const lineTotal = (Number(i.unit_price)||0) * (Number(i.quantity)||1);
-      return `  • ${i.dish_name} × ${i.quantity}${lineTotal ? ' = ' + lineTotal + ' ₸' : ''}`;
+      return `  • ${name} × ${i.quantity}${lineTotal ? ' = ' + lineTotal + ' ₸' : ''}`;
+    }).join('\n');
+    // Manager always gets Russian dish names
+    const itemLinesMgr = (body.items || []).map(i => {
+      const lineTotal = (Number(i.unit_price)||0) * (Number(i.quantity)||1);
+      return `  • ${i.dish_name || ''} × ${i.quantity}${lineTotal ? ' = ' + lineTotal + ' ₸' : ''}`;
     }).join('\n');
     const statusUrl    = orderNum ? `${SITE_URL}/status?num=${orderNum}` : '';
 
@@ -267,7 +276,7 @@ export default async function handler(req, res) {
       `${mt.client}: ${custName} · ${custPhone}`,
       orderType ? `${mt.type} ${orderType}` : '',
       delivery  ? `${mt.date} ${delivery}`  : '',
-      itemLines,
+      itemLinesMgr,
       total     ? `${mt.total} ${total} ₸`  : '',
       managerLink ? `\n${mt.link}:\n${managerLink}` : '',
     ].filter(Boolean).join('\n');

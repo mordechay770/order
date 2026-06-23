@@ -67,11 +67,14 @@ export default async function handler(req, res) {
       if (!rec) return res.status(404).json({ error: 'Order not found' });
     }
 
-    const f = rec.fields;
+    const f = rec.fields || {};
+    // singleSelect returns {id, name, color} — extract name
+    const statusRaw = f[FO_STATUS];
+    const status = (statusRaw && typeof statusRaw === 'object') ? (statusRaw.name || '') : (statusRaw || '');
     return res.status(200).json({
       order_id:     rec.id,
-      order_number: f[FO_SERIAL]    || num,
-      status:       f[FO_STATUS]    || '',
+      order_number: f[FO_SERIAL]    ?? byNum ?? null,
+      status,
       order_type:   f[FO_NAME_RU]   || '',
       delivery_at:  f[FO_DATE_EXE]  || null,
       customer:     f[FO_CUST_NAME] || '',

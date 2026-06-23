@@ -2375,7 +2375,7 @@ function goToPayment() {
 
     const sel = dishes.filter(d => quantities[d.id] > 0);
     if (!sel.length) { _showSubmitError(t('err_no_dishes') || 'Выберите хотя бы одно блюдо.'); return; }
-  const items = sel.map(d => ({ dish_id: d.id, dish_name: d.name_ru || d.name, quantity: quantities[d.id], unit_price: d.price }));
+  const items = sel.map(d => ({ dish_id: d.id, dish_name: d.name_ru || d.name, dish_name_he: d.name_he || null, dish_name_en: d.name_en || null, quantity: quantities[d.id], unit_price: d.price }));
   const total = items.reduce((s,i)=> s + i.unit_price*i.quantity, 0);
   const _adminCfg = _adminSettings;
   pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_model: currentType?currentType.model||null:null, order_category: currentType?currentType.category||null:null, order_type_record_id: currentType?currentType.airtable_record_id||null:null, order_template_id: currentType?currentType.template_id||null:null, order_date: currentDeliveryDate||null, delivery_time: currentDeliveryTime||null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString(), lang: currentLang || 'ru', manager_lang: (_adminCfg.manager && _adminCfg.manager.lang) || 'he' };
