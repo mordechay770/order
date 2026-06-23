@@ -82,7 +82,7 @@ export default async function handler(req, res) {
       item_count:   f[FO_COUNT]     || 0,
     });
   } catch (err) {
-    console.error('[order-status]', err.message);
-    return res.status(502).json({ error: 'Failed to fetch order' });
+    console.error('[order-status]', err.message, err.stack);
+    return res.status(502).json({ error: 'Failed to fetch order', detail: err.message });
   }
 }
