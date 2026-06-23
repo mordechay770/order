@@ -9,14 +9,15 @@ const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
 
 const T_ORDERS = 'tblMnlLwYCD27ou80';
 
-const FO_STATUS   = 'fldcekWvpJwdVVMK6';
-const FO_SERIAL   = 'fldlJLSKuSB5zvmGt';
-const FO_NAME_RU  = 'flddCvqJiwEsg9pr1';
-const FO_CUST_NAME= 'fld1FKztthSOvgJhJ';
-const FO_PHONE    = 'fldMPQfkQATfg6j0t';
-const FO_DATE_EXE = 'fldF8G3nQ7FU7GAqS';
-const FO_PRICE    = 'fldJA6xBGacdetQjI';
-const FO_PAYMENT  = 'fldjE5esZVBwDjNDi';
+const FO_STATUS    = 'fldcekWvpJwdVVMK6';
+const FO_SERIAL    = 'fldlJLSKuSB5zvmGt';
+const FO_NAME_RU   = 'flddCvqJiwEsg9pr1';
+const FO_CUST_NAME = 'fld1FKztthSOvgJhJ';
+const FO_PHONE     = 'fldMPQfkQATfg6j0t';
+const FO_DATE_EXE  = 'fldF8G3nQ7FU7GAqS';
+const FO_PRICE     = 'fldJA6xBGacdetQjI';
+const FO_PAYMENT   = 'fldjE5esZVBwDjNDi';
+const FO_KASPI_URL = 'fldMmQtQsDSM5muX4'; // קישור לכספי פיי לתשלום (formula)
 
 const SITE_URL = 'https://src-sigma-ecru-25.vercel.app';
 
@@ -46,6 +47,31 @@ async function sendWa(phone, message) {
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ chatId: toWaId(phone), message }),
   }).catch(e => console.error('[green-api manager-action]', e.message));
+}
+
+async function sendWaButtons(phone, opts) {
+  const instance = (process.env.GREEN_API_INSTANCE || '').trim();
+  const apiToken = (process.env.GREEN_API_TOKEN   || '').trim();
+  if (!instance || !apiToken || !phone) return;
+  const { header, body, footer, buttons = [] } = opts;
+  const payload = { chatId: toWaId(phone), body, buttons };
+  if (header) payload.header = header;
+  if (footer) payload.footer = footer;
+  const endpoint = `https://api.green-api.com/waInstance${instance}/sendInteractiveButtons/${apiToken}`;
+  try {
+    const r = await fetch(endpoint, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data.idMessage) return;
+    console.error('[green-api-buttons manager]', r.status, JSON.stringify(data).slice(0, 150));
+    // Fallback to plain text
+    const urlLines = buttons.filter(b => b.type === 'url').map(b => `🔗 ${b.buttonText}:\n${b.url}`).join('\n');
+    await sendWa(phone, [header, body, footer, urlLines].filter(Boolean).join('\n'));
+  } catch (e) {
+    console.error('[green-api-buttons manager]', e.message);
+    await sendWa(phone, [header, body].filter(Boolean).join('\n'));
+  }
 }
 
 function htmlPage(title, body, color = '#22c55e') {
@@ -112,30 +138,37 @@ export default async function handler(req, res) {
     );
     if (!patchR.ok) throw new Error(`PATCH ${patchR.status}`);
 
-    const orderNum  = f[FO_SERIAL]   ? `№${f[FO_SERIAL]}` : '';
+    const orderNum  = f[FO_SERIAL]    ? `№${f[FO_SERIAL]}` : '';
     const custName  = f[FO_CUST_NAME] || '';
     const custPhone = f[FO_PHONE]     || '';
     const orderType = f[FO_NAME_RU]   || '';
     const total     = f[FO_PRICE]     || 0;
-    const payment   = f[FO_PAYMENT]   || '';
+    const payment   = typeof f[FO_PAYMENT] === 'object' ? (f[FO_PAYMENT]?.name || '') : (f[FO_PAYMENT] || '');
+    const kaspiUrl  = f[FO_KASPI_URL] || '';
+    const statusUrl = f[FO_SERIAL] ? `${SITE_URL}/status?num=${f[FO_SERIAL]}` : '';
 
-    // Send WhatsApp to customer after action (fire-and-forget)
+    // Send WhatsApp to customer after action
     if (custPhone) {
-      const kaspiPhone = (process.env.KASPI_PHONE || '').trim();
-      const isKaspi = payment === 'כספי' || payment === 'כספי+מזומן';
-      const kaspiLine = isKaspi && kaspiPhone
-        ? `\n📲 Оплата Kaspi: https://pay.kaspi.kz/pay/${kaspiPhone}`
-        : '';
+      const isKaspi = payment === 'כספי';
+      let header = '', body = '', buttons = [];
 
-      let custMsg = '';
       if (action === 'approve') {
-        custMsg = `✅ Заказ ${orderNum} подтверждён!\n${orderType ? '📋 ' + orderType + '\n' : ''}💰 ${total} ₸${kaspiLine}\n\n🔗 Статус: ${SITE_URL}/status?num=${f[FO_SERIAL] || ''}`;
+        header = `✅ Заказ ${orderNum} подтверждён!`;
+        body   = `${orderType ? '📋 ' + orderType + '\n' : ''}💰 ${total} ₸`;
+        if (statusUrl) buttons.push({ type: 'url', buttonId: '1', buttonText: 'Статус заказа', url: statusUrl });
+        if (isKaspi && kaspiUrl) buttons.push({ type: 'url', buttonId: '2', buttonText: 'Оплатить Kaspi', url: kaspiUrl });
       } else if (action === 'ready') {
-        custMsg = `🍽️ Заказ ${orderNum} готов к выдаче!\n${orderType ? '📋 ' + orderType : ''}`;
+        header = `🍽️ Заказ ${orderNum} готов!`;
+        body   = orderType || 'Заберите заказ';
+        if (statusUrl) buttons.push({ type: 'url', buttonId: '1', buttonText: 'Статус заказа', url: statusUrl });
       } else if (action === 'reject') {
-        custMsg = `❌ Заказ ${orderNum} отменён.\nСвяжитесь с нами для уточнения деталей.`;
+        header = `❌ Заказ ${orderNum} отменён`;
+        body   = 'Свяжитесь с нами для уточнения деталей.';
       }
-      if (custMsg) sendWa(custPhone, custMsg).catch(() => {});
+
+      if (header) {
+        sendWaButtons(custPhone, { header, body, buttons }).catch(() => {});
+      }
     }
 
     const icons  = { approve: '✅', reject: '❌', ready: '🍽️' };

@@ -91,30 +91,39 @@ async function sendWa(phone, message) {
  * buttons: [{type:'url', buttonId, buttonText (max 25 chars), url}]
  * Falls back to plain sendWa if the API call fails.
  */
-async function sendWaButtons(phone, body, footer, buttons) {
+/**
+ * Send interactive WhatsApp message with URL buttons (Green API sendInteractiveButtons).
+ * opts: { header?, body, footer?, buttons: [{type,buttonId,buttonText,url}] }
+ * Falls back to plain text if interactive fails.
+ */
+async function sendWaButtons(phone, opts) {
   const instance = (process.env.GREEN_API_INSTANCE || '').trim();
   const apiToken = (process.env.GREEN_API_TOKEN   || '').trim();
   if (!instance || !apiToken) return false;
   if (!phone || toWaId(phone) === '@c.us') return false;
+
+  const { header, body, footer, buttons } = opts;
+  const payload = { chatId: toWaId(phone), body, buttons };
+  if (header) payload.header = header;
+  if (footer) payload.footer = footer;
 
   const endpoint = `https://api.green-api.com/waInstance${instance}/sendInteractiveButtons/${apiToken}`;
   try {
     const r = await fetch(endpoint, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ chatId: toWaId(phone), body, footer: footer || '', buttons }),
+      body:    JSON.stringify(payload),
     });
     const data = await r.json().catch(() => ({}));
     if (r.ok && data.idMessage) return true;
-    // Fallback: embed URLs in plain text
-    const urlLines = buttons
-      .filter(b => b.type === 'url')
-      .map(b => `🔗 ${b.buttonText}: ${b.url}`)
-      .join('\n');
-    return sendWa(phone, [body, footer, urlLines].filter(Boolean).join('\n'));
+    console.error('[green-api-buttons] failed', r.status, JSON.stringify(data).slice(0, 200));
+    // Fallback: embed URLs in text
+    const urlLines = buttons.filter(b => b.type === 'url').map(b => `🔗 ${b.buttonText}:\n${b.url}`).join('\n');
+    const fallback = [header, body, footer, urlLines].filter(Boolean).join('\n');
+    return sendWa(phone, fallback);
   } catch (e) {
     console.error('[green-api-buttons]', e.message);
-    return sendWa(phone, body);
+    return sendWa(phone, [header, body].filter(Boolean).join('\n'));
   }
 }
 
@@ -300,10 +309,10 @@ export default async function handler(req, res) {
       ct.wait,
     ].filter(Boolean).join('\n');
 
-    // Customer buttons: status link (buttonText max 25 chars)
-    const CUST_BTN = { ru: '📊 Статус заказа', en: '📊 Order status', he: '📊 סטטוס הזמנה' };
+    // Customer WA: interactive format — short header, compact body, status button
+    const CUST_BTN_TEXT = { ru: 'Статус заказа', en: 'Order status', he: 'סטטוס הזמנה' };
     const custButtons = statusUrl
-      ? [{ type: 'url', buttonId: '1', buttonText: CUST_BTN[custLang] || CUST_BTN.ru, url: statusUrl }]
+      ? [{ type: 'url', buttonId: '1', buttonText: CUST_BTN_TEXT[custLang] || CUST_BTN_TEXT.ru, url: statusUrl }]
       : [];
 
     // ── Manager message (in manager's language) ──
@@ -333,10 +342,21 @@ export default async function handler(req, res) {
 
     // Send both before responding — Vercel kills fire-and-forget after res.json()
     const sendCust = custButtons.length
-      ? sendWaButtons(custPhone, custMsg, '', custButtons)
+      ? sendWaButtons(custPhone, {
+          header: ct.head,
+          body:   [orderType ? `${ct.type} ${orderType}` : '', delivery ? `${ct.date} ${delivery}` : '', itemLines, total ? `${ct.total}: ${total} ₸` : ''].filter(Boolean).join('\n'),
+          footer: ct.wait,
+          buttons: custButtons,
+        })
       : sendWa(custPhone, custMsg);
     const sendMgr = managerPhone
-      ? (mgrButtons.length ? sendWaButtons(managerPhone, mgrMsg, '', mgrButtons) : sendWa(managerPhone, mgrMsg))
+      ? (mgrButtons.length
+          ? sendWaButtons(managerPhone, {
+              header:  mt.head,
+              body:    [`${mt.client}: ${custName} · ${custPhone}`, orderType ? `${mt.type} ${orderType}` : '', delivery ? `${mt.date} ${delivery}` : '', itemLinesMgr, total ? `${mt.total} ${total} ₸` : ''].filter(Boolean).join('\n'),
+              buttons: mgrButtons,
+            })
+          : sendWa(managerPhone, mgrMsg))
       : Promise.resolve(false);
     const [wa_sent] = await Promise.all([sendCust, sendMgr]);
 
