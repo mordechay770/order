@@ -1623,6 +1623,7 @@ function lDay(i) { return (DAYS_SHORT[currentLang]||DAYS_SHORT.ru)[i]; }
 function lMon(i) { return (MONTHS[currentLang]||MONTHS.ru)[i]; }
 function dishName(d) {
   if (currentLang === 'he' && d.name_he) return d.name_he;
+  if (currentLang === 'en' && d.name_en) return d.name_en;
   return d.name || d.name_ru || '';
 }
 const RU_MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
@@ -1934,7 +1935,7 @@ function applyMenuData(data, seq) {
   } else if (Array.isArray(data) && data.length) {
     menuByDate = null; selectedMenuDate = null;
     const typeMinQty = currentType && currentType.min_qty > 0 ? currentType.min_qty : 1;
-    dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:dishName(d), name_ru:d.name||'', name_he:d.name_he||null, price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||'', min_qty: d.min_qty > 0 ? d.min_qty : typeMinQty}));
+    dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:dishName(d), name_ru:d.name||'', name_he:d.name_he||null, name_en:d.name_en||null, price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||'', min_qty: d.min_qty > 0 ? d.min_qty : typeMinQty}));
     if (currentType) renderManualDatePicker(currentType);
     activeCat='all'; buildCatBar(); renderDishes();
   } else {
@@ -1977,7 +1978,7 @@ function selectMenuDate(dateStr) {
   renderDatePicker();
   const entry = menuByDate.find(e => e.date === dateStr);
   if (entry && entry.dishes) {
-    dishes = entry.dishes.map((d,i)=>({id:d.id||`${dateStr}-${i}`, name:dishName(d), name_ru:d.name||'', name_he:d.name_he||null, price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
+    dishes = entry.dishes.map((d,i)=>({id:d.id||`${dateStr}-${i}`, name:dishName(d), name_ru:d.name||'', name_he:d.name_he||null, name_en:d.name_en||null, price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
   } else { dishes = []; }
   quantities = {};
   activeCat = 'all'; buildCatBar(); renderDishes();
