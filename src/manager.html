@@ -47,6 +47,16 @@
 
   .err { color: #fca5a5; font-size: 14px; margin-top: 12px; text-align: center; }
   .loading-state { text-align: center; padding: 40px 0; color: #64748b; }
+
+  .items-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+  .items-table th { color: #6366f1; text-align: left; padding: 4px 6px; font-weight: 600; border-bottom: 1px solid #334155; }
+  .items-table td { padding: 8px 6px; border-bottom: 1px solid #1e3a5f22; color: #f1f5f9; }
+  .items-table tr:last-child td { border-bottom: none; }
+  .items-table .num { color: #64748b; }
+  .items-table .total-row td { color: #94a3b8; font-weight: 600; padding-top: 10px; }
+
+  .lang-badge { display: inline-flex; align-items: center; gap: 4px; background: #312e81; color: #a5b4fc; border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 700; margin-left: 8px; }
+  .btn-wa { background: #25d366; color: #fff; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -108,13 +118,45 @@ async function loadOrder() {
     const st = STATUS_LABELS[d.status] || { label: d.status || '—', cls: 'default' };
     const isDone = ['Подтверждён','Отменён','Готов к выдаче'].includes(d.status);
 
+    const LANG_LABELS = { ru: '🇷🇺 RU', en: '🇺🇸 EN', he: '🇮🇱 HE' };
+    const langBadge = d.lang ? `<span class="lang-badge">${LANG_LABELS[d.lang] || d.lang}</span>` : '';
+
     const details = [
-      d.customer    ? ['👤 Клиент',     d.customer]                  : null,
-      d.order_type  ? ['📋 Тип',        d.order_type]                : null,
-      d.delivery_at ? ['📅 Доставка',   formatDate(d.delivery_at)]   : null,
-      d.total       ? ['💰 Сумма',      d.total + ' ₸']             : null,
-      d.item_count  ? ['📦 Позиций',    d.item_count + ' шт.']       : null,
+      d.customer    ? ['👤 Клиент',   d.customer + langBadge]      : null,
+      d.phone       ? ['📞 Телефон',  d.phone]                     : null,
+      d.order_type  ? ['📋 Тип',      d.order_type]                : null,
+      d.delivery_at ? ['📅 Доставка', formatDate(d.delivery_at)]   : null,
+      d.address     ? ['🚚 Адрес',    d.address]                   : null,
+      d.notes       ? ['📝 Примечание', d.notes]                   : null,
+      d.payment     ? ['💳 Оплата',   d.payment]                   : null,
     ].filter(Boolean);
+
+    // Items table
+    let itemsHtml = '';
+    if (d.items && d.items.length) {
+      const rows = d.items.map(i => `
+        <tr>
+          <td class="num">${i.num}</td>
+          <td>${esc(i.name)}${i.portion ? `<br><small style="color:#64748b">${i.portion} г</small>` : ''}</td>
+          <td style="text-align:center">${i.quantity}</td>
+          <td style="text-align:right">${i.unit_price ? i.unit_price + ' ₸' : '—'}</td>
+          <td style="text-align:right">${i.total ? i.total + ' ₸' : '—'}</td>
+        </tr>`).join('');
+      itemsHtml = `
+        <div class="section-title">Состав заказа</div>
+        <table class="items-table">
+          <thead><tr><th>#</th><th>Блюдо</th><th style="text-align:center">Кол.</th><th style="text-align:right">Цена</th><th style="text-align:right">Итого</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr class="total-row"><td colspan="4" style="text-align:right">Итого:</td><td style="text-align:right">${d.total || 0} ₸</td></tr></tfoot>
+        </table>`;
+    }
+
+    // WhatsApp button to customer
+    const custPhone = (d.phone || '').replace(/\D/g, '');
+    const custWa = custPhone.startsWith('8') && custPhone.length === 11 ? '7' + custPhone.slice(1) : custPhone;
+    const waBtn = custWa
+      ? `<a class="btn-wa" href="https://wa.me/${custWa}" target="_blank">💬 WhatsApp с клиентом</a>`
+      : '';
 
     const actionBtns = isDone ? `
       <div class="done-msg">
@@ -128,6 +170,7 @@ async function loadOrder() {
         <button class="btn btn-approve" id="btn-approve" onclick="doAction('approve')">✅ Подтвердить заказ</button>
         <button class="btn btn-ready"   id="btn-ready"   onclick="doAction('ready')">🍽️ Готов к выдаче</button>
         <button class="btn btn-reject"  id="btn-reject"  onclick="doAction('reject')">❌ Отменить заказ</button>
+        ${waBtn}
       </div>
     `;
 
@@ -139,6 +182,7 @@ async function loadOrder() {
       <div class="status-row"><span class="status-badge ${st.cls}">${st.label}</span></div>
       <div class="section-title">Детали</div>
       ${details.map(([l,v]) => `<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${v}</span></div>`).join('')}
+      ${itemsHtml}
       ${actionBtns}
       <div id="errMsg" class="err"></div>
     `;
@@ -146,6 +190,8 @@ async function loadOrder() {
     document.getElementById('card').innerHTML = `<div class="err" style="padding:40px 0;font-size:16px">⚠️ Не удалось загрузить заказ.<br><br><small>Проверьте соединение и попробуйте снова.</small></div>`;
   }
 }
+
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 loadOrder();
 </script>

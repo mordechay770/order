@@ -49,7 +49,8 @@ const ALLOWED_ORIGINS = [
 const PAY_MAP = {
   cash:    'מזומן',
   kaspi:   'כספי',
-  // voucher / combined have no matching option — field left empty
+  stripe:  'סטרייפ',
+  // voucher / combined have no single Airtable option — field left empty
 };
 
 // ── Green API — WhatsApp ──────────────────────────────────────────────────────
@@ -81,6 +82,39 @@ async function sendWa(phone, message) {
   } catch (e) {
     console.error('[green-api]', e.message);
     return false;
+  }
+}
+
+/**
+ * Send WhatsApp message with URL/call buttons (Green API sendTemplateButtons).
+ * Falls back to plain text if template buttons are not supported.
+ * buttons: [{index, urlButton: {displayText, url}} | {index, quickReplyButton: {displayText, id}}]
+ */
+async function sendWaButtons(phone, message, footer, buttons) {
+  const instance = (process.env.GREEN_API_INSTANCE || '').trim();
+  const apiToken = (process.env.GREEN_API_TOKEN   || '').trim();
+  if (!instance || !apiToken) return false;
+  if (!phone || toWaId(phone) === '@c.us') return false;
+
+  const url = `https://api.green-api.com/waInstance${instance}/sendTemplateButtons/${apiToken}`;
+  try {
+    const r = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ chatId: toWaId(phone), message, footer: footer || '', templateButtons: buttons }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data.idMessage) return true;
+    // Fallback: send plain text with URLs embedded
+    const urlLines = buttons
+      .filter(b => b.urlButton)
+      .map(b => `🔗 ${b.urlButton.displayText}: ${b.urlButton.url}`)
+      .join('\n');
+    const fullText = [message, footer, urlLines].filter(Boolean).join('\n');
+    return sendWa(phone, fullText);
+  } catch (e) {
+    console.error('[green-api-buttons]', e.message);
+    return sendWa(phone, message);
   }
 }
 
@@ -247,25 +281,29 @@ export default async function handler(req, res) {
 
     // ── Customer message (in customer's language) ──
     const CUST_TMPL = {
-      ru: { head: `✅ Заказ ${numStr} принят!`,     type: '📋', date: '📅', total: '💰 Итого', status: 'Статус заказа', wait: 'Ожидайте подтверждения.' },
-      en: { head: `✅ Order ${numStr} received!`,   type: '📋', date: '📅', total: '💰 Total',  status: 'Order status',  wait: 'Awaiting confirmation.' },
-      he: { head: `✅ הזמנה ${numStr} התקבלה!`,    type: '📋', date: '📅', total: '💰 סה"כ',  status: 'סטטוס הזמנה',  wait: 'ממתינים לאישור.' },
+      ru: { head: `✅ Заказ ${numStr} принят!`,   type: '📋', date: '📅', total: '💰 Итого', btnStatus: 'Статус заказа', wait: 'Ожидайте подтверждения.' },
+      en: { head: `✅ Order ${numStr} received!`, type: '📋', date: '📅', total: '💰 Total',  btnStatus: 'Order status',  wait: 'Awaiting confirmation.' },
+      he: { head: `✅ הזמנה ${numStr} התקבלה!`,  type: '📋', date: '📅', total: '💰 סה"כ',  btnStatus: 'סטטוס הזמנה', wait: 'ממתינים לאישור.' },
     };
     const ct = CUST_TMPL[custLang] || CUST_TMPL.ru;
     const custMsg = [
       ct.head,
-      orderType  ? `${ct.type} ${orderType}` : '',
-      delivery   ? `${ct.date} ${delivery}`  : '',
+      orderType ? `${ct.type} ${orderType}` : '',
+      delivery  ? `${ct.date} ${delivery}`  : '',
       itemLines,
-      total      ? `${ct.total}: ${total} ₸` : '',
-      statusUrl  ? `\n🔗 ${ct.status}: ${statusUrl}` : '',
+      total     ? `${ct.total}: ${total} ₸` : '',
       ct.wait,
     ].filter(Boolean).join('\n');
 
+    // Customer buttons: status link
+    const custButtons = statusUrl
+      ? [{ index: 1, urlButton: { displayText: ct.btnStatus, url: statusUrl } }]
+      : [];
+
     // ── Manager message (in manager's language) ──
     const MGR_TMPL = {
-      he: { head: `🔔 הזמנה חדשה ${numStr}`, client: '👤 לקוח', type: '📋', date: '📅', total: '💰', link: '👉 לאישור' },
-      ru: { head: `🔔 Новый заказ ${numStr}`, client: '👤',      type: '📋', date: '📅', total: '💰', link: '👉 Управление' },
+      he: { head: `🔔 הזמנה חדשה ${numStr}`, client: '👤 לקוח', type: '📋', date: '📅', total: '💰', btnApprove: '✅ לאישור הזמנה', btnWa: '💬 WhatsApp עם לקוח' },
+      ru: { head: `🔔 Новый заказ ${numStr}`, client: '👤',      type: '📋', date: '📅', total: '💰', btnApprove: '✅ Управление заказом',  btnWa: '💬 WhatsApp клиента' },
     };
     const mt = MGR_TMPL[mgrLang] || MGR_TMPL.he;
     const managerLink = managerToken && orderId
@@ -278,14 +316,23 @@ export default async function handler(req, res) {
       delivery  ? `${mt.date} ${delivery}`  : '',
       itemLinesMgr,
       total     ? `${mt.total} ${total} ₸`  : '',
-      managerLink ? `\n${mt.link}:\n${managerLink}` : '',
     ].filter(Boolean).join('\n');
 
+    // Manager buttons: approval link + customer WA link
+    const mgrButtons = [];
+    if (managerLink) mgrButtons.push({ index: 1, urlButton: { displayText: mt.btnApprove, url: managerLink } });
+    const custWaNum = custPhone.replace(/\D/g, '');
+    const custWaNorm = custWaNum.startsWith('8') && custWaNum.length === 11 ? '7' + custWaNum.slice(1) : custWaNum;
+    if (custWaNorm) mgrButtons.push({ index: mgrButtons.length + 1, urlButton: { displayText: mt.btnWa, url: `https://wa.me/${custWaNorm}` } });
+
     // Send both before responding — Vercel kills fire-and-forget after res.json()
-    const [wa_sent] = await Promise.all([
-      sendWa(custPhone, custMsg),
-      managerPhone ? sendWa(managerPhone, mgrMsg) : Promise.resolve(false),
-    ]);
+    const sendCust = custButtons.length
+      ? sendWaButtons(custPhone, custMsg, '', custButtons)
+      : sendWa(custPhone, custMsg);
+    const sendMgr = managerPhone
+      ? (mgrButtons.length ? sendWaButtons(managerPhone, mgrMsg, '', mgrButtons) : sendWa(managerPhone, mgrMsg))
+      : Promise.resolve(false);
+    const [wa_sent] = await Promise.all([sendCust, sendMgr]);
 
     return res.status(200).json({
       success:      true,
@@ -296,6 +343,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('[order api]', err.message);
-    return res.status(502).json({ error: 'Failed to save order' });
+    return res.status(502).json({ error: 'Failed to save order', detail: err.message });
   }
 }

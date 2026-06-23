@@ -1701,7 +1701,7 @@ const ORDER_TYPES = [
 let currentType = null, currentSlot = null, dishes = [], quantities = {};
 let menuByDate = null, selectedMenuDate = null;
 let screen3OpenTime = 0, pendingOrderPayload = null;
-let paymentConfig = { methods: ['cash','kaspi','voucher','combined'], kaspi_phone: '' };
+let paymentConfig = { methods: ['cash','kaspi','stripe','voucher','combined'], kaspi_phone: '' };
 let currentScreen = 1, activeCat = 'all';
 let _loadSeq = 0;
 let currentDeliveryDate = null, currentDeliveryTime = null;
