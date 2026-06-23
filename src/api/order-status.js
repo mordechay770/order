@@ -48,18 +48,18 @@ export default async function handler(req, res) {
   if (!token) return res.status(500).json({ error: 'Server misconfigured' });
 
   try {
-    const fields = [FO_SERIAL, FO_STATUS, FO_NAME_RU, FO_DATE_EXE, FO_CUST_NAME, FO_PRICE, FO_COUNT];
     let rec;
 
     if (byId && /^rec[A-Za-z0-9]{14}$/.test(byId)) {
-      const qs = `${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true`;
-      const r = await fetch(`${AT_BASE}/${T_ORDERS}/${byId}?${qs}`, { headers: atHeaders(token) });
+      // Single record — don't filter fields (causes 422), get all then pick
+      const r = await fetch(`${AT_BASE}/${T_ORDERS}/${byId}?returnFieldsByFieldId=true`, { headers: atHeaders(token) });
       if (r.status === 404) return res.status(404).json({ error: 'Order not found' });
       if (!r.ok) throw new Error(`Airtable ${r.status}`);
       rec = await r.json();
     } else {
+      const fields = [FO_SERIAL, FO_STATUS, FO_NAME_RU, FO_DATE_EXE, FO_CUST_NAME, FO_PRICE, FO_COUNT];
       const formula = `{${FO_SERIAL}}=${byNum}`;
-      const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true`;
+      const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields%5B%5D=${f}`).join('&')}&returnFieldsByFieldId=true`;
       const r = await fetch(`${AT_BASE}/${T_ORDERS}?${qs}`, { headers: atHeaders(token) });
       if (!r.ok) throw new Error(`Airtable ${r.status}`);
       const data = await r.json();
