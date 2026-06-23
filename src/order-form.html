@@ -727,6 +727,13 @@
     }
     .pay-detail-card p  { font-size: 14px; color: var(--ink-2); line-height: 1.6; }
 
+    .don-quick {
+      background: #dcfce7; color: #166534; border: none; border-radius: 8px;
+      padding: 6px 14px; font-size: 15px; font-weight: 700; cursor: pointer;
+      transition: background .15s;
+    }
+    .don-quick:hover, .don-quick.active { background: #16a34a; color: #fff; }
+
     .pay-kaspi-amount {
       font-family: 'Fraunces', serif;
       font-size: 38px; font-weight: 600; color: var(--navy-deep);
@@ -1108,6 +1115,12 @@
   <div class="announce-wrap" id="announceBanners"></div>
   <div id="pageButtonsWrap"></div>
 
+  <!-- Mission banner -->
+  <div style="margin:0 16px 12px;padding:12px 16px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0;font-size:13px;color:#166534;line-height:1.5">
+    <strong data-i18n="mission_title">Некоммерческая кухня</strong><br>
+    <span data-i18n="mission_text">Наша кухня не преследует коммерческих целей. Весь доход направляется на питание людей в рамках программ общины.</span>
+  </div>
+
   <div class="type-grid" id="typeGrid">
     <!-- rendered by JS from ORDER_TYPES -->
   </div>
@@ -1248,6 +1261,11 @@
     <span id="payTotalAmount" class="pay-total-num">0 ₸</span>
   </div>
 
+  <!-- Mission banner on pay screen -->
+  <div style="margin:8px 16px 0;padding:10px 14px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;font-size:12px;color:#166534;line-height:1.5">
+    <span data-i18n="mission_text">Наша кухня не преследует коммерческих целей. Весь доход направляется на питание людей в рамках программ общины.</span>
+  </div>
+
   <div class="page-body" style="padding-top:12px;">
 
     <div class="pay-methods-grid" id="payMethodsGrid">
@@ -1284,8 +1302,48 @@
         <div class="pay-detail-icon">🌐</div>
         <h3>Оплата картой (Stripe)</h3>
         <p id="stripeAmountInfo" style="margin:12px 0;color:var(--muted);font-size:14px"></p>
-        <p style="margin-bottom:16px;font-size:14px">Вы будете перенаправлены на страницу оплаты Stripe. После оплаты заказ будет подтверждён.</p>
-        <button class="btn-pay" id="stripePayBtn" onclick="payStripe()">Перейти к оплате →</button>
+        <p style="margin-bottom:12px;font-size:14px">Вы будете перенаправлены на страницу оплаты Stripe. После оплаты заказ будет подтверждён.</p>
+
+        <!-- Donation section -->
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin-bottom:16px">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:600;color:#166534">
+            <input type="checkbox" id="donationCheck" onchange="toggleDonation()" style="width:18px;height:18px;accent-color:#16a34a;cursor:pointer">
+            <span data-i18n="donate_label">💚 Добавить пожертвование кухне</span>
+          </label>
+          <p style="margin:6px 0 0 28px;font-size:12px;color:#4ade80" data-i18n="donate_desc">Необязательно. Сумма в USD будет добавлена к оплате.</p>
+          <div id="donationAmountRow" style="display:none;margin-top:12px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+              <button class="don-quick" onclick="setDonation(5)">$5</button>
+              <button class="don-quick" onclick="setDonation(10)">$10</button>
+              <button class="don-quick" onclick="setDonation(18)">$18</button>
+              <button class="don-quick" onclick="setDonation(36)">$36</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:18px;font-weight:700;color:#166534">$</span>
+              <input type="number" id="donationInput" min="1" max="9999" step="1" placeholder="0"
+                oninput="updateDonationDisplay()"
+                style="flex:1;border:2px solid #bbf7d0;border-radius:8px;padding:8px 12px;font-size:18px;font-weight:700;color:#0f172a;outline:none;width:100%">
+            </div>
+            <p id="donationKztDisplay" style="margin:6px 0 0;font-size:13px;color:#64748b"></p>
+          </div>
+        </div>
+
+        <!-- Stripe CTA button -->
+        <button id="stripePayBtn" onclick="payStripe()" style="
+          display:flex;align-items:center;justify-content:center;gap:12px;
+          width:100%;padding:16px 24px;margin-top:4px;
+          background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);
+          color:#fff;border:none;border-radius:14px;
+          font-size:17px;font-weight:700;letter-spacing:0.01em;
+          cursor:pointer;box-shadow:0 4px 16px rgba(99,102,241,0.35);
+          transition:opacity .15s,transform .1s;
+        " onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'"
+           onmousedown="this.style.transform='scale(.98)'" onmouseup="this.style.transform=''">
+          <span style="font-size:22px">💳</span>
+          <span>Перейти к оплате Stripe</span>
+          <span style="opacity:.7;font-size:14px">→</span>
+        </button>
+        <p style="margin:10px 0 0;font-size:12px;color:#94a3b8;text-align:center">Откроется в новой вкладке · Безопасно · Stripe</p>
       </div>
     </div>
 
@@ -1297,6 +1355,28 @@
         <div class="pay-cash-desc">
           💡 <strong>Оплата при получении.</strong><br>
           Подготовьте точную сумму или попросите сдачу заранее.
+        </div>
+        <!-- Cash donation -->
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin:16px 0">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:600;color:#166534">
+            <input type="checkbox" id="donationCheckCash" onchange="toggleDonationKzt('cash')" style="width:18px;height:18px;accent-color:#16a34a;cursor:pointer">
+            <span data-i18n="donate_label">💚 Добавить пожертвование кухне</span>
+          </label>
+          <p style="margin:6px 0 0 28px;font-size:12px;color:#4ade80" data-i18n="donate_desc">Необязательно. Сумма в ₸ будет добавлена к оплате.</p>
+          <div id="donationAmountRowCash" style="display:none;margin-top:12px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+              <button class="don-quick" onclick="setDonationKzt(500,'cash')">500 ₸</button>
+              <button class="don-quick" onclick="setDonationKzt(1000,'cash')">1 000 ₸</button>
+              <button class="don-quick" onclick="setDonationKzt(2000,'cash')">2 000 ₸</button>
+              <button class="don-quick" onclick="setDonationKzt(5000,'cash')">5 000 ₸</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:18px;font-weight:700;color:#166534">₸</span>
+              <input type="number" id="donationInputCash" min="100" max="999999" step="100" placeholder="0"
+                oninput="updateDonationKztDisplay('cash')"
+                style="flex:1;border:2px solid #bbf7d0;border-radius:8px;padding:8px 12px;font-size:18px;font-weight:700;color:#0f172a;outline:none;width:100%">
+            </div>
+          </div>
         </div>
         <button class="btn-submit" onclick="doSubmitOrder('cash')">
           ✅ Подтвердить заказ
@@ -1313,6 +1393,29 @@
         <div class="pay-cash-desc">
           📲 После оформления заказа мы пришлём <strong>ссылку на оплату Kaspi</strong> в WhatsApp.
           Оплатите по ссылке — заказ подтвердится автоматически.
+        </div>
+
+        <!-- Kaspi donation -->
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin:16px 0">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:600;color:#166534">
+            <input type="checkbox" id="donationCheckKaspi" onchange="toggleDonationKzt('kaspi')" style="width:18px;height:18px;accent-color:#16a34a;cursor:pointer">
+            <span data-i18n="donate_label">💚 Добавить пожертвование кухне</span>
+          </label>
+          <p style="margin:6px 0 0 28px;font-size:12px;color:#4ade80" data-i18n="donate_desc">Необязательно. Сумма в ₸ будет добавлена к оплате.</p>
+          <div id="donationAmountRowKaspi" style="display:none;margin-top:12px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+              <button class="don-quick" onclick="setDonationKzt(500,'kaspi')">500 ₸</button>
+              <button class="don-quick" onclick="setDonationKzt(1000,'kaspi')">1 000 ₸</button>
+              <button class="don-quick" onclick="setDonationKzt(2000,'kaspi')">2 000 ₸</button>
+              <button class="don-quick" onclick="setDonationKzt(5000,'kaspi')">5 000 ₸</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:18px;font-weight:700;color:#166534">₸</span>
+              <input type="number" id="donationInputKaspi" min="100" max="999999" step="100" placeholder="0"
+                oninput="updateDonationKztDisplay('kaspi')"
+                style="flex:1;border:2px solid #bbf7d0;border-radius:8px;padding:8px 12px;font-size:18px;font-weight:700;color:#0f172a;outline:none;width:100%">
+            </div>
+          </div>
         </div>
 
         <div class="pay-confirm-block">
@@ -1583,6 +1686,12 @@ const T = {
     shabbat_menu_label: 'Шаббат и праздники', shabbat_menu_desc: 'Заказ оформляется заранее — уточните сроки у администратора',
     open_menu_label: 'Индивидуальный заказ', open_menu_desc: 'Выберите любые блюда из меню в нужном количестве',
     preorder_menu_label: 'Заказ заранее', preorder_menu_desc: 'Выпечка и полуфабрикаты — оформляется заранее, есть минимальный заказ',
+    mission_title: 'Некоммерческая кухня',
+    mission_text: 'Наша кухня не преследует коммерческих целей. Весь доход направляется на питание людей в рамках программ общины.',
+    donate_label: '💚 Добавить пожертвование кухне',
+    donate_desc: 'Необязательно. Сумма в USD будет добавлена к оплате.',
+    donate_thanks: '💚 Спасибо за пожертвование!',
+    pay_title: 'Способ оплаты',
   },
   en: {
     app_title: 'Food Order', app_subtitle: 'Select order type',
@@ -1620,6 +1729,12 @@ const T = {
     preorder_menu_label: 'Pre-orders', preorder_menu_desc: 'Baked goods & semi-prepared — ordered in advance with minimum quantity',
     date_delivery: 'Delivery date', time_delivery: 'Delivery time', date_other: 'other',
     btn_new_order: 'New order',
+    mission_title: 'Non-profit kitchen',
+    mission_text: 'Our kitchen is non-commercial. All proceeds go toward feeding people as part of community programs.',
+    donate_label: '💚 Add a donation to the kitchen',
+    donate_desc: 'Optional. Amount in USD will be added to your payment.',
+    donate_thanks: '💚 Thank you for your donation!',
+    pay_title: 'Payment method',
   },
   he: {
     app_title: 'הזמנת אוכל', app_subtitle: 'בחרו סוג הזמנה',
@@ -1656,6 +1771,12 @@ const T = {
     preorder_menu_label: 'הזמנה מראש', preorder_menu_desc: 'מאפים וחצי מוכנים — מוזמן מראש עם כמות מינימום',
     date_delivery: 'תאריך משלוח', time_delivery: 'שעת משלוח', date_other: 'אחר',
     btn_new_order: 'הזמנה חדשה',
+    mission_title: 'מטבח ללא מטרות רווח',
+    mission_text: 'המטבח שלנו אינו מסחרי. כל ההכנסות מיועדות להאכלת אנשים במסגרת תוכניות הקהילה.',
+    donate_label: '💚 הוסיפו תרומה למטבח',
+    donate_desc: 'אופציונלי. הסכום בדולר יתווסף לתשלום.',
+    donate_thanks: '💚 תודה על התרומה!',
+    pay_title: 'אמצעי תשלום',
   },
 };
 
@@ -2448,8 +2569,15 @@ function selectPayMethod(method) {
     initCombinedSection(); document.getElementById('paySectionCombined').style.display='';
   } else if (method==='stripe') {
     const total = pendingOrderPayload ? pendingOrderPayload.total_price : 0;
-    const usd   = total > 0 ? (total / 450).toFixed(2) : '0.00'; // approx ₸ → USD
+    const usd   = total > 0 ? (total / 450).toFixed(2) : '0.00';
     document.getElementById('stripeAmountInfo').textContent = `Сумма: ${total} ₸ ≈ $${usd} USD`;
+    // Reset button to ready state every time section opens
+    const sb = document.getElementById('stripePayBtn');
+    if (sb) { sb.disabled = false; sb.innerHTML = '<span style="font-size:22px">💳</span> <span>Перейти к оплате Stripe</span> <span style="opacity:.7;font-size:14px">→</span>'; }
+    // Reset donation state
+    _donationUsd = 0;
+    const dc = document.getElementById('donationCheck'); if (dc) dc.checked = false;
+    const dar = document.getElementById('donationAmountRow'); if (dar) dar.style.display = 'none';
     document.getElementById('paySectionStripe').style.display='';
   }
 }
@@ -2549,6 +2677,8 @@ async function doSubmitOrder(pm) {
   if (!pendingOrderPayload) { goToScreen(3); return; }
   const extra = { payment_method: pm };
   if (pendingOrderPayload._kaspi_whatsapp) { extra.kaspi_whatsapp = pendingOrderPayload._kaspi_whatsapp; delete pendingOrderPayload._kaspi_whatsapp; }
+  // Include KZT donation if user added one
+  if (_donationKzt > 0) extra.donation_kzt = _donationKzt;
   const payload = Object.assign({}, pendingOrderPayload, extra);
   const sec = pm==='cash'?'paySectionCash':'paySectionKaspi';
   const btn = document.querySelector('#'+sec+' .btn-submit');
@@ -2570,36 +2700,123 @@ async function doSubmitOrder(pm) {
   }
 }
 
-const STRIPE_LINK = 'https://donate.stripe.com/4gw5kH4Q3gtU2gE14a';
-const KZT_TO_USD  = 450; // approximate rate — update as needed
+let _donationUsd = 0;
+let _donationKzt = 0;
+
+// ── Stripe donation (USD) ──────────────────────────────────────────
+function toggleDonation() {
+  const checked = document.getElementById('donationCheck').checked;
+  document.getElementById('donationAmountRow').style.display = checked ? '' : 'none';
+  if (!checked) { _donationUsd = 0; document.getElementById('donationInput').value = ''; updateDonationDisplay(); }
+}
+
+function setDonation(usd) {
+  _donationUsd = usd;
+  document.getElementById('donationInput').value = usd;
+  document.querySelectorAll('#donationAmountRow .don-quick').forEach(b => {
+    b.classList.toggle('active', Number(b.textContent.replace('$','')) === usd);
+  });
+  updateDonationDisplay();
+}
+
+function updateDonationDisplay() {
+  const val = Number(document.getElementById('donationInput').value) || 0;
+  _donationUsd = val;
+  document.querySelectorAll('#donationAmountRow .don-quick').forEach(b => {
+    b.classList.toggle('active', Number(b.textContent.replace('$','')) === val);
+  });
+  const disp = document.getElementById('donationKztDisplay');
+  if (disp) disp.textContent = val > 0 ? `≈ ${Math.round(val * 450).toLocaleString()} ₸` : '';
+}
+
+// ── Cash / Kaspi donation (₸) ──────────────────────────────────────
+function toggleDonationKzt(pm) {
+  const checked = document.getElementById('donationCheck' + pm.charAt(0).toUpperCase() + pm.slice(1)).checked;
+  document.getElementById('donationAmountRow' + pm.charAt(0).toUpperCase() + pm.slice(1)).style.display = checked ? '' : 'none';
+  if (!checked) { _donationKzt = 0; document.getElementById('donationInput' + pm.charAt(0).toUpperCase() + pm.slice(1)).value = ''; }
+}
+
+function setDonationKzt(kzt, pm) {
+  _donationKzt = kzt;
+  const Pm = pm.charAt(0).toUpperCase() + pm.slice(1);
+  document.getElementById('donationInput' + Pm).value = kzt;
+  document.querySelectorAll('#donationAmountRow' + Pm + ' .don-quick').forEach(b => {
+    b.classList.toggle('active', Number(b.textContent.replace(/[^0-9]/g,'')) === kzt);
+  });
+}
+
+function updateDonationKztDisplay(pm) {
+  const Pm = pm.charAt(0).toUpperCase() + pm.slice(1);
+  _donationKzt = Number(document.getElementById('donationInput' + Pm).value) || 0;
+  document.querySelectorAll('#donationAmountRow' + Pm + ' .don-quick').forEach(b => {
+    b.classList.toggle('active', Number(b.textContent.replace(/[^0-9]/g,'')) === _donationKzt);
+  });
+}
 
 async function payStripe() {
   if (!pendingOrderPayload) { goToScreen(3); return; }
   const btn = document.getElementById('stripePayBtn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Оформляем…';
+
+  // Try to open new tab immediately (synchronous, before await) to avoid popup blockers
+  // If blocked (null), fall back to redirecting current page
+  const stripeWin = window.open('', '_blank');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Оформляем…';
 
   const payload = Object.assign({}, pendingOrderPayload, { payment_method: 'stripe' });
   const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL) || ORDER_API;
   try {
+    // Step 1: save order in Airtable
     const r = await fetch(orderUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-    if (!r.ok) throw new Error();
+    if (!r.ok) throw new Error('order');
     const d = await r.json().catch(() => ({}));
     const orderNum = d.order_number || '';
     const orderId  = d.order_id || '';
     clearCart();
 
-    // Build Stripe URL — pass order reference and amount in cents (USD)
-    const totalUsdCents = Math.round((pendingOrderPayload.total_price / KZT_TO_USD) * 100);
-    const ref = orderNum ? `ORDER-${orderNum}` : orderId;
-    const successUrl = encodeURIComponent(`${location.origin}/status?num=${orderNum}&paid=1`);
-    const stripeUrl = `${STRIPE_LINK}?client_reference_id=${encodeURIComponent(ref)}&prefilled_amount=${totalUsdCents}&success_url=${successUrl}`;
+    // Step 2: create Stripe Checkout Session with exact KZT amount via server
+    const donationUsd = _donationUsd > 0 ? Math.round(_donationUsd) : 0;
+    const sc = await fetch('/api/stripe-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount_kzt:      pendingOrderPayload.total_price || 0,
+        order_num:       orderNum,
+        order_id:        orderId,
+        order_record_id: orderId,
+        donation_usd:    donationUsd,
+      }),
+    });
+    const sd = await sc.json().catch(() => ({}));
 
-    // Show brief success screen, then redirect
-    showResult(true, orderNum, 'stripe');
-    setTimeout(() => { window.open(stripeUrl, '_blank'); }, 1200);
-  } catch(_) {
-    btn.disabled = false; btn.textContent = 'Перейти к оплате →';
-    showResult(false);
+    if (sd.url) {
+      showResult(true, orderNum, 'stripe');
+      if (stripeWin && !stripeWin.closed) {
+        // New tab opened successfully — redirect it
+        stripeWin.location.replace(sd.url);
+      } else {
+        // Popup was blocked — redirect current page (Stripe will send them back via success_url)
+        window.location.href = sd.url;
+      }
+    } else {
+      // Stripe session creation failed — show error, re-enable button
+      if (stripeWin && !stripeWin.closed) stripeWin.close();
+      const errMsg = sd.error || 'Не удалось создать сессию оплаты';
+      console.error('[payStripe] stripe-checkout error:', sd);
+      btn.disabled = false;
+      btn.innerHTML = '<span style="font-size:22px">💳</span> <span>Перейти к оплате Stripe</span> <span style="opacity:.7;font-size:14px">→</span>';
+      const errEl = document.createElement('p');
+      errEl.style.cssText = 'color:#ef4444;font-size:13px;margin-top:10px;text-align:center';
+      errEl.textContent = '⚠️ ' + errMsg;
+      btn.insertAdjacentElement('afterend', errEl);
+      setTimeout(() => errEl.remove(), 8000);
+    }
+  } catch(err) {
+    if (stripeWin && !stripeWin.closed) stripeWin.close();
+    console.error('[payStripe]', err);
+    btn.disabled = false;
+    btn.innerHTML = '<span style="font-size:22px">💳</span> <span>Перейти к оплате Stripe</span> <span style="opacity:.7;font-size:14px">→</span>';
   }
 }
 

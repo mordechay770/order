@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Производство — Заказы выпечки и заготовок</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+
+#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.auth-card{background:#1e293b;border-radius:16px;padding:40px 32px;width:100%;max-width:380px;text-align:center}
+.auth-card input{width:100%;padding:12px 16px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:16px;margin-bottom:16px;outline:none}
+.auth-card input:focus{border-color:#f59e0b}
+.auth-card button{width:100%;padding:12px;border-radius:10px;border:none;background:#f59e0b;color:#0f172a;font-size:16px;cursor:pointer;font-weight:700}
+
+#app{display:none;flex-direction:column;min-height:100vh}
+header{background:#1e293b;border-bottom:1px solid #334155;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:10}
+header h1{font-size:18px;font-weight:700;margin-right:auto}
+.hbtn{background:#334155;border:none;color:#94a3b8;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+.hbtn:hover{background:#475569;color:#e2e8f0}
+
+/* Tabs */
+.page-tabs{display:flex;gap:4px;padding:16px 20px 0;border-bottom:1px solid #334155}
+.ptab{padding:8px 18px;border-radius:8px 8px 0 0;border:1px solid #334155;border-bottom:none;background:#1e293b;color:#94a3b8;font-size:14px;cursor:pointer}
+.ptab.active{background:#f59e0b;color:#0f172a;border-color:#f59e0b;font-weight:700}
+
+main{flex:1;padding:20px;max-width:1100px;width:100%;margin:0 auto}
+
+/* Create form */
+.create-form{background:#1e293b;border-radius:14px;padding:24px;border:1px solid #334155;margin-bottom:24px}
+.create-form h2{font-size:16px;font-weight:700;margin-bottom:18px;color:#fbbf24}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.field label{display:block;font-size:12px;color:#94a3b8;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:14px;outline:none}
+.field input:focus,.field select,.field textarea:focus{border-color:#f59e0b}
+.field select{cursor:pointer}
+.form-footer{margin-top:18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.submit-btn{padding:12px 28px;border-radius:10px;border:none;background:#f59e0b;color:#0f172a;font-size:15px;font-weight:700;cursor:pointer}
+.submit-btn:hover{background:#d97706}
+.submit-btn:disabled{background:#334155;color:#64748b;cursor:not-allowed}
+
+/* Filter bar */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.filter-bar label{font-size:13px;color:#94a3b8}
+.filter-btn{padding:6px 14px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;font-size:12px;cursor:pointer}
+.filter-btn.active{background:#f59e0b;border-color:#f59e0b;color:#0f172a;font-weight:700}
+
+/* Cards grid */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+.prod-card{background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;display:flex;flex-direction:column;gap:10px}
+.prod-card.status-ready{border-color:#22c55e44}
+.prod-card.status-done{opacity:.7;border-style:dashed}
+.pc-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.pc-serial{font-size:14px;color:#64748b}
+.pc-recipe{font-size:16px;font-weight:700;color:#e2e8f0}
+.pc-meta{font-size:12px;color:#64748b;margin-top:2px}
+.status-badge{border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;white-space:nowrap}
+.s-ordered{background:#f59e0b22;color:#fbbf24;border:1px solid #f59e0b44}
+.s-wip{background:#6366f122;color:#a5b4fc;border:1px solid #6366f144}
+.s-ready{background:#22c55e22;color:#4ade80;border:1px solid #22c55e44}
+.s-done{background:#33415544;color:#64748b;border:1px solid #33415566}
+
+.qty-row{display:flex;gap:12px;flex-wrap:wrap}
+.qty-box{flex:1;background:#0f172a;border-radius:8px;padding:10px 14px;text-align:center}
+.qty-num{font-size:26px;font-weight:800;color:#fbbf24}
+.qty-label{font-size:11px;color:#64748b}
+
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11px;border-radius:6px;padding:3px 8px}
+.tag-bakery{background:#f59e0b22;color:#fbbf24}
+.tag-kitchen{background:#6366f122;color:#a5b4fc}
+.tag-stock{background:#22c55e22;color:#4ade80}
+.tag-shop{background:#ec489922;color:#f9a8d4}
+
+.pc-notes{font-size:12px;color:#64748b;font-style:italic}
+
+/* Baker actions */
+.baker-actions{display:flex;flex-direction:column;gap:8px}
+.action-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.action-btn{padding:8px 16px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer}
+.btn-start{background:#6366f1;color:#fff}
+.btn-ready{background:#22c55e;color:#fff}
+.btn-delivered{background:#64748b;color:#fff}
+.action-btn:disabled{background:#334155;color:#64748b;cursor:not-allowed}
+.actual-input{padding:8px 12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:14px;width:100px;outline:none}
+.actual-input:focus{border-color:#22c55e}
+
+/* Inventory view */
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.inv-card{background:#1e293b;border-radius:10px;padding:14px;border:1px solid #334155}
+.inv-name{font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:8px}
+.inv-nums{display:flex;gap:8px}
+.inv-num{flex:1;text-align:center}
+.inv-val{font-size:22px;font-weight:800}
+.inv-lbl{font-size:10px;color:#64748b}
+.inv-val.produced{color:#4ade80}
+.inv-val.stock{color:#fbbf24}
+
+.empty{text-align:center;padding:40px 20px;color:#475569}
+.loading{text-align:center;padding:40px 20px;color:#64748b}
+#toast{position:fixed;bottom:24px;right:24px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:12px 18px;border-radius:10px;font-size:14px;display:none;z-index:100}
+#toast.show{display:block}
+#toast.success{border-color:#22c55e;color:#4ade80}
+#toast.error{border-color:#ef4444;color:#f87171}
+
+@media print {
+  header,.page-tabs,.create-form,.baker-actions,.filter-bar,#auth-screen{display:none!important}
+  body{background:#fff;color:#000}
+  #app{display:block!important}
+  .prod-card{border:1px solid #ccc;break-inside:avoid;margin-bottom:8px;background:#fff}
+}
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-card">
+    <div style="font-size:40px;margin-bottom:12px">🏭</div>
+    <h1>Производство</h1>
+    <p style="color:#94a3b8;font-size:14px;margin-bottom:24px">Введите токен для входа</p>
+    <input type="password" id="token-input" placeholder="Токен" autocomplete="off">
+    <button onclick="login()">Войти</button>
+    <div id="auth-error" style="color:#f87171;font-size:13px;margin-top:12px;display:none">Неверный токен</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <h1>🏭 Производство</h1>
+    <button class="hbtn" onclick="window.print()">🖨 Печать</button>
+    <button class="hbtn" onclick="loadRecords()">↻ Обновить</button>
+  </header>
+
+  <div class="page-tabs">
+    <button class="ptab active" data-tab="orders" onclick="setTab(this)">📋 Заказы</button>
+    <button class="ptab" data-tab="inventory" onclick="setTab(this)">📦 Наличие</button>
+    <button class="ptab" id="create-tab" data-tab="create" onclick="setTab(this)" style="display:none">➕ Новый заказ</button>
+  </div>
+
+  <main id="main-content">
+    <div class="loading">Загрузка...</div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '/api';
+let prodToken = '';
+let currentRole = '';
+let currentTab = 'orders';
+let allRecords = [];
+let recipes = [];
+let statusFilter = '';
+
+function login() {
+  const val = document.getElementById('token-input').value.trim();
+  if (!val) return;
+  prodToken = val;
+  init(true);
+}
+document.getElementById('token-input').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+
+async function init(isAuth = false) {
+  try {
+    const [recRes, recipesRes] = await Promise.all([
+      fetch(`${API}/production?token=${encodeURIComponent(prodToken)}&range=all`),
+      fetch(`${API}/production?token=${encodeURIComponent(prodToken)}&recipes=1`),
+    ]);
+    if (recRes.status === 403) { if(isAuth) document.getElementById('auth-error').style.display='block'; return; }
+    if (!recRes.ok) throw new Error(await recRes.text());
+
+    if (isAuth) {
+      localStorage.setItem('prod_token', prodToken);
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+    }
+
+    const recData = await recRes.json();
+    allRecords = recData.records || [];
+    currentRole = recData.role || '';
+
+    if (recipesRes.ok) {
+      const rd = await recipesRes.json();
+      recipes = rd.recipes || [];
+    }
+
+    // Show create tab for manager/chef
+    if (['manager','chef'].includes(currentRole)) {
+      document.getElementById('create-tab').style.display = 'block';
+    }
+
+    renderTab();
+  } catch(err) {
+    document.getElementById('main-content').innerHTML = `<div class="empty"><p>Ошибка: ${esc(err.message)}</p></div>`;
+  }
+}
+
+async function loadRecords() {
+  try {
+    const r = await fetch(`${API}/production?token=${encodeURIComponent(prodToken)}&range=all`);
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    allRecords = d.records || [];
+    renderTab();
+  } catch(err) { showToast('Ошибка загрузки','error'); }
+}
+
+function setTab(btn) {
+  document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentTab = btn.dataset.tab;
+  renderTab();
+}
+
+function renderTab() {
+  if (currentTab === 'orders')    renderOrders();
+  else if (currentTab === 'inventory') renderInventory();
+  else if (currentTab === 'create')    renderCreateForm();
+}
+
+// ===== ORDERS TAB =====
+const STATUS_LIST = ['', 'הוזמן', 'בייצור', 'מוכן', 'הועבר למלאי'];
+const STATUS_LABEL_RU = {'הוזמן':'Заказан','בייצור':'В работе','מוכן':'Готово','הועבר למלאי':'Передано'};
+
+function renderOrders() {
+  const filtered = statusFilter ? allRecords.filter(r => r.status === statusFilter) : allRecords;
+  const sorted = [...filtered].sort((a,b) => new Date(a.date||0) - new Date(b.date||0));
+
+  const filterBtns = STATUS_LIST.map(s => `
+    <button class="filter-btn ${statusFilter===s?'active':''}" onclick="setFilter(${JSON.stringify(s)})">
+      ${s ? (STATUS_LABEL_RU[s]||s) : 'Все'}
+    </button>`).join('');
+
+  const cards = sorted.length
+    ? `<div class="cards-grid">${sorted.map(renderCard).join('')}</div>`
+    : '<div class="empty"><p>Нет записей</p></div>';
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="filter-bar"><label>Статус:</label>${filterBtns}</div>
+    ${cards}`;
+}
+
+function setFilter(s) { statusFilter = s; renderOrders(); }
+
+function renderCard(r) {
+  const date = r.date ? new Date(r.date).toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Almaty'}) : '—';
+  const time = r.date ? new Date(r.date).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Almaty'}) : '';
+  const statusLabelRu = STATUS_LABEL_RU[r.status] || r.status || 'Заказан';
+  const statusCls = {הוזמן:'s-ordered',בייצור:'s-wip',מוכן:'s-ready','הועבר למלאי':'s-done'}[r.status]||'s-ordered';
+  const typeCls   = r.type === 'מאפיה' ? 'tag-bakery' : 'tag-kitchen';
+  const typeLabel = r.type === 'מאפיה' ? 'Пекарня' : (r.type === 'מטבח' ? 'Кухня' : r.type);
+  const destCls   = r.destination === 'למלאי' ? 'tag-stock' : 'tag-shop';
+  const destLabel = r.destination === 'למלאי' ? 'На склад' : (r.destination === 'לחנות' ? 'В магазин' : r.destination);
+  const isDone    = r.status === 'הועבר למלאי';
+
+  const bakerActions = renderBakerActions(r);
+
+  return `<div class="prod-card ${isDone?'status-done':r.status==='מוכן'?'status-ready':''}" id="pcard-${r.id}">
+    <div class="pc-header">
+      <div>
+        <div class="pc-serial">#${r.serial||'—'} · ${r.ordered_by||r.reporter||''}</div>
+        <div class="pc-recipe">${esc(r.recipe_name)}</div>
+        <div class="pc-meta">${date} ${time}</div>
+      </div>
+      <span class="status-badge ${statusCls}">${statusLabelRu}</span>
+    </div>
+    <div class="qty-row">
+      <div class="qty-box"><div class="qty-num">${r.requested_qty||'—'}</div><div class="qty-label">Заказано</div></div>
+      <div class="qty-box"><div class="qty-num">${r.actual_qty||'—'}</div><div class="qty-label">Произведено</div></div>
+    </div>
+    <div class="tags">
+      ${r.type?`<span class="tag ${typeCls}">${typeLabel}</span>`:''}
+      ${r.destination?`<span class="tag ${destCls}">${destLabel}</span>`:''}
+    </div>
+    ${r.notes?`<div class="pc-notes">${esc(r.notes)}</div>`:''}
+    ${bakerActions}
+  </div>`;
+}
+
+function renderBakerActions(r) {
+  if (!['manager','chef','baker'].includes(currentRole)) return '';
+  if (r.status === 'הועבר למלאי') return `<div style="color:#64748b;font-size:12px;text-align:center">✓ Передано</div>`;
+
+  const isBaker = currentRole === 'baker';
+  const canCreate = !isBaker;
+
+  let html = '<div class="baker-actions">';
+
+  if (r.status === 'הוזמן') {
+    html += `<div class="action-row">
+      <button class="action-btn btn-start" onclick="updateStatus('${r.id}','בייצור')">▶ Начать</button>
+    </div>`;
+  }
+  if (r.status === 'בייצור') {
+    html += `<div class="action-row">
+      <input type="number" class="actual-input" id="actual-${r.id}" placeholder="${r.requested_qty||'кол-во'}" min="0">
+      <button class="action-btn btn-ready" onclick="markReady('${r.id}')">✓ Готово</button>
+    </div>`;
+  }
+  if (r.status === 'מוכן' && canCreate) {
+    html += `<div class="action-row">
+      <button class="action-btn btn-delivered" onclick="updateStatus('${r.id}','הועבר למלאי')">📦 Передано</button>
+    </div>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+async function updateStatus(id, status) {
+  try {
+    const r = await fetch(`${API}/production?token=${encodeURIComponent(prodToken)}&id=${id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('✓ Статус обновлён','success');
+    await loadRecords();
+  } catch(err) { showToast('Ошибка: '+err.message,'error'); }
+}
+
+async function markReady(id) {
+  const input = document.getElementById(`actual-${id}`);
+  const qty = input ? Number(input.value) : 0;
+  if (!qty) { showToast('Введите фактическое количество','error'); return; }
+  try {
+    const r = await fetch(`${API}/production?token=${encodeURIComponent(prodToken)}&id=${id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status:'מוכן', actual_qty: qty }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('✓ Отмечено как готово','success');
+    await loadRecords();
+  } catch(err) { showToast('Ошибка: '+err.message,'error'); }
+}
+
+// ===== INVENTORY TAB =====
+function renderInventory() {
+  // inventory = sum(produced for מוכן/הועבר) - (delivered = הועבר למלאי)
+  // Simplification: produced = actual_qty for all completed; in-stock = מוכן records
+  const byRecipe = {};
+  for (const r of allRecords) {
+    const key = r.recipe_name || r.recipe_id || '—';
+    if (!byRecipe[key]) byRecipe[key] = { name: key, produced: 0, inStock: 0 };
+    if (r.status === 'מוכן' || r.status === 'הועבר למלאי') {
+      byRecipe[key].produced += r.actual_qty || 0;
+    }
+    if (r.status === 'מוכן') {
+      byRecipe[key].inStock += r.actual_qty || 0;
+    }
+  }
+  const list = Object.values(byRecipe).filter(x => x.produced > 0).sort((a,b) => b.inStock - a.inStock);
+  if (!list.length) { document.getElementById('main-content').innerHTML = '<div class="empty"><p>Нет данных о производстве</p></div>'; return; }
+
+  document.getElementById('main-content').innerHTML = `
+    <div style="margin-bottom:16px;color:#64748b;font-size:13px">Данные о наличии на основе статусов производства</div>
+    <div class="inv-grid">${list.map(item => `
+      <div class="inv-card">
+        <div class="inv-name">${esc(item.name)}</div>
+        <div class="inv-nums">
+          <div class="inv-num"><div class="inv-val produced">${item.produced}</div><div class="inv-lbl">Произведено</div></div>
+          <div class="inv-num"><div class="inv-val stock">${item.inStock}</div><div class="inv-lbl">На складе</div></div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+}
+
+// ===== CREATE FORM =====
+function renderCreateForm() {
+  if (!['manager','chef'].includes(currentRole)) {
+    document.getElementById('main-content').innerHTML = '<div class="empty"><p>Нет доступа</p></div>';
+    return;
+  }
+  const today = new Date().toISOString().slice(0,10);
+  const recipeOptions = recipes.map(r => `<option value="${r.id}">${esc(r.name_ru)}${r.category?' ('+r.category+')':''}</option>`).join('');
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="create-form">
+      <h2>➕ Новый производственный заказ</h2>
+      <div class="form-grid">
+        <div class="field" style="grid-column:1/-1">
+          <label>Изделие / рецепт *</label>
+          <select id="f-recipe"><option value="">— Выберите рецепт —</option>${recipeOptions}</select>
+        </div>
+        <div class="field">
+          <label>Заказанное количество *</label>
+          <input type="number" id="f-qty" min="1" placeholder="напр. 20">
+        </div>
+        <div class="field">
+          <label>Дата производства *</label>
+          <input type="date" id="f-date" value="${today}">
+        </div>
+        <div class="field">
+          <label>Тип</label>
+          <select id="f-type">
+            <option value="">— Выберите —</option>
+            <option value="מאפיה">Пекарня</option>
+            <option value="מטבח">Кухня</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Назначение</label>
+          <select id="f-dest">
+            <option value="">— Выберите —</option>
+            <option value="למלאי">На склад</option>
+            <option value="לחנות">В магазин</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Кто заказал</label>
+          <input type="text" id="f-by" placeholder="Имя">
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label>Примечания</label>
+          <input type="text" id="f-notes" placeholder="Дополнительная информация...">
+        </div>
+      </div>
+      <div class="form-footer">
+        <button class="submit-btn" id="submit-btn" onclick="submitOrder()">Создать заказ</button>
+        <span id="form-msg" style="font-size:13px;color:#64748b"></span>
+      </div>
+    </div>`;
+}
+
+async function submitOrder() {
+  const recipe_id     = document.getElementById('f-recipe').value;
+  const requested_qty = document.getElementById('f-qty').value;
+  const date          = document.getElementById('f-date').value;
+  const type          = document.getElementById('f-type').value;
+  const destination   = document.getElementById('f-dest').value;
+  const ordered_by    = document.getElementById('f-by').value;
+  const notes         = document.getElementById('f-notes').value;
+
+  if (!recipe_id || !requested_qty || !date) {
+    document.getElementById('form-msg').textContent = 'Заполните обязательные поля';
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Отправка...';
+  try {
+    const r = await fetch(`${API}/production?token=${encodeURIComponent(prodToken)}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ recipe_id, requested_qty: Number(requested_qty), date: date+'T09:00:00.000Z', type, destination, ordered_by, notes }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('✓ Заказ создан!','success');
+    await loadRecords();
+    // Switch to orders tab
+    document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+    document.querySelector('[data-tab="orders"]').classList.add('active');
+    currentTab = 'orders';
+    renderOrders();
+  } catch(err) {
+    showToast('Ошибка: '+err.message,'error');
+    btn.disabled = false; btn.textContent = 'Создать заказ';
+    document.getElementById('form-msg').textContent = err.message;
+  }
+}
+
+function showToast(msg, type='') {
+  const t=document.getElementById('toast'); t.textContent=msg; t.className='show '+type;
+  setTimeout(()=>t.className='',3000);
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+const saved = localStorage.getItem('prod_token');
+if (saved) { prodToken = saved; init(true); }
+</script>
+</body>
+</html>

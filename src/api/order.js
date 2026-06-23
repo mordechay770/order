@@ -14,6 +14,8 @@ const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
 const T_ORDERS = 'tblMnlLwYCD27ou80'; // הזמנות אוכל מהמטבח
 const T_QTY    = 'tblcP1zvc3Tu9oQuL'; // כמויות - משויך להזמנות
 
+const DONATION_DISH_ID = 'reclQgCl0ATOFhepR'; // מאכלים — "💚 Пожертвование / תרומה"
+
 // Fields — orders (הזמנות)
 const FO_SERIAL   = 'fldlJLSKuSB5zvmGt'; // מס' סידורי (autoNumber)
 const FO_STATUS   = 'fldcekWvpJwdVVMK6'; // סטטוס הזמנה
@@ -267,6 +269,17 @@ export default async function handler(req, res) {
       })
     );
 
+    // 2b. Donation row in כמויות (if donation_kzt provided)
+    const donationKzt = Number(body.donation_kzt) || 0;
+    if (donationKzt > 0) {
+      atPost(T_QTY, { fields: {
+        [FQ_ORDER]:    [orderId],
+        [FQ_DISH_LNK]: [DONATION_DISH_ID],
+        [FQ_QTY]:      1,
+        [FQ_PRICE]:    donationKzt,
+      }}, token).catch(e => console.error('[order] donation row failed:', e.message));
+    }
+
     // 3. WhatsApp notifications — fire-and-forget (don't block response)
     const managerPhone = (process.env.MANAGER_PHONE || '').trim();
     const managerToken = (process.env.MANAGER_TOKEN || '').trim();
@@ -309,11 +322,24 @@ export default async function handler(req, res) {
       ct.wait,
     ].filter(Boolean).join('\n');
 
+    const isKaspi  = body.payment_method === 'kaspi';
+    const isStripe = body.payment_method === 'stripe';
+
     // Customer WA: interactive format — short header, compact body, status button
     const CUST_BTN_TEXT = { ru: 'Статус заказа', en: 'Order status', he: 'סטטוס הזמנה' };
     const custButtons = statusUrl
       ? [{ type: 'url', buttonId: '1', buttonText: CUST_BTN_TEXT[custLang] || CUST_BTN_TEXT.ru, url: statusUrl }]
       : [];
+
+    // Kaspi receipt reminder in footer
+    const KASPI_RECEIPT = {
+      ru: 'После оплаты Kaspi пришлите квитанцию в этот чат 📸',
+      en: 'After Kaspi payment please send receipt to this chat 📸',
+      he: 'לאחר תשלום כספי, שלחו קבלה לצ\'אט זה 📸',
+    };
+    const custFooter = isKaspi
+      ? KASPI_RECEIPT[custLang] || KASPI_RECEIPT.ru
+      : ct.wait;
 
     // ── Manager message (in manager's language) ──
     const MGR_TMPL = {
@@ -345,7 +371,7 @@ export default async function handler(req, res) {
       ? sendWaButtons(custPhone, {
           header: ct.head,
           body:   [orderType ? `${ct.type} ${orderType}` : '', delivery ? `${ct.date} ${delivery}` : '', itemLines, total ? `${ct.total}: ${total} ₸` : ''].filter(Boolean).join('\n'),
-          footer: ct.wait,
+          footer: custFooter,
           buttons: custButtons,
         })
       : sendWa(custPhone, custMsg);

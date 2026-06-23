@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Пекарь — Производство и заказы</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+
+#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.auth-card{background:#1e293b;border-radius:16px;padding:40px 32px;width:100%;max-width:380px;text-align:center}
+.auth-card h1{font-size:24px;margin-bottom:8px}
+.auth-card p{color:#94a3b8;font-size:14px;margin-bottom:24px}
+.auth-card input{width:100%;padding:12px 16px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:16px;margin-bottom:16px;outline:none}
+.auth-card input:focus{border-color:#f59e0b}
+.auth-card button{width:100%;padding:12px;border-radius:10px;border:none;background:#f59e0b;color:#0f172a;font-size:16px;cursor:pointer;font-weight:700}
+
+#app{display:none;flex-direction:column;min-height:100vh}
+header{background:#1e293b;border-bottom:1px solid #334155;padding:14px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:10}
+header h1{font-size:18px;font-weight:700}
+.main-tabs{display:flex;gap:4px;margin-left:auto}
+.main-tab{padding:7px 14px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap}
+.main-tab.active{background:#f59e0b;border-color:#f59e0b;color:#0f172a}
+.hbtn{background:#334155;border:none;color:#94a3b8;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+.hbtn:hover{background:#475569;color:#e2e8f0}
+#last-update{font-size:12px;color:#64748b;white-space:nowrap}
+
+/* sub-tabs for orders */
+#day-toggle{display:flex;gap:4px}
+.day-tab{padding:6px 12px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;font-size:13px;cursor:pointer}
+.day-tab.active{background:#f59e0b;border-color:#f59e0b;color:#0f172a;font-weight:700}
+
+main{flex:1;padding:20px;max-width:960px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+
+/* TOTALS */
+.totals-box{background:#1e293b;border-radius:16px;padding:20px 24px;border:1px solid #f59e0b44}
+.totals-title{font-size:15px;font-weight:700;color:#fbbf24;margin-bottom:14px}
+.totals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.total-item{background:#0f172a;border-radius:10px;padding:12px 14px}
+.total-item-name{font-size:12px;color:#94a3b8}
+.total-item-qty{font-size:26px;font-weight:800;color:#fbbf24}
+
+/* ORDER CARDS */
+.section-title{font-size:15px;font-weight:700;color:#94a3b8;display:flex;align-items:center;gap:6px}
+.orders-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:10px}
+.order-card{background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;display:flex;flex-direction:column;gap:10px}
+.order-card.status-ready{opacity:.55;border-style:dashed}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.order-num{font-size:19px;font-weight:800;color:#fbbf24}
+.order-customer{font-size:13px;color:#cbd5e1;font-weight:600}
+.order-time{font-size:12px;color:#64748b;margin-top:2px}
+.status-badge{border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;flex-shrink:0}
+.badge-wait{background:#f59e0b22;color:#fbbf24;border:1px solid #f59e0b44}
+.badge-conf{background:#22c55e22;color:#4ade80;border:1px solid #22c55e44}
+.badge-ready{background:#33415544;color:#64748b;border:1px solid #33415566}
+.items-list{list-style:none;display:flex;flex-direction:column;gap:3px}
+.items-list li{display:flex;justify-content:space-between;font-size:13px;color:#cbd5e1;padding:3px 0;border-bottom:1px solid #1e293b}
+.items-list li:last-child{border-bottom:none}
+.item-qty{font-weight:700;color:#fbbf24}
+.ready-btn{width:100%;padding:9px;border-radius:8px;border:none;background:#f59e0b;color:#0f172a;font-size:13px;font-weight:700;cursor:pointer}
+.ready-btn:disabled{background:#334155;color:#64748b;cursor:not-allowed}
+
+/* PRODUCTION TAB */
+.prod-date-group{margin-bottom:24px}
+.prod-date-label{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding:6px 12px;background:#1e293b;border-radius:8px;display:inline-block}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+
+.prod-card{background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;display:flex;flex-direction:column;gap:10px;transition:border-color .2s}
+.prod-card.st-ordered{border-color:#475569}
+.prod-card.st-inprod{border-color:#f59e0b}
+.prod-card.st-done{border-color:#22c55e}
+.prod-card.st-delivered{opacity:.55;border-style:dashed}
+
+.prod-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.prod-name{font-size:15px;font-weight:700;color:#e2e8f0}
+.prod-qty-box{text-align:right;flex-shrink:0}
+.prod-req{font-size:22px;font-weight:800;color:#fbbf24}
+.prod-req-label{font-size:10px;color:#64748b}
+.prod-actual{font-size:13px;color:#4ade80;margin-top:2px}
+.prod-status{border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700}
+.ps-ordered{background:#47556922;color:#94a3b8;border:1px solid #47556966}
+.ps-inprod{background:#f59e0b22;color:#fbbf24;border:1px solid #f59e0b44}
+.ps-done{background:#22c55e22;color:#4ade80;border:1px solid #22c55e44}
+.ps-delivered{background:#6366f122;color:#a5b4fc;border:1px solid #6366f144}
+.prod-notes{font-size:12px;color:#64748b;font-style:italic}
+.prod-dest{font-size:12px;color:#94a3b8}
+
+/* Action row */
+.prod-actions{display:flex;flex-direction:column;gap:6px}
+.act-btn{width:100%;padding:9px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer}
+.act-start{background:#f59e0b;color:#0f172a}
+.act-finish{background:#22c55e;color:#0f172a}
+.act-deliver{background:#6366f1;color:#fff}
+.act-btn:disabled{background:#334155;color:#64748b;cursor:not-allowed}
+
+.qty-row{display:flex;gap:6px;align-items:center}
+.qty-row input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:14px;outline:none;min-width:0}
+.qty-row input:focus{border-color:#22c55e}
+
+/* Delivery modal */
+.modal-bg{display:none;position:fixed;inset:0;background:#000a;z-index:100;align-items:center;justify-content:center;padding:20px}
+.modal-bg.open{display:flex}
+.modal{background:#1e293b;border-radius:16px;padding:28px 24px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px}
+.modal h2{font-size:18px;font-weight:700;color:#fbbf24}
+.modal label{font-size:13px;color:#94a3b8;display:flex;flex-direction:column;gap:4px}
+.modal input,.modal select{padding:10px 12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:14px;outline:none}
+.modal input:focus,.modal select:focus{border-color:#6366f1}
+.modal-btns{display:flex;gap:8px}
+.modal-btns button{flex:1;padding:11px;border-radius:8px;border:none;font-size:14px;font-weight:700;cursor:pointer}
+.btn-cancel{background:#334155;color:#94a3b8}
+.btn-submit{background:#6366f1;color:#fff}
+
+.empty{text-align:center;padding:60px 20px;color:#475569}
+.loading{text-align:center;padding:60px 20px;color:#64748b}
+#toast{position:fixed;bottom:24px;right:24px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:12px 18px;border-radius:10px;font-size:14px;display:none;z-index:200;box-shadow:0 8px 32px #0006}
+#toast.show{display:block}
+#toast.success{border-color:#22c55e;color:#4ade80}
+#toast.error{border-color:#ef4444;color:#f87171}
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-card">
+    <div style="font-size:40px;margin-bottom:12px">🥐</div>
+    <h1>Пекарь</h1>
+    <p>Введите токен для входа</p>
+    <input type="password" id="token-input" placeholder="Токен" autocomplete="off">
+    <button onclick="login()">Войти</button>
+    <div id="auth-error" style="color:#f87171;font-size:13px;margin-top:12px;display:none">Неверный токен</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <h1>🥐 Пекарь</h1>
+    <div class="main-tabs">
+      <button class="main-tab active" onclick="setMainTab('orders',this)">📋 Заказы</button>
+      <button class="main-tab" onclick="setMainTab('production',this)">🏭 Производство</button>
+    </div>
+    <button class="hbtn" onclick="refreshAll()">↻</button>
+    <span id="last-update"></span>
+  </header>
+
+  <!-- Orders sub-header -->
+  <div id="orders-subbar" style="background:#1e293b;border-bottom:1px solid #334155;padding:10px 20px;display:flex;gap:6px;flex-wrap:wrap">
+    <button class="day-tab active" data-days="0,1" onclick="setDays(this)">Сегодня + Завтра</button>
+    <button class="day-tab" data-days="0" onclick="setDays(this)">Сегодня</button>
+    <button class="day-tab" data-days="1" onclick="setDays(this)">Завтра</button>
+  </div>
+
+  <main id="content"><div class="loading">Загрузка...</div></main>
+</div>
+
+<!-- Delivery modal -->
+<div class="modal-bg" id="deliver-modal">
+  <div class="modal">
+    <h2>📦 Передать продукцию</h2>
+    <label>Продукт<input type="text" id="del-product" readonly></label>
+    <label>Количество (шт)<input type="number" id="del-qty" min="1"></label>
+    <label>Куда передать
+      <select id="del-dest">
+        <option value="לחנות">В магазин</option>
+        <option value="למטבח">На кухню</option>
+      </select>
+    </label>
+    <label>Кто принял<input type="text" id="del-recipient" placeholder="Имя получателя"></label>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeDeliverModal()">Отмена</button>
+      <button class="btn-submit" onclick="submitDeliver()">Передать ✓</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '/api';
+let bakerToken = '';
+let currentDays = '0,1';
+let currentTab = 'orders';
+let prodData = [];
+let deliverOrderId = null;
+let refreshTimer = null;
+
+function login() {
+  const val = document.getElementById('token-input').value.trim();
+  if (!val) return;
+  bakerToken = val;
+  loadOrders(true);
+}
+document.getElementById('token-input').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+
+function setMainTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('orders-subbar').style.display = tab === 'orders' ? 'flex' : 'none';
+  if (tab === 'orders') loadOrders();
+  else loadProduction();
+}
+
+function setDays(btn) {
+  document.querySelectorAll('.day-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentDays = btn.dataset.days;
+  loadOrders();
+}
+
+function refreshAll() {
+  if (currentTab === 'orders') loadOrders();
+  else loadProduction();
+}
+
+// ─── ORDERS TAB ──────────────────────────────────────────────────────────────
+async function loadOrders(isAuth = false) {
+  const content = document.getElementById('content');
+  if (!isAuth) content.innerHTML = '<div class="loading">Загрузка...</div>';
+  clearTimeout(refreshTimer);
+  try {
+    const res = await fetch(`${API}/orders-today?token=${encodeURIComponent(bakerToken)}&days=${currentDays}&baker=1`);
+    if (res.status === 403) {
+      if (isAuth) { document.getElementById('auth-error').style.display='block'; bakerToken=''; }
+      return;
+    }
+    if (!res.ok) throw new Error(await res.text());
+
+    if (isAuth) {
+      localStorage.setItem('baker_token', bakerToken);
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+    }
+
+    const data = await res.json();
+    renderOrders(data.orders || [], data.totals || {});
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    refreshTimer = setTimeout(loadOrders, 60000);
+  } catch(err) {
+    content.innerHTML = `<div class="empty"><p>⚠️ ${esc(err.message)}</p></div>`;
+  }
+}
+
+function renderOrders(orders, totals) {
+  const content = document.getElementById('content');
+  if (!orders.length) { content.innerHTML = '<div class="empty"><p>✅ Нет заказов на выпечку</p></div>'; return; }
+  const totalItems = Object.entries(totals);
+  const totalsHtml = totalItems.length ? `
+    <div class="totals-box">
+      <div class="totals-title">📊 Итого к выпечке</div>
+      <div class="totals-grid">
+        ${totalItems.sort((a,b)=>b[1]-a[1]).map(([n,q])=>`
+          <div class="total-item">
+            <div class="total-item-name">${esc(n)}</div>
+            <div class="total-item-qty">${q}</div>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+  const ordersHtml = `<div>
+    <div class="section-title">🗒️ Заказы (${orders.length})</div>
+    <div class="orders-grid">${orders.map(renderOrderCard).join('')}</div>
+  </div>`;
+  content.innerHTML = totalsHtml + ordersHtml;
+}
+
+function renderOrderCard(o) {
+  const isReady = o.status === 'Готов';
+  const badgeCls = {'Ожидает':'badge-wait','Подтверждён':'badge-conf','Готов':'badge-ready'}[o.status]||'badge-wait';
+  const time = o.delivery_at ? new Date(o.delivery_at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Almaty'}) : '—';
+  const date = o.delivery_at ? new Date(o.delivery_at).toLocaleDateString('ru-RU',{day:'numeric',month:'short',timeZone:'Asia/Almaty'}) : '';
+  const items = o.items.length
+    ? `<ul class="items-list">${o.items.map(i=>`<li><span>${esc(i.name)}</span><span class="item-qty">×${i.quantity}</span></li>`).join('')}</ul>`
+    : '<p style="color:#475569;font-size:12px">Нет позиций</p>';
+  return `<div class="order-card ${isReady?'status-ready':''}" id="oc-${o.id}">
+    <div class="card-header">
+      <div>
+        <div class="order-num">#${o.order_number||'—'}</div>
+        <div class="order-customer">${esc(o.customer)}</div>
+        <div class="order-time">${time} · ${date}</div>
+      </div>
+      <span class="status-badge ${badgeCls}">${o.status}</span>
+    </div>
+    ${items}
+    <button class="ready-btn" ${isReady?'disabled':''} onclick="markReady('${o.id}',this)">
+      ${isReady?'✓ Готово':'✔ Отметить готовым'}
+    </button>
+  </div>`;
+}
+
+async function markReady(id, btn) {
+  btn.disabled=true; btn.textContent='...';
+  try {
+    const r = await fetch(`${API}/manager-action?id=${id}&action=ready&token=${encodeURIComponent(bakerToken)}`);
+    if (r.ok) {
+      showToast('✓ Статус обновлён','success');
+      const c = document.getElementById(`oc-${id}`);
+      if (c) { c.classList.add('status-ready'); c.querySelector('.status-badge').textContent='Готов'; c.querySelector('.status-badge').className='status-badge badge-ready'; btn.textContent='✓ Готово'; }
+    } else throw new Error(`HTTP ${r.status}`);
+  } catch(e) { showToast('Ошибка: '+e.message,'error'); btn.disabled=false; btn.textContent='✔ Отметить готовым'; }
+}
+
+// ─── PRODUCTION TAB ──────────────────────────────────────────────────────────
+async function loadProduction() {
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading">Загрузка производства...</div>';
+  clearTimeout(refreshTimer);
+  try {
+    const res = await fetch(`${API}/production?token=${encodeURIComponent(bakerToken)}&range=week`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    prodData = data.records || [];
+    renderProduction(prodData);
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    refreshTimer = setTimeout(loadProduction, 120000);
+  } catch(e) {
+    content.innerHTML = `<div class="empty"><p>⚠️ ${esc(e.message)}</p></div>`;
+  }
+}
+
+function renderProduction(records) {
+  const content = document.getElementById('content');
+  if (!records.length) { content.innerHTML = '<div class="empty"><p>🎉 Нет заказов на производство</p></div>'; return; }
+
+  // Group by date
+  const byDate = {};
+  for (const r of records) {
+    const dk = r.date ? r.date.slice(0,10) : 'Без даты';
+    if (!byDate[dk]) byDate[dk] = [];
+    byDate[dk].push(r);
+  }
+
+  const STATUS_ORDER = {'הוזמן':0,'בייצור':1,'מוכן':2,'הועבר למלאי':3};
+  const today = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Almaty'});
+
+  let html = '';
+  for (const [dk, recs] of Object.entries(byDate).sort()) {
+    const d = new Date(dk + 'T12:00:00');
+    const label = dk === today ? `📅 Сегодня — ${d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}` : d.toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'long'});
+    const sorted = [...recs].sort((a,b)=>(STATUS_ORDER[a.status]||0)-(STATUS_ORDER[b.status]||0));
+    html += `<div class="prod-date-group">
+      <div class="prod-date-label">${label}</div>
+      <div class="prod-grid">${sorted.map(renderProdCard).join('')}</div>
+    </div>`;
+  }
+  content.innerHTML = html;
+}
+
+function renderProdCard(r) {
+  const stMap = {'הוזמן':'ordered','בייצור':'inprod','מוכן':'done','הועבר למלאי':'delivered'};
+  const stLbl = {'הוזמן':'Ожидает','בייצור':'В производстве','מוכן':'Готово','הועבר למלאי':'Передано'};
+  const psCls = {'ordered':'ps-ordered','inprod':'ps-inprod','done':'ps-done','delivered':'ps-delivered'};
+  const st = stMap[r.status] || 'ordered';
+  const destLbl = r.destination === 'לחנות' ? '→ Магазин' : r.destination === 'למטבח' ? '→ Кухня' : r.destination ? `→ ${r.destination}` : '';
+  const notesHtml = r.notes ? `<div class="prod-notes">${esc(r.notes)}</div>` : '';
+
+  let actions = '';
+  if (st === 'ordered') {
+    actions = `<div class="prod-actions">
+      <button class="act-btn act-start" onclick="startProd('${r.id}',this)">🚀 Начать производство</button>
+    </div>`;
+  } else if (st === 'inprod') {
+    actions = `<div class="prod-actions">
+      <div class="qty-row">
+        <input type="number" id="act-qty-${r.id}" placeholder="Кол-во готово" min="1" value="${r.actual_qty||r.requested_qty||''}">
+        <button class="act-btn act-finish" style="width:auto;padding:8px 14px" onclick="finishProd('${r.id}',this)">✅ Готово</button>
+      </div>
+    </div>`;
+  } else if (st === 'done') {
+    actions = `<div class="prod-actions">
+      <button class="act-btn act-deliver" onclick="openDeliverModal('${r.id}','${esc(r.name_ru||r.recipe_id||'')}',${r.actual_qty||r.requested_qty||0})">📦 Передать</button>
+    </div>`;
+  }
+
+  return `<div class="prod-card st-${st}" id="pc-${r.id}">
+    <div class="prod-header">
+      <div>
+        <div class="prod-name">${esc(r.name_ru || 'Без названия')}</div>
+        ${destLbl ? `<div class="prod-dest">${destLbl}</div>` : ''}
+        <span class="prod-status ${psCls[st]}">${stLbl[r.status]||r.status}</span>
+      </div>
+      <div class="prod-qty-box">
+        <div class="prod-req">${r.requested_qty||'?'}</div>
+        <div class="prod-req-label">заказано</div>
+        ${r.actual_qty ? `<div class="prod-actual">✓ ${r.actual_qty} готово</div>` : ''}
+      </div>
+    </div>
+    ${notesHtml}
+    ${actions}
+  </div>`;
+}
+
+async function startProd(id, btn) {
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await fetch(`${API}/production?token=${encodeURIComponent(bakerToken)}&id=${id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status:'בייצור' })
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('🚀 Производство началось!','success');
+    await loadProduction();
+  } catch(e) { showToast('Ошибка: '+e.message,'error'); btn.disabled=false; btn.textContent='🚀 Начать производство'; }
+}
+
+async function finishProd(id, btn) {
+  const qtyInput = document.getElementById(`act-qty-${id}`);
+  const qty = parseInt(qtyInput?.value, 10);
+  if (!qty || qty < 1) { showToast('Укажите количество','error'); return; }
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await fetch(`${API}/production?token=${encodeURIComponent(bakerToken)}&id=${id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status:'מוכן', actual_qty: qty })
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('✅ Производство завершено!','success');
+    await loadProduction();
+  } catch(e) { showToast('Ошибка: '+e.message,'error'); btn.disabled=false; btn.textContent='✅ Готово'; }
+}
+
+function openDeliverModal(id, name, qty) {
+  deliverOrderId = id;
+  document.getElementById('del-product').value = name;
+  document.getElementById('del-qty').value = qty || '';
+  document.getElementById('del-recipient').value = '';
+  document.getElementById('deliver-modal').classList.add('open');
+}
+function closeDeliverModal() {
+  document.getElementById('deliver-modal').classList.remove('open');
+  deliverOrderId = null;
+}
+
+async function submitDeliver() {
+  if (!deliverOrderId) return;
+  const qty = parseInt(document.getElementById('del-qty').value, 10);
+  const dest = document.getElementById('del-dest').value;
+  const recipient = document.getElementById('del-recipient').value.trim();
+  if (!qty || qty < 1) { showToast('Укажите количество','error'); return;  }
+
+  const destLabel = dest === 'לחנות' ? 'Магазин' : 'Кухня';
+  const notes = `Передано: ${qty} шт → ${destLabel}${recipient ? ' | Принял: '+recipient : ''}`;
+
+  try {
+    const r = await fetch(`${API}/production?token=${encodeURIComponent(bakerToken)}&id=${deliverOrderId}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status:'הועבר למלאי', actual_qty: qty, notes })
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('📦 Передано!','success');
+    closeDeliverModal();
+    await loadProduction();
+  } catch(e) { showToast('Ошибка: '+e.message,'error'); }
+}
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show '+type;
+  setTimeout(()=>t.className='', 3000);
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+const saved = localStorage.getItem('baker_token') || localStorage.getItem('chef_token');
+if (saved) { bakerToken = saved; loadOrders(true); }
+</script>
+</body>
+</html>

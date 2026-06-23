@@ -7,7 +7,8 @@
 const BASE    = 'appM61hkcOruhdBuv';
 const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
 
-const T_ORDERS = 'tblMnlLwYCD27ou80';
+const T_ORDERS   = 'tblMnlLwYCD27ou80';
+const T_PAYMENTS = 'tblaNK6mYqr20YtT1';
 
 const FO_STATUS    = 'fldcekWvpJwdVVMK6';
 const FO_SERIAL    = 'fldlJLSKuSB5zvmGt';
@@ -19,12 +20,20 @@ const FO_PRICE     = 'fldJA6xBGacdetQjI';
 const FO_PAYMENT   = 'fldjE5esZVBwDjNDi';
 const FO_KASPI_URL = 'fldMmQtQsDSM5muX4'; // קישור לכספי פיי לתשלום (formula)
 
+// Payments table fields
+const FP_ORDER    = 'fldG5Hooz07INgFB1';
+const FP_DATE     = 'fldW2CuSoBsTFqV5E';
+const FP_KZT      = 'fld8ZPOiTjoSyjzaa';
+const FP_STATUS   = 'fldETI893nLw717mj';
+const FP_NOTES    = 'fldNvdvqVWt0Go6Ze';
+
 const SITE_URL = 'https://src-sigma-ecru-25.vercel.app';
 
 const STATUS_MAP = {
   approve: 'Подтверждён',
   reject:  'Отменён',
   ready:   'Готов',
+  // kaspi_paid is handled separately — does not update order status
 };
 
 function atHeaders(token) {
@@ -88,15 +97,28 @@ function htmlPage(title, body, color = '#22c55e') {
 </style></head><body><div class="card">${body}</div></body></html>`;
 }
 
+function getRole(reqToken) {
+  const clean = t => (t || '').replace(/^﻿/, '').trim();
+  const mt = clean(process.env.MANAGER_TOKEN);
+  const ct = clean(process.env.CHEF_TOKEN);
+  const bt = clean(process.env.BAKER_TOKEN);
+  if (reqToken === mt && mt) return 'manager';
+  if (reqToken === ct && ct) return 'chef';
+  if (reqToken === bt && bt) return 'baker';
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   const { id, action, token: reqToken } = req.query;
 
-  const managerToken = (process.env.MANAGER_TOKEN || '').trim();
+  const role = getRole((reqToken || '').trim());
   const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
 
-  if (!managerToken || reqToken !== managerToken) {
+  // baker/chef can only mark ready; manager can do all
+  const allowedActions = role === 'manager' ? ['approve','reject','ready'] : ['ready'];
+  if (!role || !allowedActions.includes(action)) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(403).send(htmlPage('Ошибка', '<div class="icon">🚫</div><h1>Нет доступа</h1><p>Недействительная ссылка.</p>', '#ef4444'));
   }
@@ -107,7 +129,7 @@ export default async function handler(req, res) {
   }
 
   const newStatus = STATUS_MAP[action];
-  if (!newStatus) {
+  if (!newStatus && action !== 'kaspi_paid') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(400).send(htmlPage('Ошибка', '<div class="icon">⚠️</div><h1>Неверное действие</h1>', '#f59e0b'));
   }
@@ -126,6 +148,35 @@ export default async function handler(req, res) {
     if (!getR.ok) throw new Error(`GET ${getR.status}`);
     const rec = await getR.json();
     const f = rec.fields || {};
+
+    // ── kaspi_paid: create payment record in Airtable ──────────────────────
+    if (action === 'kaspi_paid') {
+      const orderNum = f[FO_SERIAL]    ? `№${f[FO_SERIAL]}` : '';
+      const total    = f[FO_PRICE]     || 0;
+      const today    = new Date().toISOString().slice(0, 10);
+      const payR = await fetch(`${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`, {
+        method:  'POST',
+        headers: atHeaders(airtableToken),
+        body:    JSON.stringify({ fields: {
+          [FP_ORDER]:  [id],
+          [FP_DATE]:   today,
+          [FP_KZT]:    total,
+          [FP_STATUS]: 'Done',
+          [FP_NOTES]:  `Kaspi — отмечено менеджером вручную | Заказ ${orderNum}`,
+        }}),
+      });
+      const payD = await payR.json();
+      if (!payR.ok) throw new Error(`PAY ${JSON.stringify(payD).slice(0, 100)}`);
+      const htmlBody = `
+        <div class="icon">✅</div>
+        <h1>Оплата Kaspi отмечена</h1>
+        <div class="badge">Заказ ${orderNum}</div>
+        ${total ? `<p><strong>${total} ₸</strong></p>` : ''}
+        <p>Запись создана в таблице оплат.</p>
+      `;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(htmlPage('Оплата отмечена', htmlBody, '#22c55e'));
+    }
 
     // Update status
     const patchR = await fetch(
@@ -161,6 +212,12 @@ export default async function handler(req, res) {
         header = `🍽️ Заказ ${orderNum} готов!`;
         body   = orderType || 'Заберите заказ';
         if (statusUrl) buttons.push({ type: 'url', buttonId: '1', buttonText: 'Статус заказа', url: statusUrl });
+
+        // Notify manager when order is ready
+        const managerPhone = (process.env.MANAGER_PHONE || '').trim();
+        if (managerPhone) {
+          sendWa(managerPhone, `✅ Заказ ${orderNum} готов!\n👤 ${custName}\n📋 ${orderType}`).catch(() => {});
+        }
       } else if (action === 'reject') {
         header = `❌ Заказ ${orderNum} отменён`;
         body   = 'Свяжитесь с нами для уточнения деталей.';
@@ -174,6 +231,12 @@ export default async function handler(req, res) {
     const icons  = { approve: '✅', reject: '❌', ready: '🍽️' };
     const colors = { approve: '#22c55e', reject: '#ef4444', ready: '#f59e0b' };
 
+    // After approve of a Kaspi order — show "mark as paid" button
+    const _isKaspi = payment === 'כספי';
+    const kaspiPaidUrl = (action === 'approve' && _isKaspi)
+      ? `${SITE_URL}/api/manager-action?id=${id}&action=kaspi_paid&token=${encodeURIComponent(reqToken)}`
+      : '';
+
     const htmlBody = `
       <div class="icon">${icons[action]}</div>
       <h1>${newStatus}</h1>
@@ -181,6 +244,7 @@ export default async function handler(req, res) {
       ${custName  ? `<p>${custName}</p>` : ''}
       ${orderType ? `<p>${orderType}</p>` : ''}
       ${total     ? `<p><strong>${total} ₸</strong></p>` : ''}
+      ${kaspiPaidUrl ? `<a href="${kaspiPaidUrl}" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#16a34a;color:#fff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:700">✅ Отметить Kaspi оплаченным</a>` : ''}
     `;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

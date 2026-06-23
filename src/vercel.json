@@ -4,6 +4,8 @@
     { "source": "/manager", "destination": "/manager.html" },
     { "source": "/admin",   "destination": "/admin.html"   },
     { "source": "/hub",     "destination": "/order-hub.html" },
-    { "source": "/api/session", "destination": "/api/session.js" }
+    { "source": "/api/session",          "destination": "/api/session.js" },
+    { "source": "/api/stripe-checkout",  "destination": "/api/stripe-checkout.js" },
+    { "source": "/api/stripe-webhook",   "destination": "/api/stripe-webhook.js" }
   ]
 }
