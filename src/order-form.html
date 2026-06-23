@@ -1737,6 +1737,8 @@ function goToScreen(n) {
   if (n === 3) {
     renderSummary();
     screen3OpenTime = Date.now();
+    const sb = document.getElementById('submitBtn');
+    if (sb) { sb.disabled = false; sb.innerHTML = '<span>Далее — оплата →</span>'; }
     try { const raw = sessionStorage.getItem('kc_cart'); if (raw) restoreFormData(JSON.parse(raw).formData); } catch (_) {}
   }
   if (n !== 4) saveCart();
@@ -2181,7 +2183,6 @@ function showResult(success, orderNum, paymentMethod, breakdown) {
 }
 
 function goToPayment() {
-  if (Date.now() - screen3OpenTime < 800) return;
   const name = document.getElementById('customerName').value.trim();
   const phone = document.getElementById('customerPhone').value.trim();
   if (!name || !phone) { alert('Пожалуйста, заполните имя и телефон.'); return; }
