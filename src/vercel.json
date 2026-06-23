@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/status",  "destination": "/status.html"  },
+    { "source": "/manager", "destination": "/manager.html" },
+    { "source": "/admin",   "destination": "/admin.html"   },
+    { "source": "/hub",     "destination": "/order-hub.html" }
+  ]
+}

@@ -230,7 +230,10 @@ export default async function handler(req, res) {
     const numStr       = orderNum ? `№${orderNum}` : '';
     const custLang     = body.lang || 'ru';
     const mgrLang      = body.manager_lang || 'he';
-    const itemLines    = (body.items || []).map(i => `  • ${i.dish_name} × ${i.quantity}`).join('\n');
+    const itemLines    = (body.items || []).map(i => {
+      const lineTotal = (Number(i.unit_price)||0) * (Number(i.quantity)||1);
+      return `  • ${i.dish_name} × ${i.quantity}${lineTotal ? ' = ' + lineTotal + ' ₸' : ''}`;
+    }).join('\n');
     const statusUrl    = orderNum ? `${SITE_URL}/status?num=${orderNum}` : '';
 
     // ── Customer message (in customer's language) ──
@@ -269,11 +272,11 @@ export default async function handler(req, res) {
       managerLink ? `\n${mt.link}:\n${managerLink}` : '',
     ].filter(Boolean).join('\n');
 
-    // Customer WhatsApp — await result so client knows if it succeeded
-    const wa_sent = await sendWa(custPhone, custMsg);
-
-    // Manager notification — fire-and-forget
-    if (managerPhone) sendWa(managerPhone, mgrMsg).catch(() => {});
+    // Send both before responding — Vercel kills fire-and-forget after res.json()
+    const [wa_sent] = await Promise.all([
+      sendWa(custPhone, custMsg),
+      managerPhone ? sendWa(managerPhone, mgrMsg) : Promise.resolve(false),
+    ]);
 
     return res.status(200).json({
       success:      true,
