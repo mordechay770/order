@@ -36,6 +36,8 @@ const FQ_DISH_TXT = 'fldermtin9p2JInVx'; // מאכל (טקסט חופשי) — f
 const FQ_QTY      = 'fldZI30djxv54dm8j'; // כמות
 const FQ_PRICE    = 'fld2hjBAMbg4NeRef'; // עלות מנה בזמן ההזמנה
 
+const SITE_URL = 'https://src-sigma-ecru-25.vercel.app';
+
 const ALLOWED_ORIGINS = [
   'https://src-sigma-ecru-25.vercel.app',
   'http://localhost:3000',
@@ -49,6 +51,39 @@ const PAY_MAP = {
   kaspi:   'כספי',
   // voucher / combined have no matching option — field left empty
 };
+
+// ── Green API — WhatsApp ──────────────────────────────────────────────────────
+
+function toWaId(phone) {
+  // Strip everything except digits, ensure international format + @c.us
+  const digits = phone.replace(/\D/g, '');
+  // Kazakhstan: numbers starting with 8 → replace with 7
+  const norm = digits.startsWith('8') && digits.length === 11 ? '7' + digits.slice(1) : digits;
+  return norm + '@c.us';
+}
+
+async function sendWa(phone, message) {
+  const instance = (process.env.GREEN_API_INSTANCE || '').trim();
+  const apiToken = (process.env.GREEN_API_TOKEN   || '').trim();
+  if (!instance || !apiToken) return; // env not configured — skip silently
+
+  const url = `https://api.green-api.com/waInstance${instance}/sendMessage/${apiToken}`;
+  await fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ chatId: toWaId(phone), message }),
+  }).catch(e => console.error('[green-api]', e.message));
+}
+
+function formatDelivery(orderDate, deliveryTime) {
+  if (!orderDate) return '';
+  const days = ['вс','пн','вт','ср','чт','пт','сб'];
+  const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  const [y,m,d] = orderDate.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const label = `${days[dt.getDay()]}, ${d} ${months[m-1]}`;
+  return deliveryTime ? `${label} в ${deliveryTime}` : label;
+}
 
 function parseBody(req) {
   return new Promise((resolve) => {
@@ -163,6 +198,61 @@ export default async function handler(req, res) {
         return atPost(T_QTY, { fields: qtyFields }, token);
       })
     );
+
+    // 3. WhatsApp notifications — fire-and-forget (don't block response)
+    const managerPhone = (process.env.MANAGER_PHONE || '').trim();
+    const managerToken = (process.env.MANAGER_TOKEN || '').trim();
+    const custPhone    = body.customer_phone.trim();
+    const custName     = body.customer_name.trim();
+    const orderType    = body.order_type_title || body.order_type || '';
+    const total        = Number(body.total_price) || 0;
+    const delivery     = formatDelivery(body.order_date, body.delivery_time);
+    const numStr       = orderNum ? `№${orderNum}` : '';
+    const custLang     = body.lang || 'ru';
+    const mgrLang      = body.manager_lang || 'he';
+    const itemLines    = (body.items || []).map(i => `  • ${i.dish_name} × ${i.quantity}`).join('\n');
+    const statusUrl    = orderNum ? `${SITE_URL}/status?num=${orderNum}` : '';
+
+    // ── Customer message (in customer's language) ──
+    const CUST_TMPL = {
+      ru: { head: `✅ Заказ ${numStr} принят!`,     type: '📋', date: '📅', total: '💰 Итого', status: 'Статус заказа', wait: 'Ожидайте подтверждения.' },
+      en: { head: `✅ Order ${numStr} received!`,   type: '📋', date: '📅', total: '💰 Total',  status: 'Order status',  wait: 'Awaiting confirmation.' },
+      he: { head: `✅ הזמנה ${numStr} התקבלה!`,    type: '📋', date: '📅', total: '💰 סה"כ',  status: 'סטטוס הזמנה',  wait: 'ממתינים לאישור.' },
+    };
+    const ct = CUST_TMPL[custLang] || CUST_TMPL.ru;
+    const custMsg = [
+      ct.head,
+      orderType  ? `${ct.type} ${orderType}` : '',
+      delivery   ? `${ct.date} ${delivery}`  : '',
+      itemLines,
+      total      ? `${ct.total}: ${total} ₸` : '',
+      statusUrl  ? `\n🔗 ${ct.status}: ${statusUrl}` : '',
+      ct.wait,
+    ].filter(Boolean).join('\n');
+
+    // ── Manager message (in manager's language) ──
+    const MGR_TMPL = {
+      he: { head: `🔔 הזמנה חדשה ${numStr}`, client: '👤 לקוח', type: '📋', date: '📅', total: '💰', link: '👉 לאישור' },
+      ru: { head: `🔔 Новый заказ ${numStr}`, client: '👤',      type: '📋', date: '📅', total: '💰', link: '👉 Управление' },
+    };
+    const mt = MGR_TMPL[mgrLang] || MGR_TMPL.he;
+    const managerLink = managerToken && orderId
+      ? `${SITE_URL}/manager?id=${orderId}&token=${managerToken}`
+      : '';
+    const mgrMsg = [
+      mt.head,
+      `${mt.client}: ${custName} · ${custPhone}`,
+      orderType ? `${mt.type} ${orderType}` : '',
+      delivery  ? `${mt.date} ${delivery}`  : '',
+      itemLines,
+      total     ? `${mt.total} ${total} ₸`  : '',
+      managerLink ? `\n${mt.link}:\n${managerLink}` : '',
+    ].filter(Boolean).join('\n');
+
+    Promise.all([
+      sendWa(custPhone, custMsg),
+      managerPhone ? sendWa(managerPhone, mgrMsg) : Promise.resolve(),
+    ]).catch(() => {});
 
     return res.status(200).json({
       success:      true,

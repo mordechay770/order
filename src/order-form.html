@@ -1269,6 +1269,22 @@
         <div class="pay-card-title">Частичная</div>
         <div class="pay-card-sub">Разделить сумму</div>
       </div>
+      <div class="pay-card" id="payCardStripe" onclick="selectPayMethod('stripe')">
+        <div class="pay-card-icon">🌐</div>
+        <div class="pay-card-title">Кредитная карта</div>
+        <div class="pay-card-sub">Иностранная карта (USD)</div>
+      </div>
+    </div>
+
+    <!-- Stripe -->
+    <div id="paySectionStripe" class="pay-detail-section" style="display:none;">
+      <div class="pay-detail-card">
+        <div class="pay-detail-icon">🌐</div>
+        <h3>Оплата картой (Stripe)</h3>
+        <p id="stripeAmountInfo" style="margin:12px 0;color:var(--muted);font-size:14px"></p>
+        <p style="margin-bottom:16px;font-size:14px">Вы будете перенаправлены на страницу оплаты Stripe. После оплаты заказ будет подтверждён.</p>
+        <button class="btn-pay" id="stripePayBtn" onclick="payStripe()">Перейти к оплате →</button>
+      </div>
     </div>
 
     <!-- Cash -->
@@ -1605,6 +1621,10 @@ const RU_DAYS_SHORT = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
 const DAYS_SHORT = { ru:['Вс','Пн','Вт','Ср','Чт','Пт','Сб'], en:['Su','Mo','Tu','We','Th','Fr','Sa'], he:['א','ב','ג','ד','ה','ו','ש'] };
 function lDay(i) { return (DAYS_SHORT[currentLang]||DAYS_SHORT.ru)[i]; }
 function lMon(i) { return (MONTHS[currentLang]||MONTHS.ru)[i]; }
+function dishName(d) {
+  if (currentLang === 'he' && d.name_he) return d.name_he;
+  return d.name || d.name_ru || '';
+}
 const RU_MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const RU_MONTHS_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 
@@ -1914,7 +1934,7 @@ function applyMenuData(data, seq) {
   } else if (Array.isArray(data) && data.length) {
     menuByDate = null; selectedMenuDate = null;
     const typeMinQty = currentType && currentType.min_qty > 0 ? currentType.min_qty : 1;
-    dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:d.name||d['שם המאכל ברוסית']||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||'', min_qty: d.min_qty > 0 ? d.min_qty : typeMinQty}));
+    dishes = data.map((d,i)=>({id:d.id||'dish-'+i, name:dishName(d), name_ru:d.name||'', name_he:d.name_he||null, price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||'', min_qty: d.min_qty > 0 ? d.min_qty : typeMinQty}));
     if (currentType) renderManualDatePicker(currentType);
     activeCat='all'; buildCatBar(); renderDishes();
   } else {
@@ -1957,7 +1977,7 @@ function selectMenuDate(dateStr) {
   renderDatePicker();
   const entry = menuByDate.find(e => e.date === dateStr);
   if (entry && entry.dishes) {
-    dishes = entry.dishes.map((d,i)=>({id:d.id||`${dateStr}-${i}`, name:d.name||'', price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
+    dishes = entry.dishes.map((d,i)=>({id:d.id||`${dateStr}-${i}`, name:dishName(d), name_ru:d.name||'', name_he:d.name_he||null, price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
   } else { dishes = []; }
   quantities = {};
   activeCat = 'all'; buildCatBar(); renderDishes();
@@ -2168,16 +2188,18 @@ function goToPayment() {
   if (!sel.length) { alert('Выберите хотя бы одно блюдо.'); return; }
   const items = sel.map(d => ({ dish_id: d.id, dish_name: d.name, quantity: quantities[d.id], unit_price: d.price }));
   const total = items.reduce((s,i)=> s + i.unit_price*i.quantity, 0);
-  pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_model: currentType?currentType.model||null:null, order_category: currentType?currentType.category||null:null, order_type_record_id: currentType?currentType.airtable_record_id||null:null, order_template_id: currentType?currentType.template_id||null:null, order_date: currentDeliveryDate||null, delivery_time: currentDeliveryTime||null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString() };
+  const _adminCfg = getAdminSettings();
+  pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_model: currentType?currentType.model||null:null, order_category: currentType?currentType.category||null:null, order_type_record_id: currentType?currentType.airtable_record_id||null:null, order_template_id: currentType?currentType.template_id||null:null, order_date: currentDeliveryDate||null, delivery_time: currentDeliveryTime||null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString(), lang: currentLang || 'ru', manager_lang: (_adminCfg.manager && _adminCfg.manager.lang) || 'he' };
   document.getElementById('payTotalAmount').textContent = total>0 ? total+' ₸' : '—';
   const methods = paymentConfig.methods;
   document.getElementById('payCardCash').style.display = methods.includes('cash')?'':'none';
   document.getElementById('payCardKaspi').style.display = methods.includes('kaspi')?'':'none';
   document.getElementById('payCardVoucher').style.display = methods.includes('voucher')?'':'none';
+  document.getElementById('payCardStripe').style.display = methods.includes('stripe')?'':'none';
   const cc = ['cash','kaspi','voucher'].filter(m=>methods.includes(m)).length;
   document.getElementById('payCardCombined').style.display = (methods.includes('combined') && cc>=2)?'':'none';
   document.querySelectorAll('.pay-card').forEach(c => c.classList.remove('active'));
-  ['Cash','Kaspi','Voucher','Combined'].forEach(m => document.getElementById('paySection'+m).style.display='none');
+  ['Cash','Kaspi','Voucher','Combined','Stripe'].forEach(m => { const el=document.getElementById('paySection'+m); if(el) el.style.display='none'; });
   if (methods.length === 1) selectPayMethod(methods[0]);
   goToScreen('Pay');
 }
@@ -2185,7 +2207,7 @@ function goToPayment() {
 function selectPayMethod(method) {
   document.querySelectorAll('.pay-card').forEach(c => c.classList.remove('active'));
   const card = document.getElementById('payCard'+method.charAt(0).toUpperCase()+method.slice(1)); if (card) card.classList.add('active');
-  ['Cash','Kaspi','Voucher','Combined'].forEach(m => document.getElementById('paySection'+m).style.display='none');
+  ['Cash','Kaspi','Voucher','Combined','Stripe'].forEach(m => { const el=document.getElementById('paySection'+m); if(el) el.style.display='none'; });
   if (method==='cash') document.getElementById('paySectionCash').style.display='';
   else if (method==='kaspi') {
     const total = pendingOrderPayload ? pendingOrderPayload.total_price : 0;
@@ -2203,7 +2225,14 @@ function selectPayMethod(method) {
     document.getElementById('voucherError').style.display='none';
     document.getElementById('voucherInputWrap').style.display=''; document.getElementById('voucherWaitWrap').style.display='none';
     document.getElementById('paySectionVoucher').style.display='';
-  } else if (method==='combined') { initCombinedSection(); document.getElementById('paySectionCombined').style.display=''; }
+  } else if (method==='combined') {
+    initCombinedSection(); document.getElementById('paySectionCombined').style.display='';
+  } else if (method==='stripe') {
+    const total = pendingOrderPayload ? pendingOrderPayload.total_price : 0;
+    const usd   = total > 0 ? (total / 450).toFixed(2) : '0.00'; // approx ₸ → USD
+    document.getElementById('stripeAmountInfo').textContent = `Сумма: ${total} ₸ ≈ $${usd} USD`;
+    document.getElementById('paySectionStripe').style.display='';
+  }
 }
 
 function initCombinedSection() {
@@ -2308,6 +2337,39 @@ async function doSubmitOrder(pm) {
   const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL) || ORDER_API;
   try { const r = await fetch(orderUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error(); let num=''; try { const d=await r.json(); num=d.order_number||d.id||''; } catch(_) {} clearCart(); showResult(true,num,pm); }
   catch(_) { if (btn) { btn.disabled=false; btn.textContent='✅ Подтвердить заказ'; } showResult(false); }
+}
+
+const STRIPE_LINK = 'https://donate.stripe.com/4gw5kH4Q3gtU2gE14a';
+const KZT_TO_USD  = 450; // approximate rate — update as needed
+
+async function payStripe() {
+  if (!pendingOrderPayload) { goToScreen(3); return; }
+  const btn = document.getElementById('stripePayBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Оформляем…';
+
+  const payload = Object.assign({}, pendingOrderPayload, { payment_method: 'stripe' });
+  const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL) || ORDER_API;
+  try {
+    const r = await fetch(orderUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    if (!r.ok) throw new Error();
+    const d = await r.json().catch(() => ({}));
+    const orderNum = d.order_number || '';
+    const orderId  = d.order_id || '';
+    clearCart();
+
+    // Build Stripe URL — pass order reference and amount in cents (USD)
+    const totalUsdCents = Math.round((pendingOrderPayload.total_price / KZT_TO_USD) * 100);
+    const ref = orderNum ? `ORDER-${orderNum}` : orderId;
+    const successUrl = encodeURIComponent(`${location.origin}/status?num=${orderNum}&paid=1`);
+    const stripeUrl = `${STRIPE_LINK}?client_reference_id=${encodeURIComponent(ref)}&prefilled_amount=${totalUsdCents}&success_url=${successUrl}`;
+
+    // Show brief success screen, then redirect
+    showResult(true, orderNum, 'stripe');
+    setTimeout(() => { window.open(stripeUrl, '_blank'); }, 1200);
+  } catch(_) {
+    btn.disabled = false; btn.textContent = 'Перейти к оплате →';
+    showResult(false);
+  }
 }
 
 async function doSubmitVoucher() {

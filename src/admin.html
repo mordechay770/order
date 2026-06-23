@@ -696,6 +696,22 @@
         </div>
       </div>
       <button class="btn-save" onclick="saveSettings()">💾 Сохранить контакты</button>
+      <div class="admin-card" style="margin-top:16px">
+        <div class="admin-card-title">⚙️ הגדרות מנהל — WhatsApp</div>
+        <div class="info-box">הגדרות אלה קובעות כיצד הודעות WhatsApp ישלחו למנהל עם כל הזמנה חדשה.</div>
+        <div class="form-row">
+          <label class="form-label">שפת הודעה למנהל</label>
+          <select class="form-select" id="cfg_manager_lang">
+            <option value="he">עברית</option>
+            <option value="ru">Русский</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">מספר מנהל <span class="hint">(רק ספרות, עם קידומת מדינה)</span></label>
+          <input class="form-input" id="cfg_manager_phone_display" placeholder="77015888488" inputmode="numeric" />
+          <div class="info-box" style="margin-top:6px;font-size:12px">⚠️ שינוי מספר מנהל — עדכן ב-Vercel env var MANAGER_PHONE. המספר כאן הוא לעיון בלבד.</div>
+        </div>
+      </div>
     </div>
 
     <!-- ─── TAB: ANNOUNCEMENTS ─── -->
@@ -781,6 +797,10 @@
             <label style="display:flex;align-items:center;gap:10px;font-weight:500;cursor:pointer;">
               <input type="checkbox" id="pay_combined" checked />
               💳 Частичная оплата — разделить сумму между 2–3 методами
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-weight:500;cursor:pointer;">
+              <input type="checkbox" id="pay_stripe" />
+              🌐 כרטיס אשראי חו"ל (Stripe) — תשלום בדולר
             </label>
           </div>
         </div>
@@ -1289,6 +1309,10 @@ function loadAllFields() {
   document.getElementById('cfg_contact_email').value    = c.email    || '';
   document.getElementById('cfg_contact_address').value  = c.address  || '';
   document.getElementById('cfg_contact_hours').value    = c.hours    || '';
+  // Manager
+  const mgr = s.manager || {};
+  document.getElementById('cfg_manager_lang').value          = mgr.lang  || 'he';
+  document.getElementById('cfg_manager_phone_display').value = mgr.phone || '';
   // Webhooks
   const w = s.webhooks || {};
   document.getElementById('wh_menu').value          = w.menu          || '';
@@ -1303,6 +1327,7 @@ function loadAllFields() {
   document.getElementById('pay_cash').checked     = pm.includes('cash');
   document.getElementById('pay_kaspi').checked    = pm.includes('kaspi');
   document.getElementById('pay_voucher').checked  = pm.includes('voucher');
+  document.getElementById('pay_stripe').checked   = pm.includes('stripe');
   document.getElementById('pay_combined').checked = pm.includes('combined');
   document.getElementById('cfg_kaspi_phone').value = pay.kaspi_phone || '';
   // Announcements
@@ -1342,6 +1367,11 @@ function collectSettings() {
     address:  document.getElementById('cfg_contact_address').value.trim(),
     hours:    document.getElementById('cfg_contact_hours').value.trim(),
   };
+  // Manager
+  s.manager = {
+    lang:  document.getElementById('cfg_manager_lang').value,
+    phone: document.getElementById('cfg_manager_phone_display').value.trim(),
+  };
   // Webhooks
   s.webhooks = {
     menu:          document.getElementById('wh_menu').value.trim(),
@@ -1356,6 +1386,7 @@ function collectSettings() {
   if (document.getElementById('pay_cash').checked)     payMethods.push('cash');
   if (document.getElementById('pay_kaspi').checked)    payMethods.push('kaspi');
   if (document.getElementById('pay_voucher').checked)  payMethods.push('voucher');
+  if (document.getElementById('pay_stripe').checked)   payMethods.push('stripe');
   if (document.getElementById('pay_combined').checked) payMethods.push('combined');
   s.payment = {
     methods:     payMethods,

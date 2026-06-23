@@ -15,6 +15,7 @@ const T_PRICES = 'tblMe5ZQp6Ygfca5W'; // אבלת מחירי מאכלים
 
 // Fields — dishes (מאכלים)
 const FD_NAME      = 'fld8ia1Q9b1WoZhE7'; // שם ברוסית
+const FD_NAME_HE   = 'fldmvvvqFpYOq00XK'; // שם בעברית (aiText — may be empty)
 const FD_PORTION   = 'fldXNADlCSPdnowbQ'; // משקל או נפח למנה (גרמים/מ"ל)
 const FD_TYPES     = 'flddm1dEMqIXBfieF'; // סוגי הזמנות (multipleSelects)
 const FD_MINQTY    = 'fldnDpI70fL8sRXKF'; // min_qty_per_order
@@ -98,13 +99,17 @@ async function atList(tableId, params, token) {
 }
 
 function formatDish(rec, priceMap) {
-  const price = priceMap?.[rec.id] ?? 0;
+  const price  = priceMap?.[rec.id] ?? 0;
+  const heRaw  = rec.fields[FD_NAME_HE];
+  // aiText field returns { state, value } — only use when generated and non-null
+  const nameHe = (heRaw && heRaw.state === 'generated' && heRaw.value) ? heRaw.value : null;
   return {
     id:      rec.id,
-    name:    rec.fields[FD_NAME]     || '',
-    price:   Number(price)           || 0,
-    portion: rec.fields[FD_PORTION]  || 0,
-    min_qty: rec.fields[FD_MINQTY]   || 0,
+    name:    rec.fields[FD_NAME]    || '',
+    name_he: nameHe,                        // null if not available
+    price:   Number(price)          || 0,
+    portion: rec.fields[FD_PORTION] || 0,
+    min_qty: rec.fields[FD_MINQTY]  || 0,
   };
 }
 
@@ -159,7 +164,7 @@ async function fetchStaticMenu(type, token) {
 
   const records = await atList(T_DISHES, {
     filterByFormula: formula,
-    fields: [FD_NAME, FD_PORTION, FD_MINQTY, FD_PRC_LINK],
+    fields: [FD_NAME, FD_NAME_HE, FD_PORTION, FD_MINQTY, FD_PRC_LINK],
   }, token);
 
   const dishPriceLinks = records.map(r => ({
@@ -208,7 +213,7 @@ async function fetchDailyMenu(type, token) {
   const dishFormula = `OR(${dishIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
   const dishRecords = await atList(T_DISHES, {
     filterByFormula: dishFormula,
-    fields: [FD_NAME, FD_PORTION, FD_MINQTY, FD_PRC_LINK],
+    fields: [FD_NAME, FD_NAME_HE, FD_PORTION, FD_MINQTY, FD_PRC_LINK],
   }, token);
   const dishPriceLinks = dishRecords.map(r => ({
     dishId:      r.id,

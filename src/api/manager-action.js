@@ -16,6 +16,9 @@ const FO_CUST_NAME= 'fld1FKztthSOvgJhJ';
 const FO_PHONE    = 'fldMPQfkQATfg6j0t';
 const FO_DATE_EXE = 'fldF8G3nQ7FU7GAqS';
 const FO_PRICE    = 'fldJA6xBGacdetQjI';
+const FO_PAYMENT  = 'fldjE5esZVBwDjNDi';
+
+const SITE_URL = 'https://src-sigma-ecru-25.vercel.app';
 
 const STATUS_MAP = {
   approve: 'Подтверждён',
@@ -25,6 +28,24 @@ const STATUS_MAP = {
 
 function atHeaders(token) {
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+}
+
+function toWaId(phone) {
+  const digits = phone.replace(/\D/g, '');
+  const norm = digits.startsWith('8') && digits.length === 11 ? '7' + digits.slice(1) : digits;
+  return norm + '@c.us';
+}
+
+async function sendWa(phone, message) {
+  const instance = (process.env.GREEN_API_INSTANCE || '').trim();
+  const apiToken = (process.env.GREEN_API_TOKEN   || '').trim();
+  if (!instance || !apiToken || !phone) return;
+  const url = `https://api.green-api.com/waInstance${instance}/sendMessage/${apiToken}`;
+  await fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ chatId: toWaId(phone), message }),
+  }).catch(e => console.error('[green-api manager-action]', e.message));
 }
 
 function htmlPage(title, body, color = '#22c55e') {
@@ -72,8 +93,9 @@ export default async function handler(req, res) {
 
   try {
     // Fetch order first to show details
+    const orderFields = [FO_SERIAL, FO_STATUS, FO_NAME_RU, FO_CUST_NAME, FO_PHONE, FO_DATE_EXE, FO_PRICE, FO_PAYMENT];
     const getR = await fetch(
-      `${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`,
+      `${AT_BASE}/${T_ORDERS}/${id}?${orderFields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true`,
       { headers: atHeaders(airtableToken) }
     );
     if (!getR.ok) throw new Error(`GET ${getR.status}`);
@@ -91,25 +113,46 @@ export default async function handler(req, res) {
     );
     if (!patchR.ok) throw new Error(`PATCH ${patchR.status}`);
 
-    const orderNum = f[FO_SERIAL] ? `№${f[FO_SERIAL]}` : id;
-    const custName = f[FO_CUST_NAME] || '';
-    const orderType = f[FO_NAME_RU] || '';
-    const total = f[FO_PRICE] ? `${f[FO_PRICE]} ₸` : '';
+    const orderNum  = f[FO_SERIAL]   ? `№${f[FO_SERIAL]}` : '';
+    const custName  = f[FO_CUST_NAME] || '';
+    const custPhone = f[FO_PHONE]     || '';
+    const orderType = f[FO_NAME_RU]   || '';
+    const total     = f[FO_PRICE]     || 0;
+    const payment   = f[FO_PAYMENT]   || '';
 
-    const icons = { approve: '✅', reject: '❌', ready: '🍽️' };
+    // Send WhatsApp to customer after action (fire-and-forget)
+    if (custPhone) {
+      const kaspiPhone = (process.env.KASPI_PHONE || '').trim();
+      const isKaspi = payment === 'כספי' || payment === 'כספי+מזומן';
+      const kaspiLine = isKaspi && kaspiPhone
+        ? `\n📲 Оплата Kaspi: https://pay.kaspi.kz/pay/${kaspiPhone}`
+        : '';
+
+      let custMsg = '';
+      if (action === 'approve') {
+        custMsg = `✅ Заказ ${orderNum} подтверждён!\n${orderType ? '📋 ' + orderType + '\n' : ''}💰 ${total} ₸${kaspiLine}\n\n🔗 Статус: ${SITE_URL}/status?num=${f[FO_SERIAL] || ''}`;
+      } else if (action === 'ready') {
+        custMsg = `🍽️ Заказ ${orderNum} готов к выдаче!\n${orderType ? '📋 ' + orderType : ''}`;
+      } else if (action === 'reject') {
+        custMsg = `❌ Заказ ${orderNum} отменён.\nСвяжитесь с нами для уточнения деталей.`;
+      }
+      if (custMsg) sendWa(custPhone, custMsg).catch(() => {});
+    }
+
+    const icons  = { approve: '✅', reject: '❌', ready: '🍽️' };
     const colors = { approve: '#22c55e', reject: '#ef4444', ready: '#f59e0b' };
 
-    const body = `
+    const htmlBody = `
       <div class="icon">${icons[action]}</div>
       <h1>${newStatus}</h1>
       <div class="badge">Заказ ${orderNum}</div>
-      ${custName ? `<p>${custName}</p>` : ''}
+      ${custName  ? `<p>${custName}</p>` : ''}
       ${orderType ? `<p>${orderType}</p>` : ''}
-      ${total ? `<p><strong>${total}</strong></p>` : ''}
+      ${total     ? `<p><strong>${total} ₸</strong></p>` : ''}
     `;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(200).send(htmlPage(newStatus, body, colors[action]));
+    return res.status(200).send(htmlPage(newStatus, htmlBody, colors[action]));
 
   } catch (err) {
     console.error('[manager-action]', err.message);
