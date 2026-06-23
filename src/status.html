@@ -120,9 +120,36 @@ async function checkStatus() {
 
 document.getElementById('orderNumInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkStatus(); });
 
-// auto-fill from URL ?num=123
-const urlNum = new URLSearchParams(location.search).get('num');
-if (urlNum) { document.getElementById('orderNumInput').value = urlNum; checkStatus(); }
+// auto-fill from URL ?num=123 or resolve from Stripe ?session_id=cs_xxx
+const _params = new URLSearchParams(location.search);
+const urlNum = _params.get('num');
+const sessionId = _params.get('session_id');
+
+if (urlNum) {
+  document.getElementById('orderNumInput').value = urlNum;
+  checkStatus();
+} else if (sessionId) {
+  document.querySelector('.sub').textContent = 'Загружаем данные о вашем заказе…';
+  document.getElementById('checkBtn').disabled = true;
+  (async () => {
+    try {
+      const r = await fetch('/api/session?id=' + encodeURIComponent(sessionId));
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      if (d.order_number) {
+        document.getElementById('orderNumInput').value = d.order_number;
+        document.querySelector('.sub').textContent = '✅ Оплата прошла успешно! Детали заказа:';
+        checkStatus();
+      } else {
+        document.querySelector('.sub').textContent = 'Введите номер заказа, чтобы узнать статус';
+        document.getElementById('checkBtn').disabled = false;
+      }
+    } catch(_) {
+      document.querySelector('.sub').textContent = 'Введите номер заказа, чтобы узнать статус';
+      document.getElementById('checkBtn').disabled = false;
+    }
+  })();
+}
 </script>
 </body>
 </html>

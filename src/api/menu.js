@@ -33,6 +33,7 @@ const FP_TYPE    = 'fldxQeaawfV911vMK'; // סוג הזמנה (singleSelect)
 const FS_TYPE   = 'flddj8yoiko7U4MWf'; // סוג
 const FS_STATUS = 'fldYgc5Vz5ZrFGHop'; // סטטוס
 const FS_DATE   = 'fldS3NWmxIaqyUm6g'; // תאריך
+const FS_TIME   = 'fldFQ7zyY15817hef'; // שעת_הגשה (dateTime)
 const FS_TPL    = 'fldmCacFFUVxp8CTz'; // תבנית (link)
 
 // Fields — templates (תבניות)
@@ -191,7 +192,7 @@ async function fetchDailyMenu(type, token) {
 
   const slots = await atList(T_SLOTS, {
     filterByFormula: formula,
-    fields: [FS_DATE, FS_TPL],
+    fields: [FS_DATE, FS_TIME, FS_TPL],
     sort: [{ field: FS_DATE, direction: 'asc' }],
   }, token);
 
@@ -233,8 +234,15 @@ async function fetchDailyMenu(type, token) {
     const date    = slot.fields[FS_DATE];
     const tplId   = (slot.fields[FS_TPL] || [])[0] || null;
     const dishIds = tplId ? (tplDishMap[tplId] || []) : [];
+    // Extract HH:MM from dateTime field (stored as ISO, may be UTC)
+    const rawTime = slot.fields[FS_TIME];
+    const slotTime = rawTime
+      ? new Date(rawTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' })
+      : null;
     return {
+      slot_id: slot.id,
       date,
+      time: slotTime,
       template: tplId,
       dishes: dishIds.map(id => dishMap[id]).filter(Boolean),
     };

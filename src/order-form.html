@@ -1687,8 +1687,8 @@ const ORDER_API = '/api/order';
 
 const ORDER_TYPES = [
   // delivery_time: display time, lead_days: min days advance, lead_cutoff: order-by time same/prev day
-  { id:'בוקר',           icon:'🌅', title:'Завтрак',        sub:'Заказ накануне до 20:00 • 09:30',  model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'09:30', lead_days:1, lead_cutoff:'20:00' },
-  { id:'צהריים',          icon:'🍱', title:'Обед',            sub:'Заказ до 09:00 в день • 11:00',    model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'11:00', lead_days:0, lead_cutoff:'09:00' },
+  { id:'בוקר',  icon:'🌅', title:'Завтрак', sub:'Заказ накануне до 20:00', model:'fixed', category:'daily',   date_mode:'none', delivery_time:null, time_slots:['09:30','10:00','10:30','11:00','11:30','12:00'], lead_days:1, lead_cutoff:'20:00' },
+  { id:'צהריים', icon:'🍱', title:'Обед',    sub:'Заказ до 09:00 в день',  model:'fixed', category:'daily',   date_mode:'none', delivery_time:null, time_slots:['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'], lead_days:0, lead_cutoff:'09:00' },
   { id:'ערב',             icon:'🌙', title:'Ужин',            sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'17:00', lead_days:0, lead_cutoff:'11:00' },
   { id:'שבת',             icon:'🕯', title:'Шаббат',          sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:2, lead_cutoff:'12:00' },
   { id:'חג',              icon:'✡',  title:'Праздник',        sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:3, lead_cutoff:'12:00', active:false },
@@ -1769,12 +1769,12 @@ function renderManualDatePicker(type) {
   const needsTime = !type.delivery_time;
   const fixedTime = type.delivery_time;
 
-  const TIME_SLOTS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+  const TYPE_SLOTS = type.time_slots || ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
   const timeBlock = needsTime ? `
     <div class="ts-section">
       <div class="ts-section-label">${t('time_delivery')}</div>
       <div class="ts-grid">
-        ${TIME_SLOTS.map(t => `<button class="ts-btn${t===currentDeliveryTime?' selected':''}" onclick="selectManualTime('${t}')">${t}</button>`).join('')}
+        ${TYPE_SLOTS.map(ts => `<button class="ts-btn${ts===currentDeliveryTime?' selected':''}" onclick="selectManualTime('${ts}')">${ts}</button>`).join('')}
       </div>
     </div>` : '';
 
@@ -2046,6 +2046,9 @@ function renderDatePicker() {
   const dp = document.getElementById('datePicker');
   if (!menuByDate || !menuByDate.length) { dp.style.display='none'; return; }
   const fixedTime = currentType && currentType.delivery_time;
+  const hasTimeSlots = currentType && currentType.time_slots && currentType.time_slots.length;
+  // Show slot time (from DB) or fixed time on date cards
+  const getEntryTime = (entry) => entry.time || fixedTime || null;
   dp.style.display = 'block';
   dp.innerHTML = `<div class="dp-section">
     <div class="dp-section-label">${t('choose_date')}</div>
@@ -2053,22 +2056,47 @@ function renderDatePicker() {
       ${menuByDate.map(entry => {
         const d = parseLocalDate(entry.date);
         const sel = entry.date === selectedMenuDate;
+        const entryTime = getEntryTime(entry);
         return `<button class="dp-card${sel?' selected':''}" onclick="selectMenuDate('${entry.date}')">
           <div class="dc-day">${RU_DAYS_SHORT[d.getDay()]}</div>
           <div class="dc-num">${d.getDate()}</div>
           <div class="dc-mon">${RU_MONTHS_SHORT[d.getMonth()]}</div>
-          ${fixedTime ? `<div class="dc-time">${fixedTime}</div>` : ''}
+          ${entryTime && !hasTimeSlots ? `<div class="dc-time">${entryTime}</div>` : ''}
         </button>`;
       }).join('')}
+    </div>
+  </div>
+  ${selectedMenuDate && hasTimeSlots ? renderTimeSlotPicker() : ''}`;
+}
+
+function renderTimeSlotPicker() {
+  if (!currentType || !currentType.time_slots) return '';
+  const slots = currentType.time_slots;
+  return `<div class="ts-section" style="padding:0 0 8px">
+    <div class="ts-section-label">${t('time_delivery')}</div>
+    <div class="ts-grid">
+      ${slots.map(ts => `<button class="ts-btn${ts===currentDeliveryTime?' selected':''}" onclick="selectMenuTime('${ts}')">${ts}</button>`).join('')}
     </div>
   </div>`;
 }
 
+function selectMenuTime(timeStr) {
+  currentDeliveryTime = timeStr;
+  setDeliveryDateTime(currentDeliveryDate || selectedMenuDate, timeStr);
+  renderDatePicker();
+}
+
 function selectMenuDate(dateStr) {
   selectedMenuDate = dateStr;
-  setDeliveryDateTime(dateStr, currentType && currentType.delivery_time);
+  currentDeliveryDate = dateStr;
+  const entry = menuByDate && menuByDate.find(e => e.date === dateStr);
+  // Use slot time from DB (if no type-level time slots to pick)
+  const slotTime = (currentType && currentType.time_slots) ? currentDeliveryTime : (entry && entry.time) || (currentType && currentType.delivery_time) || null;
+  currentDeliveryTime = slotTime;
+  setDeliveryDateTime(dateStr, slotTime);
+  // Store slot_id for order linking
+  window._currentSlotId = entry && entry.slot_id ? entry.slot_id : null;
   renderDatePicker();
-  const entry = menuByDate.find(e => e.date === dateStr);
   if (entry && entry.dishes) {
     dishes = entry.dishes.map((d,i)=>({id:d.id||`${dateStr}-${i}`, name:dishName(d), name_ru:d.name||'', name_he:d.name_he||null, name_en:d.name_en||null, price:Number(d.price)||0, portion:d.portion||'', photo_url:d.photo_url||'', unit:d.unit||'шт.', category:d.category||''}));
   } else { dishes = []; }
@@ -2378,7 +2406,7 @@ function goToPayment() {
   const items = sel.map(d => ({ dish_id: d.id, dish_name: d.name_ru || d.name, dish_name_he: d.name_he || null, dish_name_en: d.name_en || null, quantity: quantities[d.id], unit_price: d.price }));
   const total = items.reduce((s,i)=> s + i.unit_price*i.quantity, 0);
   const _adminCfg = _adminSettings;
-  pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_model: currentType?currentType.model||null:null, order_category: currentType?currentType.category||null:null, order_type_record_id: currentType?currentType.airtable_record_id||null:null, order_template_id: currentType?currentType.template_id||null:null, order_date: currentDeliveryDate||null, delivery_time: currentDeliveryTime||null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString(), lang: currentLang || 'ru', manager_lang: (_adminCfg.manager && _adminCfg.manager.lang) || 'he' };
+  pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_model: currentType?currentType.model||null:null, order_category: currentType?currentType.category||null:null, order_type_record_id: window._currentSlotId || null, order_template_id: currentType?currentType.template_id||null:null, order_date: currentDeliveryDate||null, delivery_time: currentDeliveryTime||null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString(), lang: currentLang || 'ru', manager_lang: (_adminCfg.manager && _adminCfg.manager.lang) || 'he' };
   document.getElementById('payTotalAmount').textContent = total>0 ? total+' ₸' : '—';
   const methods = paymentConfig.methods;
   const _setDisplay = (id, show) => { const el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; };

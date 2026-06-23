@@ -28,6 +28,7 @@ const FO_NOTES    = 'fldKGooL6E0PkqKfI'; // הערות לקוח
 const FO_PAYMENT  = 'fldjE5esZVBwDjNDi'; // צורת תשלום
 const FO_PRICE    = 'fldJA6xBGacdetQjI'; // מחיר (מספר)
 const FO_COUNT    = 'fldBrAoMYSoO8f2ug'; // מס' פוזיציות
+const FO_TYPE_LNK = 'fld7o9NaEBIFu2cUQ'; // link → סוגי הזמנות
 
 // Fields — quantities (כמויות)
 const FQ_ORDER    = 'fld4DlEIkuKYTJIwr'; // link → הזמנות
@@ -86,35 +87,34 @@ async function sendWa(phone, message) {
 }
 
 /**
- * Send WhatsApp message with URL/call buttons (Green API sendTemplateButtons).
- * Falls back to plain text if template buttons are not supported.
- * buttons: [{index, urlButton: {displayText, url}} | {index, quickReplyButton: {displayText, id}}]
+ * Send WhatsApp message with URL buttons (Green API sendInteractiveButtons).
+ * buttons: [{type:'url', buttonId, buttonText (max 25 chars), url}]
+ * Falls back to plain sendWa if the API call fails.
  */
-async function sendWaButtons(phone, message, footer, buttons) {
+async function sendWaButtons(phone, body, footer, buttons) {
   const instance = (process.env.GREEN_API_INSTANCE || '').trim();
   const apiToken = (process.env.GREEN_API_TOKEN   || '').trim();
   if (!instance || !apiToken) return false;
   if (!phone || toWaId(phone) === '@c.us') return false;
 
-  const url = `https://api.green-api.com/waInstance${instance}/sendTemplateButtons/${apiToken}`;
+  const endpoint = `https://api.green-api.com/waInstance${instance}/sendInteractiveButtons/${apiToken}`;
   try {
-    const r = await fetch(url, {
+    const r = await fetch(endpoint, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ chatId: toWaId(phone), message, footer: footer || '', templateButtons: buttons }),
+      body:    JSON.stringify({ chatId: toWaId(phone), body, footer: footer || '', buttons }),
     });
     const data = await r.json().catch(() => ({}));
     if (r.ok && data.idMessage) return true;
-    // Fallback: send plain text with URLs embedded
+    // Fallback: embed URLs in plain text
     const urlLines = buttons
-      .filter(b => b.urlButton)
-      .map(b => `🔗 ${b.urlButton.displayText}: ${b.urlButton.url}`)
+      .filter(b => b.type === 'url')
+      .map(b => `🔗 ${b.buttonText}: ${b.url}`)
       .join('\n');
-    const fullText = [message, footer, urlLines].filter(Boolean).join('\n');
-    return sendWa(phone, fullText);
+    return sendWa(phone, [body, footer, urlLines].filter(Boolean).join('\n'));
   } catch (e) {
     console.error('[green-api-buttons]', e.message);
-    return sendWa(phone, message);
+    return sendWa(phone, body);
   }
 }
 
@@ -216,6 +216,11 @@ export default async function handler(req, res) {
 
     if (body.notes?.trim()) orderFields[FO_NOTES] = body.notes.trim();
 
+    // Link to order type record (סוגי הזמנות) if provided
+    if (body.order_type_record_id && /^rec[A-Za-z0-9]{14}$/.test(body.order_type_record_id)) {
+      orderFields[FO_TYPE_LNK] = [body.order_type_record_id];
+    }
+
     if (body.payment_method) {
       orderFields[FO_PAYMENT] = PAY_MAP[body.payment_method] || body.payment_method;
     }
@@ -295,15 +300,16 @@ export default async function handler(req, res) {
       ct.wait,
     ].filter(Boolean).join('\n');
 
-    // Customer buttons: status link
+    // Customer buttons: status link (buttonText max 25 chars)
+    const CUST_BTN = { ru: '📊 Статус заказа', en: '📊 Order status', he: '📊 סטטוס הזמנה' };
     const custButtons = statusUrl
-      ? [{ index: 1, urlButton: { displayText: ct.btnStatus, url: statusUrl } }]
+      ? [{ type: 'url', buttonId: '1', buttonText: CUST_BTN[custLang] || CUST_BTN.ru, url: statusUrl }]
       : [];
 
     // ── Manager message (in manager's language) ──
     const MGR_TMPL = {
-      he: { head: `🔔 הזמנה חדשה ${numStr}`, client: '👤 לקוח', type: '📋', date: '📅', total: '💰', btnApprove: '✅ לאישור הזמנה', btnWa: '💬 WhatsApp עם לקוח' },
-      ru: { head: `🔔 Новый заказ ${numStr}`, client: '👤',      type: '📋', date: '📅', total: '💰', btnApprove: '✅ Управление заказом',  btnWa: '💬 WhatsApp клиента' },
+      he: { head: `🔔 הזמנה חדשה ${numStr}`, client: '👤 לקוח', type: '📋', date: '📅', total: '💰', btnApprove: '✅ אישור הזמנה', btnWa: '💬 WhatsApp לקוח' },
+      ru: { head: `🔔 Новый заказ ${numStr}`, client: '👤',      type: '📋', date: '📅', total: '💰', btnApprove: '✅ Управление',          btnWa: '💬 WhatsApp клиента' },
     };
     const mt = MGR_TMPL[mgrLang] || MGR_TMPL.he;
     const managerLink = managerToken && orderId
@@ -318,12 +324,12 @@ export default async function handler(req, res) {
       total     ? `${mt.total} ${total} ₸`  : '',
     ].filter(Boolean).join('\n');
 
-    // Manager buttons: approval link + customer WA link
+    // Manager buttons: approval link + customer WA link (max 3 buttons, max 25 chars each)
     const mgrButtons = [];
-    if (managerLink) mgrButtons.push({ index: 1, urlButton: { displayText: mt.btnApprove, url: managerLink } });
+    if (managerLink) mgrButtons.push({ type: 'url', buttonId: '1', buttonText: mt.btnApprove, url: managerLink });
     const custWaNum = custPhone.replace(/\D/g, '');
     const custWaNorm = custWaNum.startsWith('8') && custWaNum.length === 11 ? '7' + custWaNum.slice(1) : custWaNum;
-    if (custWaNorm) mgrButtons.push({ index: mgrButtons.length + 1, urlButton: { displayText: mt.btnWa, url: `https://wa.me/${custWaNorm}` } });
+    if (custWaNorm) mgrButtons.push({ type: 'url', buttonId: '2', buttonText: mt.btnWa, url: `https://wa.me/${custWaNorm}` });
 
     // Send both before responding — Vercel kills fire-and-forget after res.json()
     const sendCust = custButtons.length

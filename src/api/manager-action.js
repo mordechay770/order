@@ -23,7 +23,7 @@ const SITE_URL = 'https://src-sigma-ecru-25.vercel.app';
 const STATUS_MAP = {
   approve: 'Подтверждён',
   reject:  'Отменён',
-  ready:   'Готов к выдаче',
+  ready:   'Готов',
 };
 
 function atHeaders(token) {
@@ -92,10 +92,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch order first to show details
-    const orderFields = [FO_SERIAL, FO_STATUS, FO_NAME_RU, FO_CUST_NAME, FO_PHONE, FO_DATE_EXE, FO_PRICE, FO_PAYMENT];
+    // Fetch order first — single-record GET does NOT support fields[] filter
     const getR = await fetch(
-      `${AT_BASE}/${T_ORDERS}/${id}?${orderFields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true`,
+      `${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`,
       { headers: atHeaders(airtableToken) }
     );
     if (!getR.ok) throw new Error(`GET ${getR.status}`);
