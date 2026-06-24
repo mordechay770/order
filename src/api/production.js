@@ -90,16 +90,34 @@ async function handleGet(req, res, airtableToken) {
   if (!r.ok) throw new Error(`Airtable production ${r.status}`);
   const data = await r.json();
 
-  const records = (data.records || []).map(rec => {
+  // Build a map of recipe_id → name_ru for fallback
+  const rawRecs = data.records || [];
+  const recipeIds = [...new Set(rawRecs.map(rec => (rec.fields[FP_RECIPE] || [])[0]).filter(Boolean))];
+  let recipeNameMap = {};
+  if (recipeIds.length) {
+    const formula2 = recipeIds.length === 1
+      ? `RECORD_ID()='${recipeIds[0]}'`
+      : `OR(${recipeIds.map(id => `RECORD_ID()='${id}'`).join(',')})`;
+    const qs2 = `filterByFormula=${encodeURIComponent(formula2)}&fields[]=${FR_NAME_RU}&returnFieldsByFieldId=true`;
+    const r2 = await fetch(`${AT_BASE}/${T_RECIPES}?${qs2}`, { headers: atH(airtableToken) });
+    if (r2.ok) {
+      const d2 = await r2.json();
+      for (const rec of (d2.records || [])) recipeNameMap[rec.id] = rec.fields[FR_NAME_RU] || '';
+    }
+  }
+
+  const records = rawRecs.map(rec => {
     const f = rec.fields;
     const nameLkp = f[FP_NAME_LKP];
-    const name = Array.isArray(nameLkp) ? nameLkp[0] : (typeof nameLkp === 'string' ? nameLkp : '');
+    const lkpName = Array.isArray(nameLkp) ? nameLkp[0] : (typeof nameLkp === 'string' ? nameLkp : '');
+    const recipeId = (f[FP_RECIPE] || [])[0] || null;
+    const name = lkpName || recipeNameMap[recipeId] || '';
     return {
       id:           rec.id,
       serial:       f[FP_SERIAL]    || null,
       date:         f[FP_DATE]      || null,
       recipe_name:  name,
-      recipe_id:    (f[FP_RECIPE] || [])[0] || null,
+      recipe_id:    recipeId,
       requested_qty:f[FP_REQUESTED] || 0,
       actual_qty:   f[FP_ACTUAL]    || 0,
       type:         selectName(f[FP_TYPE]),
@@ -112,6 +130,7 @@ async function handleGet(req, res, airtableToken) {
   });
 
   return res.status(200).json({ records });
+
 }
 
 async function handlePost(req, res, airtableToken, role) {
