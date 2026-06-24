@@ -21,11 +21,27 @@ const FO_PAYMENT   = 'fldjE5esZVBwDjNDi';
 const FO_KASPI_URL = 'fldMmQtQsDSM5muX4'; // קישור לכספי פיי לתשלום (formula)
 
 // Payments table fields
-const FP_ORDER    = 'fldG5Hooz07INgFB1';
-const FP_DATE     = 'fldW2CuSoBsTFqV5E';
-const FP_KZT      = 'fld8ZPOiTjoSyjzaa';
-const FP_STATUS   = 'fldETI893nLw717mj';
-const FP_NOTES    = 'fldNvdvqVWt0Go6Ze';
+const T_PAY_METHODS = 'tbl2psZY9uuNiXIUi'; // Способ оплаты
+const T_CONTACTS    = 'tbl9KpBHdGSzhNf0E';
+
+const FP_ORDER        = 'fldG5Hooz07INgFB1';
+const FP_DATE         = 'fldW2CuSoBsTFqV5E';
+const FP_KZT          = 'fld8ZPOiTjoSyjzaa';
+const FP_STATUS       = 'fldETI893nLw717mj';
+const FP_NOTES        = 'fldNvdvqVWt0Go6Ze';
+const FP_METHOD_LINK  = 'fldoLjhJ0WnmV7Orc'; // link to payment method
+const FP_METHOD_LKP   = 'fldW3SusWnIShLbeM'; // lookup name from method
+const FP_FOREIGN_CHK  = 'fldrbKz3JHBuiARSA'; // checkbox
+const FP_FOREIGN_AMT  = 'fldoGe8BXCT0VITUQ'; // amount in foreign currency
+const FP_CURRENCY     = 'fldp3mSTxtqDH9FSh'; // singleSelect USD/ILS/EUR/RUB
+const FP_RATE         = 'fldrFvqePRaNt6TKq'; // exchange rate
+const FP_TOTAL_KZT    = 'fldDYkKx0PpIOlue7'; // formula: total in tenge (read-only)
+const FPO_ORDER_LINK  = 'fldItGcZY4SOhSCPz'; // link payments→order in orders table
+
+const FM_NAME   = 'fld3jk2jb20YpwsB4'; // name field in payment methods table
+const FC_PHONE  = 'fldwpjfjihVux2f9W';
+const FC_LNAME  = 'fldijzThKYRMNfUzI';
+const FC_FNAME  = 'fldHywAgv4fP7soEX';
 
 const SITE_URL = 'https://src-sigma-ecru-25.vercel.app';
 
@@ -118,7 +134,7 @@ const FO_DELIVERY_TYPE = 'fldH9aXNoJSABpTJP';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
@@ -151,6 +167,118 @@ export default async function handler(req, res) {
 
   const role = getRole((reqToken || '').trim());
   const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
+
+  // ── JSON GET actions (return JSON, not HTML) ─────────────────────────────
+  if (req.method === 'GET' && ['payments','payment_methods','contacts','pay'].includes(action)) {
+    if (role !== 'manager') return res.status(403).json({ error: 'Forbidden' });
+
+    if (action === 'payment_methods') {
+      const qs = `fields[]=${FM_NAME}&returnFieldsByFieldId=true&sort[0][field]=${FM_NAME}&sort[0][direction]=asc`;
+      const r2 = await fetch(`${AT_BASE}/${T_PAY_METHODS}?${qs}`, { headers: atHeaders(airtableToken) });
+      if (!r2.ok) return res.status(502).json({ error: 'Airtable error' });
+      const d2 = await r2.json();
+      const methods = (d2.records || []).map(rec => ({ id: rec.id, name: rec.fields[FM_NAME] || '' })).filter(m => m.name);
+      return res.status(200).json({ methods });
+    }
+
+    if (action === 'payments') {
+      if (!id || !/^rec[A-Za-z0-9]{14}$/.test(id)) return res.status(400).json({ error: 'Invalid order id' });
+      // Fetch payments linked to this order
+      const formula = `FIND("${id}",ARRAYJOIN({${FP_ORDER}}))`;
+      const fields = [FP_ORDER, FP_DATE, FP_KZT, FP_STATUS, FP_NOTES, FP_METHOD_LKP,
+                      FP_FOREIGN_CHK, FP_FOREIGN_AMT, FP_CURRENCY, FP_RATE, FP_TOTAL_KZT];
+      const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FP_DATE}&sort[0][direction]=desc`;
+      const r2 = await fetch(`${AT_BASE}/${T_PAYMENTS}?${qs}`, { headers: atHeaders(airtableToken) });
+      if (!r2.ok) return res.status(502).json({ error: 'Airtable error ' + r2.status });
+      const d2 = await r2.json();
+      const payments = (d2.records || []).map(rec => {
+        const f = rec.fields;
+        const methodLkp = f[FP_METHOD_LKP];
+        const methodName = Array.isArray(methodLkp) ? methodLkp[0] :
+          (methodLkp && methodLkp.valuesByLinkedRecordId
+            ? Object.values(methodLkp.valuesByLinkedRecordId)[0]?.[0] || ''
+            : (typeof methodLkp === 'string' ? methodLkp : ''));
+        return {
+          id:             rec.id,
+          date:           f[FP_DATE] || '',
+          kzt:            f[FP_KZT] || 0,
+          total_kzt:      f[FP_TOTAL_KZT] || f[FP_KZT] || 0,
+          status:         typeof f[FP_STATUS]==='object' ? f[FP_STATUS].name : (f[FP_STATUS]||''),
+          notes:          f[FP_NOTES] || '',
+          method:         methodName,
+          is_foreign:     f[FP_FOREIGN_CHK] || false,
+          foreign_amount: f[FP_FOREIGN_AMT] || 0,
+          currency:       typeof f[FP_CURRENCY]==='object' ? f[FP_CURRENCY].name : (f[FP_CURRENCY]||''),
+          rate:           f[FP_RATE] || 0,
+        };
+      });
+      return res.status(200).json({ payments });
+    }
+
+    if (action === 'contacts') {
+      const phone = (req.query.phone || '').trim();
+      if (!phone) return res.status(400).json({ error: 'phone required' });
+      const clean = phone.replace(/\D/g,'');
+      const formula = `FIND("${clean.slice(-9)}",SUBSTITUTE({Номер телефона},"+",""))`;
+      const qs = `filterByFormula=${encodeURIComponent(formula)}&fields[]=${FC_PHONE}&fields[]=${FC_LNAME}&fields[]=${FC_FNAME}&returnFieldsByFieldId=true`;
+      const r2 = await fetch(`${AT_BASE}/${T_CONTACTS}?${qs}`, { headers: atHeaders(airtableToken) });
+      if (!r2.ok) return res.status(502).json({ error: 'Airtable error' });
+      const d2 = await r2.json();
+      const contacts = (d2.records || []).map(rec => ({
+        id:    rec.id,
+        fname: rec.fields[FC_FNAME] || '',
+        lname: rec.fields[FC_LNAME] || '',
+        phone: rec.fields[FC_PHONE] || '',
+      }));
+      return res.status(200).json({ contacts });
+    }
+  }
+
+  // ── POST: create contact ─────────────────────────────────────────────────
+  if (req.method === 'POST' && action === 'create_contact') {
+    if (role !== 'manager') return res.status(403).json({ error: 'Forbidden' });
+    const { phone, first_name, last_name } = req.body || {};
+    if (!phone || !first_name) return res.status(400).json({ error: 'phone and first_name required' });
+    const airtableToken2 = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
+    const fields = { [FC_PHONE]: phone, [FC_FNAME]: first_name };
+    if (last_name) fields[FC_LNAME] = last_name;
+    const r2 = await fetch(`${AT_BASE}/${T_CONTACTS}?returnFieldsByFieldId=true`, {
+      method: 'POST', headers: atHeaders(airtableToken2),
+      body: JSON.stringify({ fields }),
+    });
+    if (!r2.ok) { const d2 = await r2.json().catch(()=>({})); return res.status(502).json({ error: 'Airtable error', detail: JSON.stringify(d2).slice(0,200) }); }
+    const created = await r2.json();
+    return res.status(201).json({ ok: true, id: created.id });
+  }
+
+  // ── POST: create payment ──────────────────────────────────────────────────
+  if (req.method === 'POST' && action === 'pay') {
+    if (role !== 'manager') return res.status(403).json({ error: 'Forbidden' });
+    const { order_id, method_id, amount_kzt, is_foreign, foreign_currency, foreign_amount, exchange_rate, notes } = req.body || {};
+    if (!order_id || !amount_kzt) return res.status(400).json({ error: 'order_id and amount_kzt required' });
+    const today = new Date().toISOString().slice(0, 10);
+    const fields = {
+      [FP_ORDER]:  [order_id],
+      [FP_DATE]:   today,
+      [FP_KZT]:    Number(amount_kzt),
+      [FP_STATUS]: 'Done',
+    };
+    if (method_id)       fields[FP_METHOD_LINK] = [method_id];
+    if (notes)           fields[FP_NOTES]       = notes;
+    if (is_foreign) {
+      fields[FP_FOREIGN_CHK] = true;
+      if (foreign_currency) fields[FP_CURRENCY]    = foreign_currency;
+      if (foreign_amount)   fields[FP_FOREIGN_AMT] = Number(foreign_amount);
+      if (exchange_rate)    fields[FP_RATE]         = Number(exchange_rate);
+    }
+    const r2 = await fetch(`${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`, {
+      method: 'POST', headers: atHeaders(airtableToken),
+      body: JSON.stringify({ fields }),
+    });
+    if (!r2.ok) { const d2 = await r2.json().catch(()=>({})); return res.status(502).json({ error: 'Airtable error', detail: JSON.stringify(d2).slice(0,200) }); }
+    const created = await r2.json();
+    return res.status(201).json({ ok: true, id: created.id });
+  }
 
   // baker/chef can mark ready+deliver; manager can do all
   const allowedActions = role === 'manager' ? ['approve','reject','ready','deliver','kaspi_paid'] : ['ready','deliver'];

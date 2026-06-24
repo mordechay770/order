@@ -154,6 +154,7 @@ select.input-field { cursor: pointer; }
   <div class="topbar">
     <h1>🍽️ Менеджер</h1>
     <div class="topbar-right">
+      <button class="btn btn-primary" style="padding:6px 12px;font-size:12px" onclick="openNewOrder()">+ Заказ</button>
       <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px" onclick="reload()">⟳</button>
       <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px" onclick="logout()">Выход</button>
     </div>
@@ -219,6 +220,54 @@ select.input-field { cursor: pointer; }
 <!-- Order Modal -->
 <div class="modal-backdrop" id="modalBackdrop" onclick="closeModalOnBg(event)">
   <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- New Order Modal -->
+<div class="modal-backdrop" id="newOrderBackdrop" onclick="if(event.target===this)closeNewOrder()" style="display:none;align-items:flex-start;justify-content:center">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2>+ Новый заказ</h2>
+      <button class="close-btn" onclick="closeNewOrder()">✕</button>
+    </div>
+
+    <div class="section-title">Клиент</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input class="input-field" id="no-phone" placeholder="Телефон..." style="flex:2" oninput="onPhoneInput(this)">
+      <button class="btn btn-ghost" style="flex:0;padding:8px 12px;font-size:13px" onclick="searchContact()">🔍</button>
+    </div>
+    <div id="no-contact-result" style="margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input class="input-field" id="no-fname" placeholder="Имя..." style="flex:1">
+      <input class="input-field" id="no-lname" placeholder="Фамилия..." style="flex:1">
+    </div>
+
+    <div class="section-title">Заказ</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <input class="input-field" id="no-type" placeholder="Тип заказа..." style="flex:2">
+      <input class="input-field" type="datetime-local" id="no-date" style="flex:2">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <input class="input-field" type="number" id="no-people" placeholder="Гостей..." style="flex:1">
+      <select class="input-field" id="no-payment" style="flex:1">
+        <option value="">— Оплата —</option>
+      </select>
+    </div>
+    <textarea class="editable-field" id="no-notes" placeholder="Примечания..." style="min-height:50px;width:100%;margin-bottom:8px"></textarea>
+    <textarea class="editable-field" id="no-kitchen" placeholder="Заметки для кухни..." style="min-height:40px;width:100%;margin-bottom:8px"></textarea>
+    <div style="display:flex;gap:8px">
+      <select class="input-field" id="no-delivery" style="flex:1">
+        <option value="">— Доставка —</option>
+        <option value="משלוח">🚚 Доставка</option>
+        <option value="איסוף עצמי">🏪 Самовывоз</option>
+      </select>
+      <input class="input-field" id="no-addr" placeholder="Адрес..." style="flex:2">
+    </div>
+
+    <div class="action-grid" style="margin-top:16px">
+      <button class="btn btn-approve btn-full" onclick="submitNewOrder()">✅ Создать заказ</button>
+    </div>
+    <div class="err" id="noErr"></div>
+  </div>
 </div>
 
 <script>
@@ -359,13 +408,17 @@ function statusBadge(s) {
 }
 
 // ── Order Modal ──────────────────────────────────────────────────────────────
-function openOrder(id) {
+async function openOrder(id) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
   editOrderId = id;
   const mc = document.getElementById('modalContent');
   mc.innerHTML = renderOrderModal(o);
   document.getElementById('modalBackdrop').classList.add('open');
+  // Load payments and payment methods in parallel
+  loadPaymentsForOrder(id);
+  if (!allPaymentMethods.length) await loadPaymentMethods();
+  else populateMethodSelect();
 }
 
 function renderOrderModal(o) {
@@ -436,15 +489,33 @@ function renderOrderModal(o) {
     <textarea class="editable-field" id="m-notes-int" style="min-height:50px">${esc(o.notes_internal||'')}</textarea>
 
     <div class="section-title">Оплата</div>
-    ${row('Метод', o.payment_method || '—')}
-    <div class="pay-row">
-      <input class="input-field" type="number" id="m-pay-amount" placeholder="Сумма ₸">
-      <select class="input-field" id="m-pay-method" style="flex:1">
-        <option value="Kaspi">Kaspi</option>
-        <option value="כספי">Наличные</option>
-        <option value="העברה">Перевод</option>
-      </select>
-      <button class="btn btn-primary" style="flex:0;padding:8px 14px;font-size:13px" onclick="addPayment()">+ Оплата</button>
+    <div id="m-payments-list" style="margin-bottom:10px"><div style="color:#475569;font-size:13px">Загрузка платежей...</div></div>
+
+    <div style="background:#0f172a;border-radius:10px;padding:12px;margin-top:6px">
+      <div style="font-size:12px;color:#6366f1;font-weight:700;margin-bottom:8px">+ Добавить платёж</div>
+      <div class="pay-row" style="flex-wrap:wrap">
+        <select class="input-field" id="m-pay-method" style="flex:2;min-width:140px">
+          <option value="">— Способ оплаты —</option>
+        </select>
+        <input class="input-field" type="number" id="m-pay-amount" placeholder="Сумма ₸" style="flex:1;min-width:100px">
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#94a3b8;margin:8px 0;cursor:pointer">
+        <input type="checkbox" id="m-pay-foreign" onchange="toggleForeignCurrency(this.checked)">
+        Оплата в другой валюте
+      </label>
+      <div id="m-foreign-fields" style="display:none;gap:8px;flex-wrap:wrap">
+        <select class="input-field" id="m-pay-currency" style="flex:1;min-width:80px">
+          <option value="USD">USD</option>
+          <option value="ILS">ILS</option>
+          <option value="EUR">EUR</option>
+          <option value="RUB">RUB</option>
+        </select>
+        <input class="input-field" type="number" id="m-pay-foreign-amt" placeholder="Сумма в валюте" style="flex:2" oninput="calcKzt()">
+        <input class="input-field" type="number" id="m-pay-rate" placeholder="Курс к тенге" style="flex:2" oninput="calcKzt()">
+        <div style="width:100%;font-size:12px;color:#86efac" id="m-pay-calc"></div>
+      </div>
+      <input class="input-field" type="text" id="m-pay-notes" placeholder="Примечание..." style="margin-top:8px;width:100%">
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="addPayment()">+ Добавить платёж</button>
     </div>
 
     <div class="section-title">Действия</div>
@@ -501,22 +572,247 @@ async function saveOrder() {
   } catch { setModalErr('Ошибка соединения'); }
 }
 
+let allPaymentMethods = [];
+
+async function loadPaymentMethods() {
+  try {
+    const r = await fetch(`/api/manager-action?action=payment_methods&token=${encodeURIComponent(managerToken)}`);
+    if (!r.ok) return;
+    const d = await r.json();
+    allPaymentMethods = d.methods || [];
+    populateMethodSelect();
+  } catch {}
+}
+
+function populateMethodSelect() {
+  const sel = document.getElementById('m-pay-method');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Способ оплаты —</option>' +
+    allPaymentMethods.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+}
+
+async function loadPaymentsForOrder(orderId) {
+  const el = document.getElementById('m-payments-list');
+  if (!el) return;
+  try {
+    const r = await fetch(`/api/manager-action?action=payments&id=${orderId}&token=${encodeURIComponent(managerToken)}`);
+    if (!r.ok) { el.innerHTML = '<div style="color:#fca5a5;font-size:12px">Ошибка загрузки платежей</div>'; return; }
+    const d = await r.json();
+    const pays = d.payments || [];
+    if (!pays.length) { el.innerHTML = '<div style="color:#475569;font-size:12px">Платежей нет</div>'; return; }
+    el.innerHTML = pays.map(p => {
+      const total = p.total_kzt || p.kzt;
+      const foreign = p.is_foreign && p.foreign_amount ? ` (${p.foreign_amount} ${p.currency} × ${p.rate})` : '';
+      const st = p.status === 'Done' ? '✅' : '⏳';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#0f172a;border-radius:8px;margin-bottom:4px;font-size:13px">
+        <span style="color:#94a3b8">${st} ${esc(p.method||'—')} · ${p.date||''}</span>
+        <span style="font-weight:700;color:#fde047">${total ? total.toLocaleString() + ' ₸' : '—'}${foreign}</span>
+      </div>`;
+    }).join('');
+  } catch { if (el) el.innerHTML = '<div style="color:#fca5a5;font-size:12px">Ошибка</div>'; }
+}
+
+function toggleForeignCurrency(on) {
+  const el = document.getElementById('m-foreign-fields');
+  if (el) el.style.display = on ? 'flex' : 'none';
+  if (!on) document.getElementById('m-pay-calc').textContent = '';
+}
+
+function calcKzt() {
+  const amt  = Number(document.getElementById('m-pay-foreign-amt')?.value || 0);
+  const rate = Number(document.getElementById('m-pay-rate')?.value || 0);
+  const el   = document.getElementById('m-pay-calc');
+  if (el && amt && rate) el.textContent = `≈ ${(amt * rate).toLocaleString()} ₸`;
+  // Also fill tenge field
+  const kztEl = document.getElementById('m-pay-amount');
+  if (kztEl && amt && rate) kztEl.value = Math.round(amt * rate);
+}
+
 async function addPayment() {
-  const amount = document.getElementById('m-pay-amount').value;
-  const method = document.getElementById('m-pay-method').value;
-  if (!amount || Number(amount) <= 0) { setModalErr('Введите сумму'); return; }
-  const url = `/api/manager-action?id=${editOrderId}&action=kaspi_paid&token=${encodeURIComponent(managerToken)}`;
+  const amount    = Number(document.getElementById('m-pay-amount')?.value || 0);
+  const methodId  = document.getElementById('m-pay-method')?.value;
+  const isForeign = document.getElementById('m-pay-foreign')?.checked;
+  const currency  = document.getElementById('m-pay-currency')?.value;
+  const foreignAmt= Number(document.getElementById('m-pay-foreign-amt')?.value || 0);
+  const rate      = Number(document.getElementById('m-pay-rate')?.value || 0);
+  const notes     = document.getElementById('m-pay-notes')?.value;
+
+  if (!amount || amount <= 0) { setModalErr('Введите сумму в тенге'); return; }
   setModalErr('');
   try {
-    const r = await fetch(url);
-    if (r.ok) setModalErr('✅ Оплата добавлена');
-    else setModalErr('Ошибка добавления оплаты');
+    const r = await fetch(`/api/manager-action?action=pay&token=${encodeURIComponent(managerToken)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: editOrderId, amount_kzt: amount, method_id: methodId,
+        is_foreign: isForeign, foreign_currency: currency,
+        foreign_amount: foreignAmt, exchange_rate: rate, notes,
+      }),
+    });
+    if (r.ok) {
+      document.getElementById('m-pay-amount').value = '';
+      document.getElementById('m-pay-notes').value = '';
+      setModalErr('✅ Платёж добавлен');
+      await loadPaymentsForOrder(editOrderId);
+    } else {
+      const d = await r.json(); setModalErr(d.error || 'Ошибка');
+    }
   } catch { setModalErr('Ошибка соединения'); }
 }
 
 function setModalErr(msg) {
   const el = document.getElementById('modalErr');
   if (el) el.textContent = msg;
+}
+
+// ── New Order ─────────────────────────────────────────────────────────────────
+let foundContactId = null;
+
+async function openNewOrder() {
+  foundContactId = null;
+  document.getElementById('no-phone').value = '';
+  document.getElementById('no-fname').value = '';
+  document.getElementById('no-lname').value = '';
+  document.getElementById('no-type').value = '';
+  document.getElementById('no-date').value = '';
+  document.getElementById('no-people').value = '';
+  document.getElementById('no-notes').value = '';
+  document.getElementById('no-kitchen').value = '';
+  document.getElementById('no-delivery').value = '';
+  document.getElementById('no-addr').value = '';
+  document.getElementById('no-contact-result').innerHTML = '';
+  document.getElementById('noErr').textContent = '';
+
+  // Populate payment methods
+  const sel = document.getElementById('no-payment');
+  if (sel.options.length <= 1 && allPaymentMethods.length > 0) {
+    allPaymentMethods.forEach(m => {
+      const o = document.createElement('option');
+      o.value = m.id; o.textContent = m.name;
+      sel.appendChild(o);
+    });
+  } else if (sel.options.length <= 1) {
+    await loadPaymentMethods();
+    allPaymentMethods.forEach(m => {
+      const o = document.createElement('option');
+      o.value = m.id; o.textContent = m.name;
+      sel.appendChild(o);
+    });
+  }
+
+  const bd = document.getElementById('newOrderBackdrop');
+  bd.style.display = 'flex';
+}
+
+function closeNewOrder() {
+  document.getElementById('newOrderBackdrop').style.display = 'none';
+}
+
+let phoneSearchTimer = null;
+function onPhoneInput(inp) {
+  clearTimeout(phoneSearchTimer);
+  const val = inp.value.replace(/\D/g, '');
+  if (val.length >= 10) phoneSearchTimer = setTimeout(searchContact, 600);
+  else {
+    document.getElementById('no-contact-result').innerHTML = '';
+    foundContactId = null;
+  }
+}
+
+async function searchContact() {
+  const phone = document.getElementById('no-phone').value.trim();
+  if (!phone) return;
+  const res = document.getElementById('no-contact-result');
+  res.innerHTML = '<span style="color:#64748b;font-size:12px">Ищем...</span>';
+  try {
+    const r = await fetch(`/api/manager-action?action=contacts&phone=${encodeURIComponent(phone)}&token=${encodeURIComponent(managerToken)}`);
+    if (!r.ok) { res.innerHTML = '<span style="color:#fca5a5;font-size:12px">Ошибка поиска</span>'; return; }
+    const d = await r.json();
+    const contacts = d.contacts || [];
+    if (contacts.length > 0) {
+      const c = contacts[0];
+      foundContactId = c.id;
+      const name = [c.fname, c.lname].filter(Boolean).join(' ');
+      document.getElementById('no-fname').value = c.fname || '';
+      document.getElementById('no-lname').value = c.lname || '';
+      res.innerHTML = `<div style="background:#172554;border-radius:8px;padding:8px 10px;font-size:13px;color:#86efac">✅ Найден: ${esc(name)} · ${esc(c.phone||phone)}</div>`;
+    } else {
+      foundContactId = null;
+      res.innerHTML = `<div style="background:#1e1a0e;border-radius:8px;padding:8px 10px;font-size:13px;color:#fde047">⚠️ Клиент не найден — будет создан новый</div>`;
+    }
+  } catch { res.innerHTML = '<span style="color:#fca5a5;font-size:12px">Ошибка соединения</span>'; }
+}
+
+async function submitNewOrder() {
+  const phone    = document.getElementById('no-phone').value.trim();
+  const fname    = document.getElementById('no-fname').value.trim();
+  const lname    = document.getElementById('no-lname').value.trim();
+  const type     = document.getElementById('no-type').value.trim();
+  const dateVal  = document.getElementById('no-date').value;
+  const people   = document.getElementById('no-people').value;
+  const methodId = document.getElementById('no-payment').value;
+  const notes    = document.getElementById('no-notes').value.trim();
+  const kitchen  = document.getElementById('no-kitchen').value.trim();
+  const delivery = document.getElementById('no-delivery').value;
+  const addr     = document.getElementById('no-addr').value.trim();
+  const errEl    = document.getElementById('noErr');
+
+  if (!phone) { errEl.textContent = 'Введите номер телефона'; return; }
+  if (!fname) { errEl.textContent = 'Введите имя'; return; }
+  errEl.textContent = '';
+
+  const btn = document.querySelector('#newOrderBackdrop .btn-approve');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+  try {
+    // If contact not found — create via manager-action
+    let contactId = foundContactId;
+    if (!contactId) {
+      const rc = await fetch(`/api/manager-action?action=create_contact&token=${encodeURIComponent(managerToken)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, first_name: fname, last_name: lname }),
+      });
+      if (rc.ok) {
+        const dc = await rc.json();
+        contactId = dc.id || null;
+      }
+    }
+
+    const payload = {
+      customer_name:  [fname, lname].filter(Boolean).join(' '),
+      customer_phone: phone,
+      items:          [],
+      notes,
+      kitchen_notes:  kitchen,
+      order_type_title: type || 'Ручной заказ',
+      order_date:     dateVal || null,
+      people_count:   people ? Number(people) : null,
+      payment_method: methodId || null,
+      total_price:    0,
+      delivery_type:  delivery || null,
+      delivery_address: addr || null,
+      contact_id:     contactId || null,
+    };
+
+    const r = await fetch(`/api/order?token=${encodeURIComponent(managerToken)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (r.ok && data.success) {
+      closeNewOrder();
+      showToast('✅ Заказ создан #' + (data.order_number || ''), 'success');
+      await loadOrders();
+    } else {
+      errEl.textContent = data.error || ('Ошибка ' + r.status);
+    }
+  } catch (e) {
+    errEl.textContent = 'Ошибка соединения';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Создать заказ'; }
+  }
 }
 
 // ── Production ───────────────────────────────────────────────────────────────
