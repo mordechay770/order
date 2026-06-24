@@ -3,197 +3,666 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Управление заказом</title>
+<title>Менеджер — Кухня</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
-  .logo { font-size: 28px; margin-bottom: 20px; color: #fff; }
-  .card { background: #1e293b; border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 460px; color: #f1f5f9; }
-  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-  h1 { font-size: 20px; }
-  .num-badge { background: #6366f1; color: #fff; border-radius: 99px; padding: 4px 12px; font-size: 13px; font-weight: 700; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f1f5f9; min-height: 100vh; }
 
-  .status-row { margin-bottom: 20px; }
-  .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 99px; font-size: 14px; font-weight: 700; }
-  .status-badge.waiting  { background: #fef9c322; color: #fde047; }
-  .status-badge.approved { background: #dcfce722; color: #86efac; }
-  .status-badge.ready    { background: #fff7ed22; color: #fdba74; }
-  .status-badge.rejected { background: #fee2e222; color: #fca5a5; }
-  .status-badge.default  { background: #334155; color: #94a3b8; }
+/* ── Login ── */
+.login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.login-card { background: #1e293b; border-radius: 20px; padding: 36px 28px; width: 100%; max-width: 380px; }
+.login-card h1 { font-size: 22px; margin-bottom: 6px; }
+.login-card p  { color: #64748b; font-size: 14px; margin-bottom: 24px; }
+.login-card input { width: 100%; background: #0f172a; border: 1.5px solid #334155; border-radius: 10px; padding: 12px 14px; color: #f1f5f9; font-size: 15px; outline: none; }
+.login-card input:focus { border-color: #6366f1; }
 
-  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #334155; font-size: 15px; }
-  .detail-row:last-child { border-bottom: none; }
-  .detail-label { color: #94a3b8; }
-  .detail-value { font-weight: 600; color: #f1f5f9; text-align: right; }
+/* ── Layout ── */
+.app { display: none; flex-direction: column; min-height: 100vh; }
+.app.visible { display: flex; }
+.topbar { background: #1e293b; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; position: sticky; top: 0; z-index: 100; }
+.topbar h1 { font-size: 17px; }
+.topbar-right { display: flex; gap: 8px; align-items: center; }
 
-  .section-title { font-size: 13px; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: .05em; margin: 20px 0 8px; }
+/* ── Tabs ── */
+.tabs { display: flex; background: #1e293b; border-bottom: 1px solid #334155; }
+.tab-btn { flex: 1; padding: 12px 8px; background: none; border: none; color: #64748b; font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
+.tab-btn.active { color: #6366f1; border-bottom-color: #6366f1; }
 
-  .actions { display: grid; gap: 10px; margin-top: 24px; }
-  .btn { border: none; border-radius: 12px; padding: 15px; font-size: 16px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-  .btn:active { transform: scale(.97); }
-  .btn:disabled { opacity: .4; cursor: default; }
-  .btn-approve { background: #22c55e; color: #fff; }
-  .btn-ready   { background: #f59e0b; color: #fff; }
-  .btn-reject  { background: #ef4444; color: #fff; }
-  .btn-status  { background: #334155; color: #94a3b8; font-size: 14px; padding: 11px; }
+/* ── Date filter ── */
+.date-filter { display: flex; gap: 6px; padding: 12px 14px; overflow-x: auto; background: #0f172a; border-bottom: 1px solid #1e293b; }
+.date-filter::-webkit-scrollbar { display: none; }
+.df-btn { flex-shrink: 0; padding: 7px 14px; border-radius: 99px; border: 1.5px solid #334155; background: none; color: #94a3b8; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.df-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+.custom-range { display: none; padding: 8px 14px 4px; gap: 8px; align-items: center; }
+.custom-range.show { display: flex; }
+.custom-range input[type="date"] { background: #1e293b; border: 1.5px solid #334155; border-radius: 8px; padding: 6px 10px; color: #f1f5f9; font-size: 13px; }
+.status-filter { display: flex; gap: 6px; padding: 6px 14px 10px; overflow-x: auto; }
+.status-filter::-webkit-scrollbar { display: none; }
+.sf-btn { flex-shrink: 0; padding: 5px 12px; border-radius: 99px; border: 1.5px solid #334155; background: none; color: #94a3b8; font-size: 12px; font-weight: 600; cursor: pointer; }
+.sf-btn.active { border-color: #6366f1; color: #6366f1; background: #6366f122; }
 
-  .done-msg { text-align: center; padding: 24px 0 8px; }
-  .done-msg .icon { font-size: 52px; margin-bottom: 12px; }
-  .done-msg h2 { font-size: 20px; color: #f1f5f9; margin-bottom: 6px; }
-  .done-msg p { color: #94a3b8; font-size: 14px; }
+/* ── Stats bar ── */
+.stats-bar { display: flex; gap: 12px; padding: 10px 14px; background: #0f172a; }
+.stat-chip { background: #1e293b; border-radius: 10px; padding: 8px 14px; font-size: 12px; color: #64748b; }
+.stat-chip strong { display: block; font-size: 18px; color: #f1f5f9; font-weight: 700; }
 
-  .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid #ffffff44; border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* ── Order list ── */
+.orders-list { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.order-card { background: #1e293b; border-radius: 14px; padding: 14px; cursor: pointer; border: 1.5px solid transparent; transition: border-color .15s; }
+.order-card:hover { border-color: #6366f1; }
+.order-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.order-num { font-size: 13px; color: #64748b; font-weight: 600; }
+.order-total { font-size: 15px; font-weight: 700; color: #fde047; }
+.order-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+.order-meta { font-size: 12px; color: #64748b; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.order-meta span { display: flex; align-items: center; gap: 3px; }
+.status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+.s-wait   { background: #fef9c322; color: #fde047; }
+.s-ok     { background: #dcfce722; color: #86efac; }
+.s-ready  { background: #fff7ed22; color: #fdba74; }
+.s-cancel { background: #fee2e222; color: #fca5a5; }
+.s-proc   { background: #e0e7ff22; color: #a5b4fc; }
+.s-other  { background: #334155;   color: #94a3b8; }
 
-  .err { color: #fca5a5; font-size: 14px; margin-top: 12px; text-align: center; }
-  .loading-state { text-align: center; padding: 40px 0; color: #64748b; }
+/* ── Modal ── */
+.modal-backdrop { display: none; position: fixed; inset: 0; background: #000a; z-index: 1000; overflow-y: auto; padding: 16px; }
+.modal-backdrop.open { display: flex; align-items: flex-start; justify-content: center; }
+.modal { background: #1e293b; border-radius: 20px; width: 100%; max-width: 560px; padding: 20px; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.modal-header h2 { font-size: 18px; }
+.close-btn { background: #334155; border: none; color: #94a3b8; width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
-  .items-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
-  .items-table th { color: #6366f1; text-align: left; padding: 4px 6px; font-weight: 600; border-bottom: 1px solid #334155; }
-  .items-table td { padding: 8px 6px; border-bottom: 1px solid #1e3a5f22; color: #f1f5f9; }
-  .items-table tr:last-child td { border-bottom: none; }
-  .items-table .num { color: #64748b; }
-  .items-table .total-row td { color: #94a3b8; font-weight: 600; padding-top: 10px; }
+.section-title { font-size: 11px; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: .06em; margin: 16px 0 8px; }
+.detail-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 14px; gap: 8px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-label { color: #64748b; flex-shrink: 0; }
+.detail-value { font-weight: 600; text-align: right; word-break: break-word; }
+.editable-field { background: #0f172a; border: 1.5px solid #334155; border-radius: 8px; padding: 8px 10px; color: #f1f5f9; font-size: 14px; width: 100%; resize: vertical; min-height: 60px; font-family: inherit; }
+.editable-field:focus { outline: none; border-color: #6366f1; }
+.input-field { background: #0f172a; border: 1.5px solid #334155; border-radius: 8px; padding: 8px 10px; color: #f1f5f9; font-size: 14px; width: 100%; font-family: inherit; }
+.input-field:focus { outline: none; border-color: #6366f1; }
+select.input-field { cursor: pointer; }
 
-  .lang-badge { display: inline-flex; align-items: center; gap: 4px; background: #312e81; color: #a5b4fc; border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 700; margin-left: 8px; }
-  .btn-wa { background: #25d366; color: #fff; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700; margin-top: 10px; }
+/* Items table */
+.items-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.items-table th { color: #6366f1; text-align: left; padding: 4px 6px; font-weight: 600; border-bottom: 1px solid #334155; }
+.items-table td { padding: 7px 6px; border-bottom: 1px solid #334155; }
+.items-table tr:last-child td { border-bottom: none; }
+.qty-input { width: 60px; background: #0f172a; border: 1.5px solid #334155; border-radius: 6px; padding: 4px 6px; color: #f1f5f9; font-size: 13px; text-align: center; }
+
+/* Actions */
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+.btn { border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn-full { grid-column: 1/-1; }
+.btn-approve { background: #22c55e; color: #fff; }
+.btn-ready   { background: #f59e0b; color: #fff; }
+.btn-cancel  { background: #ef4444; color: #fff; }
+.btn-save    { background: #6366f1; color: #fff; }
+.btn-primary { background: #6366f1; color: #fff; }
+.btn-ghost   { background: #334155; color: #94a3b8; }
+.btn-wa      { background: #25d366; color: #fff; text-decoration: none; }
+
+/* Payment section */
+.pay-row { display: flex; gap: 8px; margin-top: 8px; }
+.pay-row input { flex: 1; }
+
+/* Production tab (reuse from production.html) */
+.prod-section { padding: 12px; }
+.prod-form { background: #1e293b; border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+.prod-form .form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.prod-form select, .prod-form input { flex: 1; min-width: 120px; background: #0f172a; border: 1.5px solid #334155; border-radius: 8px; padding: 8px 10px; color: #f1f5f9; font-size: 14px; }
+.prod-card { background: #1e293b; border-radius: 12px; padding: 14px; margin-bottom: 8px; }
+.prod-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.prod-name { font-weight: 700; font-size: 15px; }
+.prod-dest { font-size: 12px; color: #94a3b8; }
+.prod-qty  { font-size: 20px; font-weight: 700; color: #fde047; }
+.prod-status { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+.ps-new      { background: #33415522; color: #94a3b8; }
+.ps-active   { background: #fef9c322; color: #fde047; }
+.ps-done     { background: #dcfce722; color: #86efac; }
+.ps-sent     { background: #e0e7ff22; color: #a5b4fc; }
+.prod-btn    { background: #6366f1; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 8px; }
+.date-group-label { font-size: 12px; font-weight: 700; color: #6366f1; padding: 8px 0 4px; text-transform: uppercase; letter-spacing: .04em; }
+
+/* Utilities */
+.spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid #ffffff44; border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { text-align: center; color: #475569; padding: 40px 0; font-size: 14px; }
+.err { color: #fca5a5; font-size: 13px; margin-top: 8px; text-align: center; }
+.loading { text-align: center; padding: 40px 0; color: #475569; }
+.tag { display: inline-block; background: #334155; color: #94a3b8; border-radius: 6px; padding: 2px 8px; font-size: 11px; margin-left: 4px; }
 </style>
 </head>
 <body>
 
-<div class="logo">🍽️</div>
-<div class="card" id="card">
-  <div class="loading-state"><span class="spinner"></span><p style="margin-top:12px">Загрузка...</p></div>
+<!-- Login -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <div style="font-size:32px;margin-bottom:12px">🍽️</div>
+    <h1>Вход для менеджера</h1>
+    <p>Введите токен доступа</p>
+    <input type="password" id="tokenInput" placeholder="Токен..." autocomplete="off">
+    <button class="btn btn-primary btn-full" style="margin-top:12px" onclick="doLogin()">Войти</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div class="app" id="appWrap">
+  <div class="topbar">
+    <h1>🍽️ Менеджер</h1>
+    <div class="topbar-right">
+      <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px" onclick="reload()">⟳</button>
+      <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px" onclick="logout()">Выход</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="setTab('orders',this)">📋 Заказы</button>
+    <button class="tab-btn" onclick="setTab('production',this)">🏭 Производство</button>
+  </div>
+
+  <!-- Orders Tab -->
+  <div id="tabOrders">
+    <div class="date-filter">
+      <button class="df-btn active" onclick="setRange('today',this)">Сегодня</button>
+      <button class="df-btn" onclick="setRange('tomorrow',this)">Завтра</button>
+      <button class="df-btn" onclick="setRange('week',this)">7 дней</button>
+      <button class="df-btn" onclick="setRange('this_week',this)">Эта неделя</button>
+      <button class="df-btn" onclick="setRange('month',this)">Месяц</button>
+      <button class="df-btn" onclick="setRange('custom',this)">📅 Период</button>
+    </div>
+    <div class="custom-range" id="customRange">
+      <input type="date" id="dateFrom"> — <input type="date" id="dateTo">
+      <button class="btn btn-primary" style="padding:6px 14px;font-size:13px" onclick="loadCustomRange()">OK</button>
+    </div>
+
+    <div class="status-filter" id="statusFilter">
+      <button class="sf-btn active" onclick="setStatusFilter('all',this)">Все</button>
+      <button class="sf-btn" onclick="setStatusFilter('Ожидает подтверждения менеджера',this)">⏳ Ожидает</button>
+      <button class="sf-btn" onclick="setStatusFilter('Подтверждён',this)">✅ Подтверждён</button>
+      <button class="sf-btn" onclick="setStatusFilter('Готов',this)">🍽️ Готов</button>
+      <button class="sf-btn" onclick="setStatusFilter('Отменён',this)">❌ Отменён</button>
+      <button class="sf-btn" onclick="setStatusFilter('В обработке',this)">🔄 В обработке</button>
+    </div>
+
+    <div class="stats-bar" id="statsBar"></div>
+    <div class="orders-list" id="ordersList"></div>
+  </div>
+
+  <!-- Production Tab -->
+  <div id="tabProduction" style="display:none">
+    <div class="prod-section">
+      <div class="prod-form">
+        <div style="font-size:14px;font-weight:700;color:#6366f1;margin-bottom:10px">+ Новый заказ на производство</div>
+        <div class="form-row">
+          <select id="pf-recipe" onchange="onPFRecipeChange(this)"><option value="">— Выбрать рецепт —</option></select>
+          <select id="pf-dest">
+            <option value="למלאי">→ Склад кухни</option>
+            <option value="לחנות">→ Магазин</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <input type="number" id="pf-qty" placeholder="Кол-во" min="1">
+          <input type="date" id="pf-date">
+          <button class="btn btn-primary" style="flex:0;padding:8px 16px" onclick="submitProdOrder()">Заказать</button>
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px" id="pf-unit"></div>
+      </div>
+      <div id="prodList"><div class="loading"><span class="spinner"></span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Order Modal -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="closeModalOnBg(event)">
+  <div class="modal" id="modalContent"></div>
 </div>
 
 <script>
-const params  = new URLSearchParams(location.search);
-const orderId = params.get('id');    // Airtable record ID
-const token   = params.get('token'); // manager token
+let managerToken = '';
+let currentRange = 'today';
+let currentStatus = 'all';
+let allOrders = [];
+let allProdRecipes = [];
+let editOrderId = null;
+let isLoadingProd = false;
 
-const STATUS_LABELS = {
-  'Ожидает подтверждения менеджера': { label: '⏳ Ожидает',       cls: 'waiting' },
-  'Ожидает':                          { label: '⏳ Ожидает',       cls: 'waiting' },
-  'Подтверждён':                      { label: '✅ Подтверждён',   cls: 'approved' },
-  'Готов к выдаче':                   { label: '🍽️ Готов',         cls: 'ready' },
-  'Отменён':                          { label: '❌ Отменён',       cls: 'rejected' },
-};
+// ── Auth ────────────────────────────────────────────────────────────────────
+function doLogin() {
+  const t = document.getElementById('tokenInput').value.trim();
+  if (!t) return;
+  managerToken = t;
+  localStorage.setItem('manager_token', t);
+  initApp();
+}
 
-function formatDate(iso) {
-  if (!iso) return null;
+function logout() {
+  localStorage.removeItem('manager_token');
+  location.reload();
+}
+
+function initApp() {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('appWrap').classList.add('visible');
+  loadOrders();
+  loadProductionRecipes();
+  // default prod date to today
+  const td = new Date().toISOString().slice(0,10);
+  document.getElementById('pf-date').value = td;
+}
+
+// ── Tabs ────────────────────────────────────────────────────────────────────
+function setTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tabOrders').style.display     = tab === 'orders'     ? '' : 'none';
+  document.getElementById('tabProduction').style.display = tab === 'production' ? '' : 'none';
+  if (tab === 'production' && !isLoadingProd) loadProductionOrders();
+}
+
+function reload() {
+  const activeTab = document.querySelector('.tab-btn.active')?.textContent?.includes('Про') ? 'production' : 'orders';
+  if (activeTab === 'orders') loadOrders();
+  else loadProductionOrders();
+}
+
+// ── Date range ───────────────────────────────────────────────────────────────
+function setRange(range, btn) {
+  document.querySelectorAll('.df-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentRange = range;
+  document.getElementById('customRange').classList.toggle('show', range === 'custom');
+  if (range !== 'custom') loadOrders();
+}
+
+function setStatusFilter(status, btn) {
+  document.querySelectorAll('.sf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentStatus = status;
+  renderOrders();
+}
+
+function loadCustomRange() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  if (!from || !to) return;
+  loadOrders(from, to);
+}
+
+// ── Orders ───────────────────────────────────────────────────────────────────
+async function loadOrders(start, end) {
+  document.getElementById('ordersList').innerHTML = '<div class="loading"><span class="spinner"></span></div>';
+  document.getElementById('statsBar').innerHTML = '';
+  let url = `/api/orders-today?token=${encodeURIComponent(managerToken)}&all_statuses=1`;
+  if (start && end) url += `&start=${start}&end=${end}`;
+  else url += `&range=${currentRange}`;
+  try {
+    const r = await fetch(url);
+    if (r.status === 403) { logout(); return; }
+    const d = await r.json();
+    allOrders = d.orders || [];
+    renderOrders();
+  } catch {
+    document.getElementById('ordersList').innerHTML = '<div class="empty">⚠️ Ошибка загрузки</div>';
+  }
+}
+
+function renderOrders() {
+  const filtered = currentStatus === 'all' ? allOrders : allOrders.filter(o => o.status === currentStatus);
+  const totalPeople = filtered.reduce((s,o) => s + (o.people||0), 0);
+  const totalItems  = filtered.reduce((s,o) => s + o.items.length, 0);
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-chip"><strong>${filtered.length}</strong>Заказов</div>
+    <div class="stat-chip"><strong>${totalPeople}</strong>Гостей</div>
+    <div class="stat-chip"><strong>${totalItems}</strong>Позиций</div>
+  `;
+
+  if (!filtered.length) { document.getElementById('ordersList').innerHTML = '<div class="empty">Нет заказов</div>'; return; }
+
+  document.getElementById('ordersList').innerHTML = filtered.map(o => {
+    const st = statusBadge(o.status);
+    const dt = o.delivery_at ? fmtDate(o.delivery_at) : '';
+    const kitNote = o.kitchen_notes ? `<span>📝 ${esc(o.kitchen_notes).slice(0,40)}</span>` : '';
+    return `<div class="order-card" onclick="openOrder('${o.id}')">
+      <div class="order-card-header">
+        <span class="order-num">№${o.order_number}</span>
+        <span class="order-total">${o.total || o.price ? (o.total || o.price) + ' ₸' : ''}</span>
+      </div>
+      <div class="order-name">${esc(o.customer || 'Клиент')}</div>
+      <div style="font-size:13px;color:#94a3b8;margin-bottom:6px">${esc(o.order_type)}</div>
+      <div class="order-meta">
+        ${st}
+        ${dt ? `<span>📅 ${dt}</span>` : ''}
+        ${o.people ? `<span>👥 ${o.people}</span>` : ''}
+        ${o.items.length ? `<span>🍽️ ${o.items.length} поз.</span>` : ''}
+        ${kitNote}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function statusBadge(s) {
+  const m = {
+    'Ожидает подтверждения менеджера': ['s-wait','⏳ Ожидает'],
+    'Ожидает подтверждения клиента':   ['s-wait','⏳ Ожидает клиента'],
+    'Ожидает':                          ['s-wait','⏳ Ожидает'],
+    'Подтверждён':                      ['s-ok',  '✅ Подтверждён'],
+    'Готов':                            ['s-ready','🍽️ Готов'],
+    'Отменён':                          ['s-cancel','❌ Отменён'],
+    'В обработке':                      ['s-proc', '🔄 В обработке'],
+  };
+  const [cls, label] = m[s] || ['s-other', s || '—'];
+  return `<span class="status-badge ${cls}">${label}</span>`;
+}
+
+// ── Order Modal ──────────────────────────────────────────────────────────────
+function openOrder(id) {
+  const o = allOrders.find(x => x.id === id);
+  if (!o) return;
+  editOrderId = id;
+  const mc = document.getElementById('modalContent');
+  mc.innerHTML = renderOrderModal(o);
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+
+function renderOrderModal(o) {
+  const itemsRows = o.items.map((it,i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${esc(it.name)}</td>
+      <td><input class="qty-input" type="number" value="${it.quantity}" min="1" data-item="${i}"></td>
+      <td style="text-align:right">${it.unit_price ? it.unit_price+' ₸' : '—'}</td>
+    </tr>`).join('');
+
+  return `
+    <div class="modal-header">
+      <h2>Заказ №${o.order_number}</h2>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="section-title">Статус</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${statusBadge(o.status)}
+      <select class="input-field" id="m-status" style="flex:1;max-width:200px">
+        <option value="Ожидает подтверждения менеджера" ${o.status==='Ожидает подтверждения менеджера'?'selected':''}>⏳ Ожидает</option>
+        <option value="Подтверждён" ${o.status==='Подтверждён'?'selected':''}>✅ Подтверждён</option>
+        <option value="Готов" ${o.status==='Готов'?'selected':''}>🍽️ Готов</option>
+        <option value="Отменён" ${o.status==='Отменён'?'selected':''}>❌ Отменён</option>
+        <option value="В обработке" ${o.status==='В обработке'?'selected':''}>🔄 В обработке</option>
+      </select>
+    </div>
+
+    <div class="section-title">Клиент</div>
+    ${row('👤 Имя', o.customer)}
+    ${row('📞 Телефон', o.phone ? `<a href="tel:${o.phone}" style="color:#a5b4fc">${o.phone}</a>` : '—')}
+    ${row('📋 Тип', o.order_type)}
+    ${row('📅 Дата', o.delivery_at ? fmtDate(o.delivery_at) : '—')}
+    ${o.people ? row('👥 Гостей', o.people) : ''}
+
+    <div class="section-title">Состав заказа (${o.items.length} поз.)</div>
+    ${o.items.length ? `<table class="items-table">
+      <thead><tr><th>#</th><th>Блюдо</th><th>Кол.</th><th>Цена</th></tr></thead>
+      <tbody>${itemsRows}</tbody>
+    </table>` : '<div style="color:#475569;font-size:13px">Нет позиций</div>'}
+    ${o.total ? `<div style="text-align:right;font-size:15px;font-weight:700;margin-top:8px;color:#fde047">Итого: ${o.total} ₸</div>` : ''}
+
+    <div class="section-title">Доставка</div>
+    <div style="margin-bottom:6px">
+      <select class="input-field" id="m-deltype">
+        <option value="" ${!o.delivery_type?'selected':''}>— Тип доставки —</option>
+        <option value="משלוח" ${o.delivery_type==='משלוח'?'selected':''}>🚚 Доставка</option>
+        <option value="איסוף עצמי" ${o.delivery_type==='איסוף עצמי'?'selected':''}>🏪 Самовывоз</option>
+      </select>
+    </div>
+    <textarea class="editable-field" id="m-deladdr" placeholder="Адрес доставки..." style="min-height:48px">${esc(o.delivery_addr||'')}</textarea>
+    <div style="margin-top:6px">
+      <select class="input-field" id="m-delstatus">
+        <option value="" ${!o.delivery_status?'selected':''}>— Статус доставки —</option>
+        <option value="ממתין" ${o.delivery_status==='ממתין'?'selected':''}>⏳ Ожидает</option>
+        <option value="בדרך" ${o.delivery_status==='בדרך'?'selected':''}>🚚 В пути</option>
+        <option value="נמסר" ${o.delivery_status==='נמסר'?'selected':''}>✅ Доставлен</option>
+      </select>
+    </div>
+
+    <div class="section-title">Примечания</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:4px">Клиенту:</div>
+    <textarea class="editable-field" id="m-notes-cust" style="min-height:50px">${esc(o.notes||'')}</textarea>
+    <div style="font-size:12px;color:#64748b;margin:8px 0 4px">Кухне:</div>
+    <textarea class="editable-field" id="m-notes-kit" style="min-height:50px">${esc(o.kitchen_notes||'')}</textarea>
+    <div style="font-size:12px;color:#64748b;margin:8px 0 4px">Внутренние:</div>
+    <textarea class="editable-field" id="m-notes-int" style="min-height:50px">${esc(o.notes_internal||'')}</textarea>
+
+    <div class="section-title">Оплата</div>
+    ${row('Метод', o.payment_method || '—')}
+    <div class="pay-row">
+      <input class="input-field" type="number" id="m-pay-amount" placeholder="Сумма ₸">
+      <select class="input-field" id="m-pay-method" style="flex:1">
+        <option value="Kaspi">Kaspi</option>
+        <option value="כספי">Наличные</option>
+        <option value="העברה">Перевод</option>
+      </select>
+      <button class="btn btn-primary" style="flex:0;padding:8px 14px;font-size:13px" onclick="addPayment()">+ Оплата</button>
+    </div>
+
+    <div class="section-title">Действия</div>
+    <div class="action-grid">
+      <button class="btn btn-approve" onclick="quickAction('approve')">✅ Подтвердить</button>
+      <button class="btn btn-ready"   onclick="quickAction('ready')">🍽️ Готов</button>
+      <button class="btn btn-save btn-full" onclick="saveOrder()">💾 Сохранить изменения</button>
+      <button class="btn btn-cancel"  onclick="quickAction('reject')">❌ Отменить</button>
+      ${o.phone ? `<a class="btn btn-wa" href="https://wa.me/${waNum(o.phone)}" target="_blank" style="text-decoration:none">💬 WhatsApp</a>` : '<span></span>'}
+    </div>
+    <div class="err" id="modalErr"></div>
+  `;
+}
+
+function row(label, value) {
+  return `<div class="detail-row"><span class="detail-label">${label}</span><span class="detail-value">${value}</span></div>`;
+}
+
+function closeModal() { document.getElementById('modalBackdrop').classList.remove('open'); }
+function closeModalOnBg(e) { if (e.target === document.getElementById('modalBackdrop')) closeModal(); }
+
+async function quickAction(action) {
+  const url = `/api/manager-action?id=${editOrderId}&action=${action}&token=${encodeURIComponent(managerToken)}`;
+  setModalErr('');
+  try {
+    const r = await fetch(url);
+    if (r.ok) { closeModal(); await loadOrders(); }
+    else setModalErr('Ошибка: ' + r.status);
+  } catch { setModalErr('Ошибка соединения'); }
+}
+
+async function saveOrder() {
+  const status       = document.getElementById('m-status').value;
+  const notes_cust   = document.getElementById('m-notes-cust').value;
+  const notes_kit    = document.getElementById('m-notes-kit').value;
+  const notes_int    = document.getElementById('m-notes-int').value;
+  const del_addr     = document.getElementById('m-deladdr').value;
+  const del_status   = document.getElementById('m-delstatus').value;
+  const del_type     = document.getElementById('m-deltype').value;
+  setModalErr('');
+
+  try {
+    const r = await fetch(`/api/manager-action?id=${editOrderId}&token=${encodeURIComponent(managerToken)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status, notes_customer: notes_cust, notes_kitchen: notes_kit,
+        notes_internal: notes_int, delivery_address: del_addr,
+        delivery_status: del_status, delivery_type: del_type,
+      }),
+    });
+    if (r.ok) { closeModal(); await loadOrders(); }
+    else { const d = await r.json(); setModalErr(d.error || 'Ошибка'); }
+  } catch { setModalErr('Ошибка соединения'); }
+}
+
+async function addPayment() {
+  const amount = document.getElementById('m-pay-amount').value;
+  const method = document.getElementById('m-pay-method').value;
+  if (!amount || Number(amount) <= 0) { setModalErr('Введите сумму'); return; }
+  const url = `/api/manager-action?id=${editOrderId}&action=kaspi_paid&token=${encodeURIComponent(managerToken)}`;
+  setModalErr('');
+  try {
+    const r = await fetch(url);
+    if (r.ok) setModalErr('✅ Оплата добавлена');
+    else setModalErr('Ошибка добавления оплаты');
+  } catch { setModalErr('Ошибка соединения'); }
+}
+
+function setModalErr(msg) {
+  const el = document.getElementById('modalErr');
+  if (el) el.textContent = msg;
+}
+
+// ── Production ───────────────────────────────────────────────────────────────
+async function loadProductionRecipes() {
+  try {
+    const r = await fetch(`/api/production?token=${encodeURIComponent(managerToken)}&recipes=1`);
+    if (!r.ok) return;
+    const d = await r.json();
+    allProdRecipes = d.recipes || [];
+    const sel = document.getElementById('pf-recipe');
+    sel.innerHTML = '<option value="">— Выбрать рецепт —</option>' +
+      allProdRecipes.map(rec =>
+        `<option value="${rec.id}" data-unit="${esc(rec.unit||'')}" data-uqty="${rec.unit_qty||''}">${esc(rec.name_ru)}</option>`
+      ).join('');
+  } catch {}
+}
+
+function onPFRecipeChange(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const unit = opt?.dataset?.unit || '';
+  const uqty = opt?.dataset?.uqty || '';
+  document.getElementById('pf-unit').textContent = unit ? `Ед.: ${uqty}${unit}` : '';
+}
+
+async function submitProdOrder() {
+  const recipe_id = document.getElementById('pf-recipe').value;
+  const dest      = document.getElementById('pf-dest').value;
+  const qty       = document.getElementById('pf-qty').value;
+  const date      = document.getElementById('pf-date').value;
+  if (!recipe_id || !qty || !date) { alert('Заполните все поля'); return; }
+  try {
+    const r = await fetch(`/api/production?token=${encodeURIComponent(managerToken)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipe_id, requested_qty: Number(qty), date, destination: dest, ordered_by: 'manager' }),
+    });
+    if (r.ok) {
+      document.getElementById('pf-recipe').value = '';
+      document.getElementById('pf-qty').value = '';
+      document.getElementById('pf-unit').textContent = '';
+      await loadProductionOrders();
+    } else {
+      const d = await r.json();
+      alert('Ошибка: ' + (d.error || r.status));
+    }
+  } catch (e) { alert('Ошибка: ' + e.message); }
+}
+
+async function loadProductionOrders() {
+  isLoadingProd = true;
+  document.getElementById('prodList').innerHTML = '<div class="loading"><span class="spinner"></span></div>';
+  try {
+    const r = await fetch(`/api/production?token=${encodeURIComponent(managerToken)}&range=week`);
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    renderProduction(d.records || []);
+  } catch {
+    document.getElementById('prodList').innerHTML = '<div class="empty">⚠️ Ошибка загрузки</div>';
+  } finally { isLoadingProd = false; }
+}
+
+function renderProduction(records) {
+  if (!records.length) { document.getElementById('prodList').innerHTML = '<div class="empty">Нет заказов на производство</div>'; return; }
+  const byDate = {};
+  for (const r of records) {
+    const d = r.date ? r.date.slice(0,10) : '—';
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(r);
+  }
+  document.getElementById('prodList').innerHTML = Object.keys(byDate).sort().map(date => `
+    <div class="date-group-label">📅 ${fmtDay(date)}</div>
+    ${byDate[date].map(r => renderProdCard(r)).join('')}
+  `).join('');
+}
+
+function renderProdCard(r) {
+  const stMap = {
+    'הוזמן':       ['ps-new',   'Ожидает'],
+    'בייצור':      ['ps-active','В работе'],
+    'מוכן':        ['ps-done',  'Готово'],
+    'הועבר למלאי': ['ps-sent',  'Передано'],
+  };
+  const [scls, slabel] = stMap[r.status] || ['ps-new', r.status || 'Ожидает'];
+  const destLabel = r.destination === 'לחנות' ? '→ Магазин' : '→ Склад';
+  return `<div class="prod-card">
+    <div class="prod-card-header">
+      <div>
+        <div class="prod-name">${esc(r.recipe_name || '—')}</div>
+        <div class="prod-dest">${destLabel}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="prod-qty">${r.requested_qty}</div>
+        ${r.actual_qty ? `<div style="font-size:11px;color:#86efac">✓ ${r.actual_qty} готово</div>` : ''}
+      </div>
+    </div>
+    <span class="prod-status ${scls}">${slabel}</span>
+    ${r.notes ? `<div style="font-size:12px;color:#64748b;margin-top:6px">${esc(r.notes)}</div>` : ''}
+    ${r.ordered_by ? `<div style="font-size:11px;color:#475569;margin-top:4px">Заказал: ${esc(r.ordered_by)}</div>` : ''}
+    ${r.status === 'הוזמן' ? `<button class="prod-btn" onclick="updateProdStatus('${r.id}','בייצור',this)">🚀 Начать производство</button>` : ''}
+    ${r.status === 'בייצור' ? `<button class="prod-btn" style="background:#22c55e" onclick="updateProdStatus('${r.id}','מוכן',this)">✅ Готово</button>` : ''}
+    ${r.status === 'מוכן' ? `<button class="prod-btn" style="background:#6366f1" onclick="updateProdStatus('${r.id}','הועבר למלאי',this)">📦 Передать</button>` : ''}
+  </div>`;
+}
+
+async function updateProdStatus(id, status, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const r = await fetch(`/api/production?token=${encodeURIComponent(managerToken)}&id=${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (r.ok) await loadProductionOrders();
+    else { btn.disabled = false; btn.textContent = 'Ошибка'; }
+  } catch { btn.disabled = false; btn.textContent = 'Ошибка'; }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmtDate(iso) {
   const d = new Date(iso);
   const days = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
   const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} · ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
 }
-
-async function doAction(action) {
-  const btns = document.querySelectorAll('.btn');
-  btns.forEach(b => b.disabled = true);
-  const activeBtn = document.getElementById('btn-' + action);
-  if (activeBtn) activeBtn.innerHTML = '<span class="spinner"></span>';
-
-  try {
-    const url = `/api/manager-action?id=${encodeURIComponent(orderId)}&action=${action}&token=${encodeURIComponent(token)}`;
-    const r = await fetch(url);
-    // manager-action returns HTML — redirect to it so they see the confirmation page
-    location.href = url;
-  } catch(_) {
-    btns.forEach(b => b.disabled = false);
-    document.getElementById('errMsg').textContent = 'Ошибка. Попробуйте ещё раз.';
-  }
+function fmtDay(iso) {
+  if (iso === '—') return '—';
+  const d = new Date(iso + 'T00:00:00');
+  const days = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  const t = new Date(); const td = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = (dd - td) / 86400000;
+  const prefix = diff === 0 ? 'СЕГОДНЯ — ' : diff === 1 ? 'ЗАВТРА — ' : '';
+  return `${prefix}${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()].toUpperCase()}`;
 }
-
-async function loadOrder() {
-  if (!orderId || !token) {
-    document.getElementById('card').innerHTML = `<div class="err" style="padding:40px 0;font-size:16px">🚫 Недействительная ссылка.<br><br>Запросите новую ссылку у системы.</div>`;
-    return;
-  }
-
-  try {
-    const r = await fetch(`/api/order-status?id=${encodeURIComponent(orderId)}`);
-    if (!r.ok) throw new Error();
-    const d = await r.json();
-
-    const st = STATUS_LABELS[d.status] || { label: d.status || '—', cls: 'default' };
-    const isDone = ['Подтверждён','Отменён','Готов к выдаче'].includes(d.status);
-
-    const LANG_LABELS = { ru: '🇷🇺 RU', en: '🇺🇸 EN', he: '🇮🇱 HE' };
-    const langBadge = d.lang ? `<span class="lang-badge">${LANG_LABELS[d.lang] || d.lang}</span>` : '';
-
-    const details = [
-      d.customer    ? ['👤 Клиент',   d.customer + langBadge]      : null,
-      d.phone       ? ['📞 Телефон',  d.phone]                     : null,
-      d.order_type  ? ['📋 Тип',      d.order_type]                : null,
-      d.delivery_at ? ['📅 Доставка', formatDate(d.delivery_at)]   : null,
-      d.address     ? ['🚚 Адрес',    d.address]                   : null,
-      d.notes       ? ['📝 Примечание', d.notes]                   : null,
-      d.payment     ? ['💳 Оплата',   d.payment]                   : null,
-    ].filter(Boolean);
-
-    // Items table
-    let itemsHtml = '';
-    if (d.items && d.items.length) {
-      const rows = d.items.map(i => `
-        <tr>
-          <td class="num">${i.num}</td>
-          <td>${esc(i.name)}${i.portion ? `<br><small style="color:#64748b">${i.portion} г</small>` : ''}</td>
-          <td style="text-align:center">${i.quantity}</td>
-          <td style="text-align:right">${i.unit_price ? i.unit_price + ' ₸' : '—'}</td>
-          <td style="text-align:right">${i.total ? i.total + ' ₸' : '—'}</td>
-        </tr>`).join('');
-      itemsHtml = `
-        <div class="section-title">Состав заказа</div>
-        <table class="items-table">
-          <thead><tr><th>#</th><th>Блюдо</th><th style="text-align:center">Кол.</th><th style="text-align:right">Цена</th><th style="text-align:right">Итого</th></tr></thead>
-          <tbody>${rows}</tbody>
-          <tfoot><tr class="total-row"><td colspan="4" style="text-align:right">Итого:</td><td style="text-align:right">${d.total || 0} ₸</td></tr></tfoot>
-        </table>`;
-    }
-
-    // WhatsApp button to customer
-    const custPhone = (d.phone || '').replace(/\D/g, '');
-    const custWa = custPhone.startsWith('8') && custPhone.length === 11 ? '7' + custPhone.slice(1) : custPhone;
-    const waBtn = custWa
-      ? `<a class="btn-wa" href="https://wa.me/${custWa}" target="_blank">💬 WhatsApp с клиентом</a>`
-      : '';
-
-    const actionBtns = isDone ? `
-      <div class="done-msg">
-        <div class="icon">${st.cls === 'approved' ? '✅' : st.cls === 'ready' ? '🍽️' : '❌'}</div>
-        <h2>${d.status}</h2>
-        <p>Действие уже выполнено.</p>
-      </div>
-    ` : `
-      <div class="section-title">Действие</div>
-      <div class="actions">
-        <button class="btn btn-approve" id="btn-approve" onclick="doAction('approve')">✅ Подтвердить заказ</button>
-        <button class="btn btn-ready"   id="btn-ready"   onclick="doAction('ready')">🍽️ Готов к выдаче</button>
-        <button class="btn btn-reject"  id="btn-reject"  onclick="doAction('reject')">❌ Отменить заказ</button>
-        ${waBtn}
-      </div>
-    `;
-
-    document.getElementById('card').innerHTML = `
-      <div class="card-header">
-        <h1>Заказ</h1>
-        <span class="num-badge">№${d.order_number}</span>
-      </div>
-      <div class="status-row"><span class="status-badge ${st.cls}">${st.label}</span></div>
-      <div class="section-title">Детали</div>
-      ${details.map(([l,v]) => `<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${v}</span></div>`).join('')}
-      ${itemsHtml}
-      ${actionBtns}
-      <div id="errMsg" class="err"></div>
-    `;
-  } catch(_) {
-    document.getElementById('card').innerHTML = `<div class="err" style="padding:40px 0;font-size:16px">⚠️ Не удалось загрузить заказ.<br><br><small>Проверьте соединение и попробуйте снова.</small></div>`;
-  }
+function waNum(phone) {
+  const d = phone.replace(/\D/g,'');
+  return d.startsWith('8') && d.length === 11 ? '7'+d.slice(1) : d;
 }
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-loadOrder();
+// ── Boot ─────────────────────────────────────────────────────────────────────
+const savedToken = localStorage.getItem('manager_token');
+if (savedToken) { managerToken = savedToken; initApp(); }
+document.getElementById('tokenInput')?.addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 </script>
 </body>
 </html>

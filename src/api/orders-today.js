@@ -35,9 +35,16 @@ const FO_NAME_RU  = 'flddCvqJiwEsg9pr1';
 const FO_QTY_LINK = 'fldcWbQXZM8Agv6ir';
 const FO_NOTES    = 'fldKGooL6E0PkqKfI';
 const FO_KITCHEN_NOTES = 'fldQqZkF3rUgXrvvD';
+const FO_NOTES_INT     = 'flddO88Cmj7qZ5xDU'; // הערות פנימי
 const FO_PHONE    = 'fldMPQfkQATfg6j0t';
 const FO_EVENT_TYPE = 'fldJgHup8TWwCtZXe';
 const FO_PEOPLE   = 'fldkOkfJcr3KoQdEy';
+const FO_DELIVERY_TYPE   = 'fldH9aXNoJSABpTJP'; // משלוח (singleSelect)
+const FO_DELIVERY_ADDR   = 'fld2j0eu6qrid1DXA'; // כתובת למשלוח
+const FO_DELIVERY_STATUS = 'fldvAUsFNkaRHYQ8q'; // סטטוס משלוח
+const FO_PAYMENT_METHOD  = 'fldjE5esZVBwDjNDi'; // צורת תשלום
+const FO_PRICE           = 'fldJA6xBGacdetQjI'; // מחיר (number)
+const FO_TOTAL           = 'fldGnFezjuay28sDG'; // מחיר כולל משלוח (formula)
 
 const FQ_DISH = 'fldYKuxwzyR0zsA6W';
 const FQ_TXT  = 'fldermtin9p2JInVx';
@@ -50,7 +57,7 @@ const FD_CATEGORY = 'fldQHBaXkahg5Bcq7'; // קטגוריה (from מתכון)
 const FN_STATUS   = 'סטטוס הזמנה';
 const FN_DATE_EXE = 'תאריך ושעת ביצוע ההזמנה';
 
-const ACTIVE_STATUSES = ['Подтверждён', 'Ожидает подтверждения менеджера', 'Ожидает подтверждения клиента', 'В обработке'];
+const ACTIVE_STATUSES = ['Подтверждён', 'Готов', 'Ожидает подтверждения менеджера', 'Ожидает подтверждения клиента', 'В обработке'];
 
 function atHeaders(t) {
   return { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' };
@@ -82,7 +89,9 @@ async function fetchOrdersRange(startISO, endISO, token, allStatuses) {
   const dateFilter = `AND(DATESTR({${FN_DATE_EXE}})>='${startISO}',DATESTR({${FN_DATE_EXE}})<='${endISO}')`;
   const formula = buildFormula(dateFilter, allStatuses);
   const fields = [FO_STATUS, FO_SERIAL, FO_CUST, FO_DATE_EXE, FO_NAME_RU, FO_QTY_LINK,
-                  FO_NOTES, FO_KITCHEN_NOTES, FO_PHONE, FO_EVENT_TYPE, FO_PEOPLE];
+                  FO_NOTES, FO_KITCHEN_NOTES, FO_NOTES_INT, FO_PHONE, FO_EVENT_TYPE, FO_PEOPLE,
+                  FO_DELIVERY_TYPE, FO_DELIVERY_ADDR, FO_DELIVERY_STATUS, FO_PAYMENT_METHOD,
+                  FO_PRICE, FO_TOTAL];
   const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FO_DATE_EXE}&sort[0][direction]=asc`;
   const r = await fetch(`${AT_BASE}/${T_ORDERS}?${qs}`, { headers: atHeaders(token) });
   if (!r.ok) throw new Error(`Airtable orders ${r.status}`);
@@ -217,6 +226,20 @@ export default async function handler(req, res) {
     startISO = endISO = isoDay(0);
   } else if (range === 'tomorrow') {
     startISO = endISO = isoDay(1);
+  } else if (range === 'month') {
+    const now = new Date();
+    startISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    endISO   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  } else if (range === 'this_week') {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun
+    const mon = new Date(now); mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    startISO = mon.toISOString().slice(0, 10);
+    endISO   = sun.toISOString().slice(0, 10);
+  } else if (req.query.start && req.query.end) {
+    startISO = req.query.start;
+    endISO   = req.query.end;
   } else {
     // Legacy days param: "0,1" or "0" etc.
     const daysParam = (req.query.days || range || '0,1').split(',').map(Number).filter(n => !isNaN(n));
@@ -246,8 +269,15 @@ export default async function handler(req, res) {
           order_type:   typeName,
           event_type:   evType,
           people:       f[FO_PEOPLE]    || null,
-          notes:        f[FO_NOTES]     || '',
-          kitchen_notes: f[FO_KITCHEN_NOTES] || '',
+          notes:           f[FO_NOTES]          || '',
+          kitchen_notes:   f[FO_KITCHEN_NOTES]  || '',
+          notes_internal:  f[FO_NOTES_INT]      || '',
+          delivery_type:   typeof f[FO_DELIVERY_TYPE]   === 'object' ? f[FO_DELIVERY_TYPE].name   : (f[FO_DELIVERY_TYPE]   || ''),
+          delivery_addr:   f[FO_DELIVERY_ADDR]  || '',
+          delivery_status: typeof f[FO_DELIVERY_STATUS] === 'object' ? f[FO_DELIVERY_STATUS].name : (f[FO_DELIVERY_STATUS] || ''),
+          payment_method:  typeof f[FO_PAYMENT_METHOD]  === 'object' ? f[FO_PAYMENT_METHOD].name  : (f[FO_PAYMENT_METHOD]  || ''),
+          price:           f[FO_PRICE]          || 0,
+          total:           f[FO_TOTAL]          || 0,
           items,
         };
       })

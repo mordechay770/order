@@ -30,9 +30,10 @@ const FP_NOTES    = 'fldNvdvqVWt0Go6Ze';
 const SITE_URL = 'https://src-sigma-ecru-25.vercel.app';
 
 const STATUS_MAP = {
-  approve: 'Подтверждён',
-  reject:  'Отменён',
-  ready:   'Готов',
+  approve:  'Подтверждён',
+  reject:   'Отменён',
+  ready:    'Готов',
+  deliver:  'Нмсрм', // marks delivery_status only (not order status)
   // kaspi_paid is handled separately — does not update order status
 };
 
@@ -108,16 +109,51 @@ function getRole(reqToken) {
   return null;
 }
 
+const FO_NOTES_INT     = 'flddO88Cmj7qZ5xDU';
+const FO_KITCHEN_NOTES = 'fldQqZkF3rUgXrvvD';
+const FO_NOTES_CUST    = 'fldKGooL6E0PkqKfI';
+const FO_DELIVERY_ADDR = 'fld2j0eu6qrid1DXA';
+const FO_DELIVERY_STAT = 'fldvAUsFNkaRHYQ8q';
+const FO_DELIVERY_TYPE = 'fldH9aXNoJSABpTJP';
+
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   const { id, action, token: reqToken } = req.query;
 
+  // ── PATCH: edit order fields ────────────────────────────────────────────────
+  if (req.method === 'PATCH') {
+    const role = getRole((reqToken || '').trim());
+    const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
+    if (role !== 'manager') return res.status(403).json({ error: 'Forbidden' });
+    if (!id || !/^rec[A-Za-z0-9]{14}$/.test(id)) return res.status(400).json({ error: 'Invalid id' });
+    const { notes_internal, notes_kitchen, notes_customer, delivery_address, delivery_status,
+            delivery_type, status } = req.body || {};
+    const fields = {};
+    if (notes_internal  !== undefined) fields[FO_NOTES_INT]     = notes_internal;
+    if (notes_kitchen   !== undefined) fields[FO_KITCHEN_NOTES] = notes_kitchen;
+    if (notes_customer  !== undefined) fields[FO_NOTES_CUST]    = notes_customer;
+    if (delivery_address!== undefined) fields[FO_DELIVERY_ADDR] = delivery_address;
+    if (delivery_status !== undefined) fields[FO_DELIVERY_STAT] = delivery_status;
+    if (delivery_type   !== undefined) fields[FO_DELIVERY_TYPE] = delivery_type;
+    if (status          !== undefined) fields[FO_STATUS]        = status;
+    if (!Object.keys(fields).length) return res.status(400).json({ error: 'Nothing to update' });
+    const r = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, {
+      method: 'PATCH', headers: atHeaders(airtableToken),
+      body: JSON.stringify({ fields }),
+    });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); return res.status(502).json({ error: 'Airtable error', detail: JSON.stringify(d).slice(0,200) }); }
+    return res.status(200).json({ ok: true });
+  }
+
   const role = getRole((reqToken || '').trim());
   const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
 
-  // baker/chef can only mark ready; manager can do all
-  const allowedActions = role === 'manager' ? ['approve','reject','ready'] : ['ready'];
+  // baker/chef can mark ready+deliver; manager can do all
+  const allowedActions = role === 'manager' ? ['approve','reject','ready','deliver','kaspi_paid'] : ['ready','deliver'];
   if (!role || !allowedActions.includes(action)) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(403).send(htmlPage('Ошибка', '<div class="icon">🚫</div><h1>Нет доступа</h1><p>Недействительная ссылка.</p>', '#ef4444'));
@@ -148,6 +184,16 @@ export default async function handler(req, res) {
     if (!getR.ok) throw new Error(`GET ${getR.status}`);
     const rec = await getR.json();
     const f = rec.fields || {};
+
+    // ── deliver: mark delivery_status = נמסר (no order status change) ──────
+    if (action === 'deliver') {
+      const patchR = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, {
+        method: 'PATCH', headers: atHeaders(airtableToken),
+        body: JSON.stringify({ fields: { [FO_DELIVERY_STAT]: 'נמסר' } }),
+      });
+      if (!patchR.ok) throw new Error(`PATCH deliver ${patchR.status}`);
+      return res.status(200).json({ ok: true, message: 'Помечено как передано' });
+    }
 
     // ── kaspi_paid: create payment record in Airtable ──────────────────────
     if (action === 'kaspi_paid') {

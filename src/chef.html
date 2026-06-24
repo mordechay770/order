@@ -393,24 +393,40 @@ function renderCard(o) {
   const isReady = o.status === 'Готов';
   const time = o.delivery_at ? new Date(o.delivery_at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Almaty'}) : '—';
   const date = o.delivery_at ? new Date(o.delivery_at).toLocaleDateString('ru-RU',{day:'numeric',month:'short',timeZone:'Asia/Almaty'}) : '';
-  const items = o.items.length
+  const totalPortions = o.items.reduce((s,i) => s+(i.quantity||0), 0);
+  const dishCount = o.items.length;
+  const items = dishCount
     ? `<ul class="items-list">${o.items.map(i=>`<li><span>${esc(i.name)}</span><span class="item-qty">×${i.quantity}</span></li>`).join('')}</ul>`
     : '<p style="color:#475569;font-size:13px">Нет позиций</p>';
-  const notes = (o.kitchen_notes || o.notes) ? `<div class="order-notes">${esc(o.kitchen_notes||o.notes)}</div>` : '';
+  const kitNotes = o.kitchen_notes ? `<div class="order-notes" style="background:#172554;border-left:3px solid #6366f1">📝 Кухне: ${esc(o.kitchen_notes)}</div>` : '';
+  const custNotes = (!o.kitchen_notes && o.notes) ? `<div class="order-notes">${esc(o.notes)}</div>` : '';
   return `<div class="order-card ${isReady?'status-ready':''}" id="card-${o.id}">
     <div class="card-header">
       <div>
         <div class="order-num">#${o.order_number||'—'}</div>
         <div class="order-customer">${esc(o.customer)}</div>
         <div class="order-meta">${time} · ${date}${o.people?' · '+o.people+' чел.':''}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:3px">🍽️ ${dishCount} блюд · ${totalPortions} порций</div>
       </div>
       <span class="status-badge ${badgeClass}">${o.status}</span>
     </div>
-    ${items}${notes}
-    <button class="ready-btn" ${isReady?'disabled':''} onclick="markReady('${o.id}',this)">
-      ${isReady?'✓ Готово':'✔ Отметить готовым'}
-    </button>
+    ${kitNotes}${custNotes}${items}
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="ready-btn" style="flex:1" ${isReady?'disabled':''} onclick="markReady('${o.id}',this)">
+        ${isReady?'✓ Готово':'✔ Готовым'}
+      </button>
+      ${isReady ? `<button class="ready-btn" style="flex:1;background:#6366f1" onclick="markDelivered('${o.id}',this)">📦 Передано</button>` : ''}
+    </div>
   </div>`;
+}
+
+async function markDelivered(orderId, btn) {
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await fetch(`${API}/manager-action?id=${orderId}&action=deliver&token=${encodeURIComponent(managerToken)}`);
+    if (r.ok) { showToast('📦 Передано!','success'); btn.textContent='✓ Передано'; }
+    else throw new Error(`HTTP ${r.status}`);
+  } catch(err) { showToast('Ошибка: '+err.message,'error'); btn.disabled=false; btn.textContent='📦 Передано'; }
 }
 
 async function markReady(orderId, btn) {
