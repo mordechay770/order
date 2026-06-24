@@ -82,7 +82,7 @@ async function handleGet(req, res, airtableToken) {
     formula = `AND(${statusPart},${datePart})`;
   }
 
-  const fields = [FP_SERIAL, FP_DATE, FP_REPORTER, FP_RECIPE, FP_NAME_LKP, FP_ACTUAL,
+  const fields = [FP_SERIAL, FP_DATE, FP_REPORTER, FP_RECIPE, FP_ACTUAL,
                   FP_NOTES, FP_TYPE, FP_DEST, FP_STATUS, FP_REQUESTED, FP_ORDERED_BY];
   const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FP_DATE}&sort[0][direction]=asc`;
 
@@ -90,34 +90,12 @@ async function handleGet(req, res, airtableToken) {
   if (!r.ok) throw new Error(`Airtable production ${r.status}`);
   const data = await r.json();
 
-  // Build a map of recipe_id → name_ru for fallback
-  const rawRecs = data.records || [];
-  const recipeIds = [...new Set(rawRecs.map(rec => (rec.fields[FP_RECIPE] || [])[0]).filter(Boolean))];
-  let recipeNameMap = {};
-  if (recipeIds.length) {
-    const formula2 = recipeIds.length === 1
-      ? `RECORD_ID()='${recipeIds[0]}'`
-      : `OR(${recipeIds.map(id => `RECORD_ID()='${id}'`).join(',')})`;
-    const qs2 = `filterByFormula=${encodeURIComponent(formula2)}&fields[]=${FR_NAME_RU}&returnFieldsByFieldId=true`;
-    const r2 = await fetch(`${AT_BASE}/${T_RECIPES}?${qs2}`, { headers: atH(airtableToken) });
-    if (r2.ok) {
-      const d2 = await r2.json();
-      for (const rec of (d2.records || [])) recipeNameMap[rec.id] = rec.fields[FR_NAME_RU] || '';
-    }
-  }
-
-  const records = rawRecs.map(rec => {
+  const records = (data.records || []).map(rec => {
     const f = rec.fields;
-    const nameLkp = f[FP_NAME_LKP];
-    let lkpName = '';
-    if (Array.isArray(nameLkp)) lkpName = nameLkp[0] || '';
-    else if (typeof nameLkp === 'string') lkpName = nameLkp;
-    else if (nameLkp && nameLkp.valuesByLinkedRecordId) {
-      const vals = Object.values(nameLkp.valuesByLinkedRecordId);
-      lkpName = (vals[0] && vals[0][0]) || '';
-    }
-    const recipeId = (f[FP_RECIPE] || [])[0] || null;
-    const name = lkpName || recipeNameMap[recipeId] || '';
+    // multipleRecordLinks always includes {id, name} — primary field of linked table
+    const recipeLink = (f[FP_RECIPE] || [])[0] || null;
+    const recipeId = recipeLink ? (typeof recipeLink === 'object' ? recipeLink.id : recipeLink) : null;
+    const name = recipeLink ? (recipeLink.name || '') : '';
     return {
       id:           rec.id,
       serial:       f[FP_SERIAL]    || null,
