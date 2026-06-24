@@ -109,7 +109,13 @@ async function handleGet(req, res, airtableToken) {
   const records = rawRecs.map(rec => {
     const f = rec.fields;
     const nameLkp = f[FP_NAME_LKP];
-    const lkpName = Array.isArray(nameLkp) ? nameLkp[0] : (typeof nameLkp === 'string' ? nameLkp : '');
+    let lkpName = '';
+    if (Array.isArray(nameLkp)) lkpName = nameLkp[0] || '';
+    else if (typeof nameLkp === 'string') lkpName = nameLkp;
+    else if (nameLkp && nameLkp.valuesByLinkedRecordId) {
+      const vals = Object.values(nameLkp.valuesByLinkedRecordId);
+      lkpName = (vals[0] && vals[0][0]) || '';
+    }
     const recipeId = (f[FP_RECIPE] || [])[0] || null;
     const name = lkpName || recipeNameMap[recipeId] || '';
     return {
