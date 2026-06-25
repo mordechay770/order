@@ -626,7 +626,7 @@ function printOrder(orderId) {
   <div class="div-solid" style="margin-top:8px"></div>
   <div class="center" style="font-size:10px;color:#666">${new Date().toLocaleString('ru-RU',{timeZone:tz})}</div>
 
-  <script>window.onload=function(){window.print();setTimeout(()=>window.close(),800);}<\/script>
+  <script>setTimeout(function(){window.print();setTimeout(function(){window.close();},1000);},400);<\/script>
 </body></html>`;
 
   const win = window.open('', '_blank', 'width=420,height=700');
