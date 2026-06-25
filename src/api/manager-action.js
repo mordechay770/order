@@ -9,6 +9,11 @@ const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
 
 const T_ORDERS   = 'tblMnlLwYCD27ou80';
 const T_PAYMENTS = 'tblaNK6mYqr20YtT1';
+const T_QTY      = 'tblcP1zvc3Tu9oQuL';
+const FQ_ORDER   = 'fld4DlEIkuKYTJIwr';
+const FQ_DISH_LK = 'fldYKuxwzyR0zsA6W';
+const FQ_TXT     = 'fldermtin9p2JInVx';
+const FQ_QTY     = 'fldZI30djxv54dm8j';
 
 const FO_STATUS    = 'fldcekWvpJwdVVMK6';
 const FO_SERIAL    = 'fldlJLSKuSB5zvmGt';
@@ -104,13 +109,20 @@ function htmlPage(title, body, color = '#22c55e') {
   return `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title}</title>
 <style>
-  body{font-family:system-ui,sans-serif;background:#f8fafc;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px;box-sizing:border-box}
-  .card{background:#fff;border-radius:16px;padding:32px 24px;max-width:420px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center}
-  .icon{font-size:48px;margin-bottom:12px}
-  h1{margin:0 0 8px;font-size:22px;color:#0f172a}
-  p{color:#64748b;margin:0 0 8px;font-size:15px}
-  .badge{display:inline-block;padding:6px 14px;border-radius:99px;font-size:13px;font-weight:700;background:${color}22;color:${color};margin:8px 0 16px}
-  a{display:inline-block;margin-top:16px;padding:12px 24px;background:#0f172a;color:#fff;text-decoration:none;border-radius:10px;font-size:15px}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,sans-serif;background:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px}
+  .card{background:#1e293b;border-radius:20px;padding:32px 24px;max-width:440px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.4);text-align:center}
+  .icon{font-size:52px;margin-bottom:12px}
+  h1{margin:0 0 6px;font-size:22px;color:#f1f5f9;font-weight:700}
+  p{color:#94a3b8;margin:0 0 8px;font-size:15px;line-height:1.5}
+  .badge{display:inline-block;padding:6px 16px;border-radius:99px;font-size:13px;font-weight:700;background:${color}30;color:${color};margin:8px 0 20px;border:1px solid ${color}55}
+  .info-row{text-align:left;background:#0f172a;border-radius:10px;padding:10px 14px;margin:4px 0;font-size:14px;color:#cbd5e1}
+  .info-row span{color:#94a3b8;font-size:12px;display:block;margin-bottom:2px}
+  .btn{display:block;width:100%;margin-top:12px;padding:14px 20px;border-radius:12px;font-size:15px;font-weight:700;text-decoration:none;text-align:center;cursor:pointer;border:none}
+  .btn-primary{background:${color};color:#fff}
+  .btn-secondary{background:#334155;color:#e2e8f0}
+  .btn-danger{background:#dc2626;color:#fff}
+  .divider{height:1px;background:#334155;margin:20px 0}
 </style></head><body><div class="card">${body}</div></body></html>`;
 }
 
@@ -131,6 +143,56 @@ const FO_NOTES_CUST    = 'fldKGooL6E0PkqKfI';
 const FO_DELIVERY_ADDR = 'fld2j0eu6qrid1DXA';
 const FO_DELIVERY_STAT = 'fldvAUsFNkaRHYQ8q';
 const FO_DELIVERY_TYPE = 'fldH9aXNoJSABpTJP';
+const FO_LANG          = 'fldCOu0rGNLrThxtV'; // שפת לקוח
+const FQ_PRICE         = 'fld2hjBAMbg4NeRef'; // עלות מנה בזמן ההזמנה
+const FQ_ORDER_REC_ID  = 'fldAcoyLDwIUoqqQH'; // lookup: order record ID (reliable filter key)
+
+async function fetchItems(orderId, token) {
+  // fldAcoyLDwIUoqqQH is a lookup returning the order record ID — ARRAYJOIN gives us the ID string
+  const qFormula = `FIND("${orderId}",ARRAYJOIN({${FQ_ORDER_REC_ID}}))`;
+  const qQs = `filterByFormula=${encodeURIComponent(qFormula)}&returnFieldsByFieldId=true`;
+  try {
+    const r = await fetch(`${AT_BASE}/${T_QTY}?${qQs}`, { headers: atHeaders(token) });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.records || []).map(rec => {
+      const rf = rec.fields;
+      const links = rf[FQ_DISH_LK];
+      // Try: linked record name (primary field), then lookup text field, then free-text fallback
+      const linkName = Array.isArray(links) && links[0]?.name ? links[0].name : '';
+      const lookupName = Array.isArray(rf['fldXvuBwTBbqfcNpc']) ? rf['fldXvuBwTBbqfcNpc'][0] : '';
+      const rawName = linkName || lookupName || rf[FQ_TXT] || '—';
+      const name = rawName.replace(/^\d+\s+/, '');
+      const qty  = Number(rf[FQ_QTY]) || 1;
+      const unit = Number(rf[FQ_PRICE]) || 0;
+      return { name, qty, unit, total: Math.round(qty * unit) };
+    });
+  } catch { return []; }
+}
+
+function itemsTable(items) {
+  if (!items.length) return '';
+  const rows = items.map((i, idx) =>
+    `<tr style="background:${idx%2?'#0f172a':'#1a2540'}">
+      <td style="padding:8px 6px;border-radius:4px">${i.name}</td>
+      <td style="padding:8px 6px;text-align:center;white-space:nowrap">${i.qty}</td>
+      <td style="padding:8px 6px;text-align:right;white-space:nowrap;color:#94a3b8">${i.unit ? i.unit+' ₸' : '—'}</td>
+      <td style="padding:8px 6px;text-align:right;white-space:nowrap;color:#fde047;font-weight:700">${i.total ? i.total+' ₸' : '—'}</td>
+    </tr>`
+  ).join('');
+  return `
+    <table style="width:100%;border-collapse:separate;border-spacing:0 2px;margin:8px 0 4px;font-size:13px;text-align:left">
+      <thead><tr style="color:#94a3b8;border-bottom:1px solid #334155">
+        <th style="padding:4px 6px;font-weight:600">Блюдо</th>
+        <th style="padding:4px 6px;text-align:center;font-weight:600">Кол.</th>
+        <th style="padding:4px 6px;text-align:right;font-weight:600">Цена</th>
+        <th style="padding:4px 6px;text-align:right;font-weight:600">Итого</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+const LANG_LABEL = { ru: '🇷🇺 Русский', en: '🇬🇧 English', he: '🇮🇱 עברית' };
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -153,9 +215,10 @@ export default async function handler(req, res) {
     if (notes_kitchen   !== undefined) fields[FO_KITCHEN_NOTES] = notes_kitchen;
     if (notes_customer  !== undefined) fields[FO_NOTES_CUST]    = notes_customer;
     if (delivery_address!== undefined) fields[FO_DELIVERY_ADDR] = delivery_address;
-    if (delivery_status !== undefined) fields[FO_DELIVERY_STAT] = delivery_status;
-    if (delivery_type   !== undefined) fields[FO_DELIVERY_TYPE] = delivery_type;
-    if (status          !== undefined) fields[FO_STATUS]        = status;
+    // singleSelect: Airtable rejects empty string — use null to clear
+    if (delivery_status !== undefined) fields[FO_DELIVERY_STAT] = delivery_status || null;
+    if (delivery_type   !== undefined) fields[FO_DELIVERY_TYPE] = delivery_type   || null;
+    if (status          !== undefined) fields[FO_STATUS]        = status          || null;
     if (!Object.keys(fields).length) return res.status(400).json({ error: 'Nothing to update' });
     const r = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, {
       method: 'PATCH', headers: atHeaders(airtableToken),
@@ -169,7 +232,7 @@ export default async function handler(req, res) {
   const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
 
   // ── JSON GET actions (return JSON, not HTML) ─────────────────────────────
-  if (req.method === 'GET' && ['payments','payment_methods','contacts','pay'].includes(action)) {
+  if (['GET','POST'].includes(req.method) && ['payments','payment_methods','contacts','pay','notify_staff'].includes(action)) {
     if (role !== 'manager') return res.status(403).json({ error: 'Forbidden' });
 
     if (action === 'payment_methods') {
@@ -232,6 +295,69 @@ export default async function handler(req, res) {
       }));
       return res.status(200).json({ contacts });
     }
+
+    if (action === 'notify_staff') {
+      if (role !== 'manager') return res.status(403).json({ error: 'Forbidden' });
+      if (!id || !/^rec[A-Za-z0-9]{14}$/.test(id)) return res.status(400).json({ error: 'Invalid order id' });
+      const target = (req.query.target || '').trim(); // 'chef' | 'group'
+      const chefPhone  = (process.env.CHEF_WA_PHONE  || '').trim();
+      const groupWaId  = (process.env.GROUP_WA_ID    || '').trim();
+      const instance   = (process.env.GREEN_API_INSTANCE || '').trim();
+      const apiToken   = (process.env.GREEN_API_TOKEN    || '').trim();
+      if (!instance || !apiToken) return res.status(500).json({ error: 'WhatsApp not configured' });
+      if (target === 'chef'  && !chefPhone) return res.status(400).json({ error: 'CHEF_WA_PHONE not set' });
+      if (target === 'group' && !groupWaId) return res.status(400).json({ error: 'GROUP_WA_ID not set' });
+      if (!target) return res.status(400).json({ error: 'target required: chef or group' });
+
+      // Fetch order — single-record endpoint returns all fields, no fields[] filtering
+      const orR = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, { headers: atHeaders(airtableToken) });
+      if (!orR.ok) return res.status(502).json({ error: 'Order fetch failed', status: orR.status });
+      const orData = await orR.json();
+      const f = orData.fields || {};
+      const serial    = f[FO_SERIAL]    ? `№${f[FO_SERIAL]}` : '';
+      const custName  = f[FO_CUST_NAME] || '';
+      const orderType = f[FO_NAME_RU]   || '';
+      const dateExe   = f[FO_DATE_EXE]  || '';
+      const status    = f[FO_STATUS]    || '';
+      const kitNotes  = f[FO_KITCHEN_NOTES] || '';
+
+      // Fetch items — no fields[] so linked records return {id,name}
+      const items = await fetchItems(id, airtableToken);
+      const itemLines = items.map(i => `  • ${i.name} × ${i.qty}`).join('\n');
+
+      let dateStr = '', timeStr = '';
+      if (dateExe) {
+        const dt = new Date(dateExe);
+        dateStr = dt.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'Asia/Almaty' });
+        timeStr = dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' });
+      }
+      const lines = [
+        `🍽️ Новый заказ ${serial}`,
+        orderType ? `📋 Тип: ${orderType}` : '',
+        (dateStr || timeStr) ? `📅 ${[dateStr, timeStr].filter(Boolean).join(' ')}` : '',
+        custName  ? `👤 ${custName}` : '',
+        itemLines ? `\nСостав:\n${itemLines}` : '',
+        kitNotes  ? `💬 ${kitNotes}` : '',
+        status    ? `📌 Статус: ${status}` : '',
+      ].filter(Boolean).join('\n');
+
+      // Custom message override (from modal editor, POST body)
+      let finalMessage = lines;
+      if (req.query.custom === '1' && req.method === 'POST') {
+        const customMsg = ((req.body || {}).message || '').trim();
+        if (customMsg) finalMessage = customMsg;
+      }
+
+      const toId = target === 'chef' ? toWaId(chefPhone) : groupWaId;
+      const waUrl = `https://api.green-api.com/waInstance${instance}/sendMessage/${apiToken}`;
+      const waR = await fetch(waUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId: toId, message: finalMessage }),
+      });
+      const waD = await waR.json().catch(() => ({}));
+      if (waR.ok && waD.idMessage) return res.status(200).json({ ok: true });
+      return res.status(200).json({ ok: false, error: waD.message || 'WhatsApp error' });
+    }
   }
 
   // ── POST: create contact ─────────────────────────────────────────────────
@@ -281,7 +407,7 @@ export default async function handler(req, res) {
   }
 
   // baker/chef can mark ready+deliver; manager can do all
-  const allowedActions = role === 'manager' ? ['approve','reject','ready','deliver','kaspi_paid'] : ['ready','deliver'];
+  const allowedActions = role === 'manager' ? ['approve','reject','ready','deliver','kaspi_paid','mark_paid'] : ['ready','deliver'];
   if (!role || !allowedActions.includes(action)) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(403).send(htmlPage('Ошибка', '<div class="icon">🚫</div><h1>Нет доступа</h1><p>Недействительная ссылка.</p>', '#ef4444'));
@@ -293,7 +419,7 @@ export default async function handler(req, res) {
   }
 
   const newStatus = STATUS_MAP[action];
-  if (!newStatus && action !== 'kaspi_paid') {
+  if (!newStatus && !['kaspi_paid','mark_paid'].includes(action)) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(400).send(htmlPage('Ошибка', '<div class="icon">⚠️</div><h1>Неверное действие</h1>', '#f59e0b'));
   }
@@ -303,126 +429,269 @@ export default async function handler(req, res) {
     return res.status(500).send(htmlPage('Ошибка', '<div class="icon">⚙️</div><h1>Ошибка конфигурации</h1>', '#ef4444'));
   }
 
+  const tknEnc = encodeURIComponent(reqToken);
+
   try {
-    // Fetch order first — single-record GET does NOT support fields[] filter
-    const getR = await fetch(
-      `${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`,
-      { headers: atHeaders(airtableToken) }
-    );
+    // Fetch order — single-record GET returns all fields, no fields[] needed
+    const getR = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, { headers: atHeaders(airtableToken) });
     if (!getR.ok) throw new Error(`GET ${getR.status}`);
     const rec = await getR.json();
     const f = rec.fields || {};
-
-    // ── deliver: mark delivery_status = נמסר (no order status change) ──────
-    if (action === 'deliver') {
-      const patchR = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, {
-        method: 'PATCH', headers: atHeaders(airtableToken),
-        body: JSON.stringify({ fields: { [FO_DELIVERY_STAT]: 'נמסר' } }),
-      });
-      if (!patchR.ok) throw new Error(`PATCH deliver ${patchR.status}`);
-      return res.status(200).json({ ok: true, message: 'Помечено как передано' });
-    }
-
-    // ── kaspi_paid: create payment record in Airtable ──────────────────────
-    if (action === 'kaspi_paid') {
-      const orderNum = f[FO_SERIAL]    ? `№${f[FO_SERIAL]}` : '';
-      const total    = f[FO_PRICE]     || 0;
-      const today    = new Date().toISOString().slice(0, 10);
-      const payR = await fetch(`${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`, {
-        method:  'POST',
-        headers: atHeaders(airtableToken),
-        body:    JSON.stringify({ fields: {
-          [FP_ORDER]:  [id],
-          [FP_DATE]:   today,
-          [FP_KZT]:    total,
-          [FP_STATUS]: 'Done',
-          [FP_NOTES]:  `Kaspi — отмечено менеджером вручную | Заказ ${orderNum}`,
-        }}),
-      });
-      const payD = await payR.json();
-      if (!payR.ok) throw new Error(`PAY ${JSON.stringify(payD).slice(0, 100)}`);
-      const htmlBody = `
-        <div class="icon">✅</div>
-        <h1>Оплата Kaspi отмечена</h1>
-        <div class="badge">Заказ ${orderNum}</div>
-        ${total ? `<p><strong>${total} ₸</strong></p>` : ''}
-        <p>Запись создана в таблице оплат.</p>
-      `;
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.status(200).send(htmlPage('Оплата отмечена', htmlBody, '#22c55e'));
-    }
-
-    // Update status
-    const patchR = await fetch(
-      `${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`,
-      {
-        method: 'PATCH',
-        headers: atHeaders(airtableToken),
-        body: JSON.stringify({ fields: { [FO_STATUS]: newStatus } }),
-      }
-    );
-    if (!patchR.ok) throw new Error(`PATCH ${patchR.status}`);
 
     const orderNum  = f[FO_SERIAL]    ? `№${f[FO_SERIAL]}` : '';
     const custName  = f[FO_CUST_NAME] || '';
     const custPhone = f[FO_PHONE]     || '';
     const orderType = f[FO_NAME_RU]   || '';
     const total     = f[FO_PRICE]     || 0;
+    const orderDate = f[FO_DATE_EXE]  || '';
     const payment   = typeof f[FO_PAYMENT] === 'object' ? (f[FO_PAYMENT]?.name || '') : (f[FO_PAYMENT] || '');
     const kaspiUrl  = f[FO_KASPI_URL] || '';
+    const custLang  = f[FO_LANG]      || 'ru';
     const statusUrl = f[FO_SERIAL] ? `${SITE_URL}/status?num=${f[FO_SERIAL]}` : '';
+    const kitNotes  = f[FO_KITCHEN_NOTES] || '';
 
-    // Send WhatsApp to customer after action
+    const dateStr = orderDate
+      ? new Date(orderDate).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' })
+      : '';
+
+    // ── PREVIEW page (approve/ready/deliver without confirm=1, GET only) ─────
+    if (req.method === 'GET' && req.query.confirm !== '1' && action !== 'mark_paid') {
+      const items = await fetchItems(id, airtableToken);
+      const confirmUrl = `${SITE_URL}/api/manager-action?id=${id}&action=${action}&token=${tknEnc}&confirm=1`;
+      const actionLabels = { approve: '✅ Подтвердить заказ', ready: '🍽️ Отметить Готов', deliver: '📦 Отметить Передано' };
+      const actionColors = { approve: '#22c55e', ready: '#f59e0b', deliver: '#6366f1' };
+      const btn = actionLabels[action] || 'Выполнить';
+      const col = actionColors[action] || '#22c55e';
+      const paymentFormHtml = (action === 'approve') ? `
+        <div class="divider"></div>
+        <details style="text-align:left">
+          <summary style="cursor:pointer;color:#94a3b8;font-size:13px;padding:6px 0">💳 Зарегистрировать оплату</summary>
+          <div style="margin-top:10px">
+            <input id="payAmt" type="number" placeholder="Сумма ₸" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:14px;margin-bottom:8px" value="${total||''}">
+            <select id="payMethod" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:14px;margin-bottom:10px">
+              <option value="">-- Способ оплаты --</option>
+              <option value="Наличные">💵 Наличные</option>
+              <option value="Kaspi">📱 Kaspi</option>
+              <option value="Перевод">🏦 Перевод</option>
+              <option value="Voucher">🎫 Ваучер</option>
+            </select>
+            <button class="btn" style="background:#0ea5e9;color:#fff" onclick="recordPay()">💳 Записать оплату</button>
+            <p id="payResult" style="margin-top:8px;font-size:13px;display:none"></p>
+          </div>
+        </details>
+        <script>
+        async function recordPay(){
+          const amt=document.getElementById('payAmt').value;
+          const mth=document.getElementById('payMethod').value;
+          const res=document.getElementById('payResult');
+          if(!amt||!mth){res.style.display='';res.style.color='#f87171';res.textContent='Укажите сумму и способ оплаты';return;}
+          res.style.display='';res.style.color='#94a3b8';res.textContent='⏳ Сохраняем…';
+          const r=await fetch('/api/manager-action?action=mark_paid&id=${id}&token=${tknEnc}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:Number(amt),method:mth})});
+          const d=await r.json().catch(()=>({}));
+          if(d.ok){res.style.color='#86efac';res.textContent='✅ Оплата записана: '+amt+' ₸';}
+          else{res.style.color='#f87171';res.textContent='Ошибка: '+(d.error||'unknown');}
+        }
+        </script>` : '';
+      const notifyChefUrl = `${SITE_URL}/api/manager-action?action=notify_staff&target=chef&id=${id}&token=${tknEnc}`;
+      const currentStatus = f[FO_STATUS] || '';
+      const statusColor = {
+        'Ожидает подтверждения менеджера': '#f59e0b',
+        'Подтверждён': '#22c55e', 'Готов': '#a78bfa', 'Отменён': '#ef4444',
+      }[currentStatus] || '#94a3b8';
+      // Build default chef message text
+      const chefMsgDefault = [
+        `🍽️ Новый заказ ${orderNum}`,
+        orderType ? `📋 Тип: ${orderType}` : '',
+        dateStr   ? `📅 ${dateStr}` : '',
+        custName  ? `👤 ${custName}` : '',
+        items.length ? `\nСостав:\n${items.map(i=>`  • ${i.name} × ${i.qty}`).join('\n')}` : '',
+        kitNotes  ? `💬 ${kitNotes}` : '',
+        currentStatus ? `📌 ${currentStatus}` : '',
+      ].filter(Boolean).join('\n');
+
+      const readyUrlDirect  = `${SITE_URL}/api/manager-action?id=${id}&action=ready&token=${tknEnc}&confirm=1`;
+      const deliverUrlDirect= `${SITE_URL}/api/manager-action?id=${id}&action=deliver&token=${tknEnc}&confirm=1`;
+
+      const pageBody = `
+        <div class="icon">📋</div>
+        <h1>Заказ ${orderNum}</h1>
+        ${currentStatus ? `<div style="display:inline-block;padding:6px 16px;border-radius:99px;font-size:13px;font-weight:700;background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}55;margin:6px 0 14px">📌 ${currentStatus}</div>` : ''}
+        ${custName  ? `<div class="info-row"><span>Клиент</span>${custName}</div>` : ''}
+        ${custLang  ? `<div class="info-row"><span>Язык клиента</span>${LANG_LABEL[custLang] || custLang}</div>` : ''}
+        ${orderType ? `<div class="info-row"><span>Тип заказа</span>${orderType}</div>` : ''}
+        ${dateStr   ? `<div class="info-row"><span>Дата / время</span>${dateStr}</div>` : ''}
+        ${payment   ? `<div class="info-row"><span>Оплата</span>${payment}</div>` : ''}
+        ${total     ? `<div class="info-row"><span>Сумма</span><strong style="color:#fde047">${total} ₸</strong></div>` : ''}
+        ${kitNotes  ? `<div class="info-row" style="background:#2d1f00"><span>💬 Заметки кухни</span>${kitNotes}</div>` : ''}
+        ${items.length ? `<div style="margin-top:12px;font-size:12px;color:#94a3b8;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Состав заказа</div>` : '<div style="margin-top:8px;font-size:13px;color:#64748b;text-align:left">Позиции заказа не найдены</div>'}
+        ${itemsTable(items)}
+        <div class="divider"></div>
+        <a class="btn" style="background:${col};color:#fff;display:block;text-decoration:none;margin-bottom:4px" href="${confirmUrl}">${btn}</a>
+        <button class="btn btn-secondary" style="margin-top:4px" onclick="openChefModal()">📨 Уведомить шефа</button>
+        <div class="divider"></div>
+        <div style="display:flex;gap:8px">
+          <a class="btn" style="background:#a78bfa;color:#fff;text-decoration:none;flex:1;font-size:14px" href="${readyUrlDirect}">🍽️ Готов</a>
+          <a class="btn" style="background:#6366f1;color:#fff;text-decoration:none;flex:1;font-size:14px" href="${deliverUrlDirect}">📦 Передано</a>
+        </div>
+        ${paymentFormHtml}
+
+        <!-- Chef modal -->
+        <div id="chefModal" style="display:none;position:fixed;inset:0;background:#000a;z-index:100;align-items:center;justify-content:center;padding:16px">
+          <div style="background:#1e293b;border-radius:16px;padding:24px;max-width:420px;width:100%">
+            <h2 style="color:#f1f5f9;font-size:16px;margin:0 0 12px">📨 Сообщение шефу</h2>
+            <textarea id="chefMsgTxt" rows="10" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;line-height:1.5;resize:vertical;box-sizing:border-box"></textarea>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn btn-secondary" style="flex:1" onclick="closeChefModal()">✕ Отмена</button>
+              <button class="btn" style="flex:2;background:#22c55e;color:#fff" onclick="sendChefMsg(this)">✅ Отправить</button>
+            </div>
+            <p id="chefMsgRes" style="margin-top:8px;font-size:13px;display:none"></p>
+          </div>
+        </div>
+
+        <script>
+        const _defMsg=${JSON.stringify(chefMsgDefault)};
+        function openChefModal(){
+          document.getElementById('chefMsgTxt').value=_defMsg;
+          document.getElementById('chefModal').style.display='flex';
+          document.getElementById('chefMsgRes').style.display='none';
+        }
+        function closeChefModal(){document.getElementById('chefModal').style.display='none';}
+        async function sendChefMsg(btn){
+          const msg=document.getElementById('chefMsgTxt').value.trim();
+          if(!msg)return;
+          btn.disabled=true;btn.textContent='⏳…';
+          const r=await fetch('/api/manager-action?action=notify_staff&target=chef&id=${id}&token=${tknEnc}&custom=1',{
+            method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})
+          }).catch(()=>({ok:false}));
+          const d=r.json?await r.json().catch(()=>({})):{};
+          const res=document.getElementById('chefMsgRes');
+          res.style.display='';
+          if(d.ok){res.style.color='#86efac';res.textContent='✅ Отправлено!';setTimeout(closeChefModal,1200);}
+          else{res.style.color='#f87171';res.textContent='Ошибка: '+(d.error||'');btn.disabled=false;btn.textContent='✅ Отправить';}
+        }
+        <\/script>`;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(htmlPage(`Заказ ${orderNum}`, pageBody, '#3b82f6'));
+    }
+
+    // ── mark_paid: POST from payment form in preview page ───────────────────
+    if (action === 'mark_paid') {
+      const body = req.body || {};
+      const amount = Number(body.amount) || 0;
+      const method = String(body.method || '').trim();
+      if (!amount || !method) return res.status(400).json({ error: 'amount and method required' });
+      const today = new Date().toISOString().slice(0, 10);
+      const payR = await fetch(`${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`, {
+        method: 'POST', headers: atHeaders(airtableToken),
+        body: JSON.stringify({ fields: {
+          [FP_ORDER]: [id], [FP_DATE]: today, [FP_KZT]: amount,
+          [FP_STATUS]: 'Done', [FP_NOTES]: `${method} | Заказ ${orderNum}`,
+        }}),
+      });
+      const payD = await payR.json().catch(() => ({}));
+      if (!payR.ok) return res.status(502).json({ error: 'Airtable error', detail: JSON.stringify(payD).slice(0,100) });
+      return res.status(200).json({ ok: true });
+    }
+
+    // ── deliver: mark delivery_status only ───────────────────────────────────
+    if (action === 'deliver') {
+      const patchR = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, {
+        method: 'PATCH', headers: atHeaders(airtableToken),
+        body: JSON.stringify({ fields: { [FO_DELIVERY_STAT]: 'נמסר' } }),
+      });
+      if (!patchR.ok) throw new Error(`PATCH deliver ${patchR.status}`);
+      const pageBody = `
+        <div class="icon">📦</div>
+        <h1>Передано!</h1>
+        <div class="badge">Заказ ${orderNum}</div>
+        ${custName ? `<div class="info-row"><span>Клиент</span>${custName}</div>` : ''}
+        <p style="margin-top:12px;color:#86efac">✅ Доставка отмечена как выполненная</p>`;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(htmlPage('Передано', pageBody, '#22c55e'));
+    }
+
+    // ── kaspi_paid: create payment record ───────────────────────────────────
+    if (action === 'kaspi_paid') {
+      const today = new Date().toISOString().slice(0, 10);
+      const payR = await fetch(`${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`, {
+        method: 'POST', headers: atHeaders(airtableToken),
+        body: JSON.stringify({ fields: {
+          [FP_ORDER]: [id], [FP_DATE]: today, [FP_KZT]: total,
+          [FP_STATUS]: 'Done', [FP_NOTES]: `Kaspi — отмечено менеджером | Заказ ${orderNum}`,
+        }}),
+      });
+      const payD = await payR.json().catch(() => ({}));
+      if (!payR.ok) throw new Error(`PAY ${JSON.stringify(payD).slice(0, 100)}`);
+      const pageBody = `
+        <div class="icon">✅</div><h1>Оплата Kaspi отмечена</h1>
+        <div class="badge">Заказ ${orderNum}</div>
+        ${total ? `<p><strong>${total} ₸</strong></p>` : ''}
+        <p>Запись создана в таблице оплат.</p>`;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(htmlPage('Оплата отмечена', pageBody, '#22c55e'));
+    }
+
+    // ── approve / ready / reject: update order status ────────────────────────
+    const patchR = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, {
+      method: 'PATCH', headers: atHeaders(airtableToken),
+      body: JSON.stringify({ fields: { [FO_STATUS]: newStatus } }),
+    });
+    if (!patchR.ok) throw new Error(`PATCH ${patchR.status}`);
+
+    // Send WhatsApp to customer
     if (custPhone) {
       const isKaspi = payment === 'כספי';
-      let header = '', body = '', buttons = [];
-
+      let header = '', waBody = '', buttons = [];
       if (action === 'approve') {
         header = `✅ Заказ ${orderNum} подтверждён!`;
-        body   = `${orderType ? '📋 ' + orderType + '\n' : ''}💰 ${total} ₸`;
+        waBody = orderType ? `📋 ${orderType}` : '';
         if (statusUrl) buttons.push({ type: 'url', buttonId: '1', buttonText: 'Статус заказа', url: statusUrl });
         if (isKaspi && kaspiUrl) buttons.push({ type: 'url', buttonId: '2', buttonText: 'Оплатить Kaspi', url: kaspiUrl });
       } else if (action === 'ready') {
         header = `🍽️ Заказ ${orderNum} готов!`;
-        body   = orderType || 'Заберите заказ';
+        waBody = orderType || 'Заберите заказ';
         if (statusUrl) buttons.push({ type: 'url', buttonId: '1', buttonText: 'Статус заказа', url: statusUrl });
-
-        // Notify manager when order is ready
         const managerPhone = (process.env.MANAGER_PHONE || '').trim();
-        if (managerPhone) {
-          sendWa(managerPhone, `✅ Заказ ${orderNum} готов!\n👤 ${custName}\n📋 ${orderType}`).catch(() => {});
-        }
+        if (managerPhone) sendWa(managerPhone, `✅ Заказ ${orderNum} готов!\n👤 ${custName}\n📋 ${orderType}`).catch(() => {});
       } else if (action === 'reject') {
         header = `❌ Заказ ${orderNum} отменён`;
-        body   = 'Свяжитесь с нами для уточнения деталей.';
+        waBody = 'Свяжитесь с нами для уточнения деталей.';
       }
-
-      if (header) {
-        sendWaButtons(custPhone, { header, body, buttons }).catch(() => {});
-      }
+      if (header) sendWaButtons(custPhone, { header, body: waBody, buttons }).catch(() => {});
     }
 
     const icons  = { approve: '✅', reject: '❌', ready: '🍽️' };
     const colors = { approve: '#22c55e', reject: '#ef4444', ready: '#f59e0b' };
 
-    // After approve of a Kaspi order — show "mark as paid" button
-    const _isKaspi = payment === 'כספי';
-    const kaspiPaidUrl = (action === 'approve' && _isKaspi)
-      ? `${SITE_URL}/api/manager-action?id=${id}&action=kaspi_paid&token=${encodeURIComponent(reqToken)}`
-      : '';
+    const readyUrl   = action === 'approve' ? `${SITE_URL}/api/manager-action?id=${id}&action=ready&token=${tknEnc}` : '';
+    const deliverUrl = action === 'ready'   ? `${SITE_URL}/api/manager-action?id=${id}&action=deliver&token=${tknEnc}` : '';
+    const kaspiPaidUrl = (action === 'approve' && payment === 'כספי')
+      ? `${SITE_URL}/api/manager-action?id=${id}&action=kaspi_paid&token=${tknEnc}` : '';
+    const notifyChefUrl2 = `${SITE_URL}/api/manager-action?action=notify_staff&target=chef&id=${id}&token=${tknEnc}`;
 
-    const htmlBody = `
-      <div class="icon">${icons[action]}</div>
+    const pageBody = `
+      <div class="icon">${icons[action] || '✅'}</div>
       <h1>${newStatus}</h1>
       <div class="badge">Заказ ${orderNum}</div>
-      ${custName  ? `<p>${custName}</p>` : ''}
-      ${orderType ? `<p>${orderType}</p>` : ''}
-      ${total     ? `<p><strong>${total} ₸</strong></p>` : ''}
-      ${kaspiPaidUrl ? `<a href="${kaspiPaidUrl}" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#16a34a;color:#fff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:700">✅ Отметить Kaspi оплаченным</a>` : ''}
-    `;
+      ${custName  ? `<div class="info-row"><span>Клиент</span>${custName}</div>` : ''}
+      ${orderType ? `<div class="info-row"><span>Тип заказа</span>${orderType}</div>` : ''}
+      ${dateStr   ? `<div class="info-row"><span>Дата / время</span>${dateStr}</div>` : ''}
+      <div class="divider"></div>
+      ${action === 'approve' ? `<button class="btn btn-secondary" onclick="notifyChef(this)">📨 Уведомить шефа</button>` : ''}
+      ${kaspiPaidUrl ? `<a class="btn" style="background:#22c55e;color:#fff;display:block;text-decoration:none;margin-top:8px" href="${kaspiPaidUrl}">✅ Kaspi оплачен</a>` : ''}
+      ${readyUrl    ? `<a class="btn" style="background:#f59e0b;color:#fff;display:block;text-decoration:none;margin-top:8px" href="${readyUrl}">🍽️ Отметить Готов</a>` : ''}
+      ${deliverUrl  ? `<a class="btn" style="background:#6366f1;color:#fff;display:block;text-decoration:none;margin-top:8px" href="${deliverUrl}">📦 Отметить Передано</a>` : ''}
+      <script>
+      async function notifyChef(btn){
+        btn.disabled=true;btn.textContent='⏳ Отправка…';
+        const r=await fetch('${notifyChefUrl2}').catch(()=>({ok:false}));
+        const d=r.json?await r.json().catch(()=>({})):{};
+        btn.textContent=d.ok?'✅ Отправлено шефу':'⚠️ Ошибка — '+(d.error||'');
+      }
+      <\/script>`;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(200).send(htmlPage(newStatus, htmlBody, colors[action]));
+    return res.status(200).send(htmlPage(newStatus, pageBody, colors[action] || '#22c55e'));
 
   } catch (err) {
     console.error('[manager-action]', err.message);

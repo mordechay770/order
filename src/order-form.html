@@ -1591,14 +1591,32 @@
     </div>
 
     <div class="section-block" style="text-align:center;">
-      <button class="btn-secondary" id="waSkipBtn" onclick="waSkipNoPhone()" style="width:100%;">
-        <span id="waSkipBtnText">Нет WhatsApp — продолжить без уведомления</span>
+      <button class="btn-secondary" id="waSkipBtn" onclick="waYesMyNum()" style="width:100%;">
+        <span id="waSkipBtnText">Мой номер верный — связаться с менеджером</span>
       </button>
     </div>
 
     <div id="waNoPhoneResult" style="display:none;text-align:center;padding:16px;background:#f8fafc;border-radius:12px;margin-top:8px;">
       <p id="waNoPhoneMsg" style="color:var(--muted);font-size:14px;margin:0;line-height:1.6;"></p>
       <button class="btn-secondary" onclick="resetAll()" style="margin-top:16px;" id="waNewOrderBtn">Новый заказ</button>
+    </div>
+
+    <!-- Success after retry send -->
+    <div id="waRetrySentBlock" style="display:none;text-align:center;padding:20px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;margin-top:8px;">
+      <div style="font-size:36px;margin-bottom:8px;">✅</div>
+      <p id="waRetrySentMsg" style="font-size:14px;color:#166534;margin:0 0 16px;line-height:1.5;font-weight:600;"></p>
+      <button class="btn-submit" onclick="showResult(true,_waFailedOrderNum,_waFailedPm)" style="background:#16a34a;min-width:160px;">
+        <span id="waFinishBtnTxt">Завершить</span>
+      </button>
+    </div>
+
+    <!-- Contact manager block — shown when number is correct but WA not received -->
+    <div id="waContactManagerBlock" style="display:none;text-align:center;padding:20px 16px;background:#f8fafc;border-radius:12px;margin-top:8px;">
+      <p id="waContactManagerMsg" style="font-size:14px;color:var(--muted);margin:0 0 14px;line-height:1.5;"></p>
+      <a id="waContactManagerBtn" href="#" target="_blank" class="btn-submit" style="display:inline-block;text-decoration:none;min-width:180px;">
+        <span id="waContactManagerBtnTxt">📞 Написать менеджеру</span>
+      </a>
+      <br><button class="btn-secondary" onclick="resetAll()" style="margin-top:12px;min-width:140px;" id="waContactNewOrderBtn">Новый заказ</button>
     </div>
   </div>
 </div>
@@ -1623,6 +1641,11 @@
     ">⏳ В ожидании подтверждения</div>
     <p style="font-size:12px;color:var(--muted);margin-top:10px;">Обычно подтверждение приходит в течение нескольких часов.</p>
     <button class="btn-secondary" id="resultBtn" onclick="resetAll()">Новый заказ</button>
+    <div id="noWaRow" style="margin-top:16px;text-align:center;">
+      <button onclick="openWaFixScreen()" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--muted);text-decoration:underline;padding:4px 8px;">
+        <span id="noWaBtnTxt">📱 Не получили уведомление WhatsApp?</span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1673,9 +1696,27 @@ const T = {
     wa_phone_fix_label: 'Введите корректный номер WhatsApp',
     wa_phone_label: 'Ваш номер WhatsApp',
     wa_retry_btn: '📩 Отправить уведомление',
-    wa_skip_btn: 'Нет WhatsApp — продолжить без уведомления',
+    wa_skip_btn: 'Мой номер верный — связаться с менеджером',
     wa_no_phone_msg: 'Заказ #{num} сохранён. Для уточнения статуса обратитесь к менеджеру напрямую.',
     wa_success_msg: '✅ Уведомление отправлено! Заказ #{num} принят.',
+    wa_retry_sent_msg: '✅ Отправлено на #{phone}! Уведомление должно прийти в течение минуты.',
+    btn_wa_finish: 'Завершить',
+    btn_no_wa: '📱 Не получили уведомление WhatsApp?',
+    wa_contact_mgr_msg: 'Сообщите менеджеру — он поможет проверить вашу заявку.',
+    wa_contact_mgr_btn: '📞 Написать менеджеру',
+    wa_contact_mgr_text: 'Здравствуйте! Мой заказ #{num} оформлен, но уведомление не дошло. Помогите, пожалуйста.',
+    result_title: 'Заказ оформлен!',
+    result_order_num: 'Заказ №#{num}',
+    result_kaspi_voucher_msg: '📲 <strong>Ссылку на оплату Kaspi</strong> пришлём в WhatsApp.<br>🎫 Владелец ваучера получит запрос подтверждения.',
+    result_kaspi_msg: '📲 <strong>Ссылку на оплату Kaspi</strong> пришлём вам в WhatsApp.<br>После оплаты заказ будет подтверждён автоматически.',
+    result_voucher_msg: '🎫 Владелец талона получит запрос подтверждения в <strong>WhatsApp</strong>.<br>Ожидайте уведомления.',
+    result_default_msg: '✅ Заказ принят. Ожидайте подтверждения менеджера.',
+    result_error_title: 'Ошибка отправки',
+    result_error_msg: 'Попробуйте ещё раз или свяжитесь с нами напрямую.',
+    btn_retry: 'Попробовать снова',
+    result_pay_voucher: '🎫 Ваучер',
+    result_pay_cash: '💵 Наличными',
+    result_pay_kaspi: '📱 Kaspi',
     choose_date: 'Выберите дату', choose_date_sub: 'Доступные даты для заказа',
     total_label: 'Итого', selected_label: 'Выбрано позиций', all_cats: 'Все',
     loading_dates: '⏳ Загружаем доступные даты…',
@@ -1715,9 +1756,27 @@ const T = {
     wa_phone_fix_label: 'Enter correct WhatsApp number',
     wa_phone_label: 'Your WhatsApp number',
     wa_retry_btn: '📩 Send notification',
-    wa_skip_btn: 'No WhatsApp — continue without notification',
+    wa_skip_btn: 'My number is correct — contact manager',
     wa_no_phone_msg: 'Order #{num} saved. Please contact the manager directly to track your order status.',
     wa_success_msg: '✅ Notification sent! Order #{num} received.',
+    wa_retry_sent_msg: '✅ Sent to #{phone}! The notification should arrive within a minute.',
+    btn_wa_finish: 'Finish',
+    btn_no_wa: '📱 Didn\'t receive WhatsApp notification?',
+    wa_contact_mgr_msg: 'Please contact the manager — they will help check your order.',
+    wa_contact_mgr_btn: '📞 Contact manager',
+    wa_contact_mgr_text: 'Hello! My order #{num} was placed but I didn\'t receive the notification. Could you please help?',
+    result_title: 'Order placed!',
+    result_order_num: 'Order №#{num}',
+    result_kaspi_voucher_msg: '📲 We will send the <strong>Kaspi payment link</strong> to your WhatsApp.<br>🎫 The voucher owner will receive a confirmation request.',
+    result_kaspi_msg: '📲 We will send the <strong>Kaspi payment link</strong> to your WhatsApp.<br>Your order will be confirmed after payment.',
+    result_voucher_msg: '🎫 The voucher owner will receive a confirmation request via <strong>WhatsApp</strong>.<br>Please await notification.',
+    result_default_msg: '✅ Order received. Awaiting manager confirmation.',
+    result_error_title: 'Submission error',
+    result_error_msg: 'Please try again or contact us directly.',
+    btn_retry: 'Try again',
+    result_pay_voucher: '🎫 Voucher',
+    result_pay_cash: '💵 Cash',
+    result_pay_kaspi: '📱 Kaspi',
     choose_date: 'Select date', choose_date_sub: 'Available order dates',
     total_label: 'Total', selected_label: 'Selected items', all_cats: 'All',
     loading_dates: '⏳ Loading available dates…',
@@ -1758,9 +1817,27 @@ const T = {
     wa_phone_fix_label: 'תקנו את מספר ה-WhatsApp',
     wa_phone_label: 'מספר WhatsApp שלכם',
     wa_retry_btn: '📩 שלח הודעה',
-    wa_skip_btn: 'אין לי WhatsApp — המשך ללא הודעה',
+    wa_skip_btn: 'המספר שלי נכון — כתוב למנהל',
     wa_no_phone_msg: 'הזמנה #{num} נשמרה. לבירור סטטוס פנו למנהל ישירות.',
     wa_success_msg: '✅ הודעה נשלחה! הזמנה #{num} התקבלה.',
+    wa_retry_sent_msg: '✅ נשלח ל-#{phone}! ההודעה צריכה להגיע תוך דקה.',
+    btn_wa_finish: 'סיום',
+    btn_no_wa: '📱 לא קיבלתם הודעת WhatsApp?',
+    wa_contact_mgr_msg: 'פנו למנהל — הוא יעזור לבדוק את ההזמנה שלכם.',
+    wa_contact_mgr_btn: '📞 כתבו למנהל',
+    wa_contact_mgr_text: 'שלום! הזמנה #{num} נשלחה אך לא קיבלתי הודעה. אנא עזרו.',
+    result_title: 'ההזמנה בוצעה!',
+    result_order_num: 'הזמנה №#{num}',
+    result_kaspi_voucher_msg: '📲 נשלח לכם לינק לתשלום <strong>Kaspi</strong> בוואטסאפ.<br>🎫 בעל התלוש יקבל בקשת אישור.',
+    result_kaspi_msg: '📲 נשלח לכם לינק לתשלום <strong>Kaspi</strong> בוואטסאפ.<br>ההזמנה תאושר אחרי התשלום.',
+    result_voucher_msg: '🎫 בעל התלוש יקבל בקשת אישור ב-<strong>WhatsApp</strong>.<br>המתינו להודעה.',
+    result_default_msg: '✅ ההזמנה התקבלה. ממתינים לאישור מנהל.',
+    result_error_title: 'שגיאה בשליחה',
+    result_error_msg: 'נסו שוב או פנו אלינו ישירות.',
+    btn_retry: 'נסו שוב',
+    result_pay_voucher: '🎫 תלוש',
+    result_pay_cash: '💵 מזומן',
+    result_pay_kaspi: '📱 Kaspi',
     choose_date: 'בחרו תאריך', choose_date_sub: 'תאריכים זמינים',
     total_label: 'סה״כ', selected_label: 'מנות שנבחרו', all_cats: 'הכל',
     loading_dates: '…⏳ טוענים תאריכים זמינים',
@@ -2397,26 +2474,35 @@ function renderSummary() {
 function showResult(success, orderNum, paymentMethod, breakdown) {
   const box = document.getElementById('resultBox'), icon = document.getElementById('resultIcon'), title = document.getElementById('resultTitle'), msg = document.getElementById('resultMsg'), num = document.getElementById('orderNumDisplay'), badge = document.getElementById('pendingBadge'), rbtn = document.getElementById('resultBtn');
   if (success) {
-    box.className='result-box success'; icon.textContent='✅'; title.textContent='Заказ оформлен!';
-    num.textContent = orderNum ? 'Заказ №'+orderNum : '';
-    rbtn.className='btn-secondary'; rbtn.textContent='Новый заказ'; rbtn.onclick=resetAll;
+    box.className='result-box success'; icon.textContent='✅';
+    title.textContent = t('result_title') || 'Заказ оформлен!';
+    num.textContent = orderNum ? (t('result_order_num')||'Заказ №#{num}').replace('#{num}', orderNum) : '';
+    rbtn.className='btn-secondary'; rbtn.textContent = t('btn_new_order') || 'Новый заказ'; rbtn.onclick=resetAll;
     const hasK = paymentMethod==='kaspi' || (paymentMethod==='combined' && breakdown && breakdown.some(b=>b.method==='kaspi'));
     const hasV = paymentMethod==='voucher' || (paymentMethod==='combined' && breakdown && breakdown.some(b=>b.method==='voucher'));
     let m = '';
-    if (hasK && hasV) { m='📲 <strong>Ссылку на оплату Kaspi</strong> пришлём в WhatsApp.<br>🎫 Владелец ваучера получит запрос подтверждения.'; icon.textContent='⏳'; badge.style.display=''; }
-    else if (hasK) { m='📲 <strong>Ссылку на оплату Kaspi</strong> пришлём вам в WhatsApp.<br>После оплаты заказ будет подтверждён автоматически.'; icon.textContent='📱'; badge.style.display='none'; }
-    else if (hasV) { m='🎫 Владелец талона получит запрос подтверждения в <strong>WhatsApp</strong>.<br>Ожидайте уведомления.'; icon.textContent='⏳'; badge.style.display=''; }
-    else { m='✅ Заказ принят. Ожидайте подтверждения менеджера.'; icon.textContent='✅'; badge.style.display='none'; }
+    if (hasK && hasV) { m = t('result_kaspi_voucher_msg') || '📲 <strong>Kaspi</strong> WhatsApp.<br>🎫 Voucher.'; icon.textContent='⏳'; badge.style.display=''; }
+    else if (hasK) { m = t('result_kaspi_msg') || '📲 <strong>Kaspi link</strong> via WhatsApp.'; icon.textContent='📱'; badge.style.display='none'; }
+    else if (hasV) { m = t('result_voucher_msg') || '🎫 Voucher owner notified via <strong>WhatsApp</strong>.'; icon.textContent='⏳'; badge.style.display=''; }
+    else { m = t('result_default_msg') || '✅ Order received.'; icon.textContent='✅'; badge.style.display='none'; }
     if (paymentMethod==='combined' && breakdown) {
-      const ml = { voucher:'🎫 Ваучер', cash:'💵 Наличными', kaspi:'📱 Kaspi' };
+      const ml = { voucher: t('result_pay_voucher')||'🎫 Ваучер', cash: t('result_pay_cash')||'💵 Наличными', kaspi: t('result_pay_kaspi')||'📱 Kaspi' };
       m += '<br><br><small style="color:var(--muted);">' + breakdown.map(b=>`${ml[b.method]||b.method}: <strong>${b.amount} ₸</strong>`).join('<br>') + '</small>';
     }
     msg.innerHTML = m;
+    const noWaBtnEl = document.getElementById('noWaBtnTxt');
+    if (noWaBtnEl) noWaBtnEl.textContent = t('btn_no_wa') || '📱 Не получили уведомление WhatsApp?';
+    const noWaRow = document.getElementById('noWaRow');
+    if (noWaRow) noWaRow.style.display = '';
   } else {
-    box.className='result-box error'; icon.textContent='⚠️'; title.textContent='Ошибка отправки';
-    msg.innerHTML='Попробуйте ещё раз или свяжитесь с нами напрямую.'; num.textContent=''; badge.style.display='none';
-    rbtn.className='btn-secondary red'; rbtn.textContent='Попробовать снова';
+    box.className='result-box error'; icon.textContent='⚠️';
+    title.textContent = t('result_error_title') || 'Ошибка отправки';
+    msg.innerHTML = t('result_error_msg') || 'Попробуйте ещё раз или свяжитесь с нами напрямую.';
+    num.textContent=''; badge.style.display='none';
+    rbtn.className='btn-secondary red'; rbtn.textContent = t('btn_retry') || 'Попробовать снова';
     rbtn.onclick=()=>{ goToScreen(3); document.getElementById('submitBtn').disabled=false; document.getElementById('submitBtn').innerHTML='<span>Далее — оплата →</span>'; };
+    const noWaRow = document.getElementById('noWaRow');
+    if (noWaRow) noWaRow.style.display = 'none';
   }
   goToScreen(4);
 }
@@ -2449,6 +2535,8 @@ function showWaFailed(orderNum, orderId, pm) {
   goToScreen('WaFailed');
 }
 
+let _waLastSentPhone = '';
+
 async function retryWaSend() {
   const phone = (document.getElementById('waPhoneInput').value || '').trim();
   const digits = phone.replace(/\D/g, '');
@@ -2462,16 +2550,28 @@ async function retryWaSend() {
   const btn = document.getElementById('waRetryBtn');
   btn.disabled = true; document.getElementById('waRetryBtnText').textContent = '⏳…';
   try {
-    const instance = ''; // server-side only — use dedicated endpoint
     const r = await fetch('/api/send-wa', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, order_id: _waFailedOrderId, order_number: _waFailedOrderNum, lang: currentLang || 'ru' }),
+      body: JSON.stringify({
+        phone,
+        order_id: _waFailedOrderId,
+        order_number: _waFailedOrderNum,
+        lang: currentLang || 'ru',
+        update_phone: true,
+      }),
     });
     const d = await r.json().catch(() => ({}));
     if (d.sent) {
-      const msg = (t('wa_success_msg') || '✅ Уведомление отправлено!').replace('#{num}', _waFailedOrderNum ? `№${_waFailedOrderNum}` : '');
-      showResult(true, _waFailedOrderNum, _waFailedPm);
+      _waLastSentPhone = phone;
+      if (pendingOrderPayload) pendingOrderPayload.customer_phone = phone;
+      // Show inline success — user clicks Finish to go to result screen
+      const sentEl = document.getElementById('waRetrySentMsg');
+      if (sentEl) sentEl.textContent = (t('wa_retry_sent_msg') || '✅ Отправлено на #{phone}!').replace('#{phone}', phone);
+      document.getElementById('waFinishBtnTxt').textContent = t('btn_wa_finish') || 'Завершить';
+      document.getElementById('waPhoneFixBlock').style.display = 'none';
+      document.getElementById('waSkipBtn').style.display = 'none';
+      document.getElementById('waRetrySentBlock').style.display = '';
     } else {
       errEl.textContent = d.error || (t('err_phone_short') || 'Не удалось отправить. Проверьте номер.');
       errEl.style.display = '';
@@ -2485,6 +2585,44 @@ async function retryWaSend() {
     document.getElementById('waRetryBtnText').textContent = t('wa_retry_btn') || '📩 Отправить';
   }
 }
+
+function openWaFixScreen() {
+  // Navigate to WA-FAILED screen with phone fix form pre-filled
+  const phone = pendingOrderPayload ? pendingOrderPayload.customer_phone || '' : '';
+  const inp = document.getElementById('waPhoneInput');
+  if (inp) inp.value = phone;
+  document.getElementById('waPhoneError').style.display = 'none';
+  // Show fix form, hide result blocks
+  ['waRetrySentBlock','waContactManagerBlock','waNoPhoneResult'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  document.getElementById('waPhoneFixBlock').style.display = '';
+  document.getElementById('waSkipBtn').style.display = '';
+  const btn = document.getElementById('waRetryBtn');
+  if (btn) { btn.disabled = false; document.getElementById('waRetryBtnText').textContent = t('wa_retry_btn') || '📩 Отправить'; }
+  goToScreen('WaFailed');
+}
+
+function waYesMyNum() {
+  const hide = id => { const el=document.getElementById(id); if(el) el.style.display='none'; };
+  const show = id => { const el=document.getElementById(id); if(el) el.style.display=''; };
+  hide('waNotReceivedBlock');
+  const msgEl = document.getElementById('waContactManagerMsg');
+  if (msgEl) msgEl.textContent = t('wa_contact_mgr_msg') || 'Сообщите менеджеру — он поможет.';
+  document.getElementById('waContactManagerBtnTxt').textContent = t('wa_contact_mgr_btn') || '📞 Написать менеджеру';
+  document.getElementById('waContactNewOrderBtn').textContent   = t('btn_new_order') || 'Новый заказ';
+  // Build manager WhatsApp link
+  const managerWa = (SITE_CONFIG.contact && SITE_CONFIG.contact.whatsapp) ? SITE_CONFIG.contact.whatsapp : '';
+  const numStr = _waFailedOrderNum ? `№${_waFailedOrderNum}` : '';
+  const text = (t('wa_contact_mgr_text') || 'Заказ #{num} — не получил уведомление.').replace('#{num}', numStr);
+  const waLink = managerWa
+    ? `https://wa.me/${managerWa.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`
+    : `https://wa.me/?text=${encodeURIComponent(text)}`;
+  const btnEl = document.getElementById('waContactManagerBtn');
+  if (btnEl) btnEl.href = waLink;
+  show('waContactManagerBlock');
+}
+
 
 function waSkipNoPhone() {
   const numStr = _waFailedOrderNum ? `№${_waFailedOrderNum}` : '';
@@ -2689,11 +2827,11 @@ async function doSubmitOrder(pm) {
     if(!r.ok) throw new Error('HTTP '+r.status);
     const d = await r.json().catch(()=>({}));
     clearCart();
-    if (d.wa_sent === false) {
-      showWaFailed(d.order_number, d.order_id, pm);
-    } else {
-      showResult(true, d.order_number||d.id||'', pm);
-    }
+    // Always go to result screen — WA issue handled via "didn't receive?" button
+    _waFailedOrderNum = d.order_number || d.id || '';
+    _waFailedOrderId  = d.order_id  || '';
+    _waFailedPm       = pm || '';
+    showResult(true, d.order_number||d.id||'', pm);
   } catch(_) {
     if (btn) { btn.disabled=false; btn.innerHTML='✅ ' + (t('btn_submit')||'Подтвердить заказ'); }
     showResult(false);

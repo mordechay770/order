@@ -27,6 +27,7 @@ const FO_PHONE    = 'fldMPQfkQATfg6j0t'; // מספר טלפון
 const FO_ADDRESS  = 'fld2j0eu6qrid1DXA'; // כתובת למשלוח
 const FO_DELIVERY = 'fldH9aXNoJSABpTJP'; // משלוח (כן/לא)
 const FO_NOTES    = 'fldKGooL6E0PkqKfI'; // הערות לקוח
+const FO_LANG     = 'fldCOu0rGNLrThxtV'; // שפת לקוח
 const FO_PAYMENT  = 'fldjE5esZVBwDjNDi'; // צורת תשלום
 const FO_PRICE    = 'fldJA6xBGacdetQjI'; // מחיר (מספר)
 const FO_COUNT    = 'fldBrAoMYSoO8f2ug'; // מס' פוזיציות
@@ -34,10 +35,12 @@ const FO_TYPE_LNK = 'fld7o9NaEBIFu2cUQ'; // link → סוגי הזמנות
 
 // Fields — quantities (כמויות)
 const FQ_ORDER    = 'fld4DlEIkuKYTJIwr'; // link → הזמנות
+const FQ_ORDER_ID = 'fldG86nzPrzKagA4W'; // order_record_id (text) — for reliable filtering
 const FQ_DISH_LNK = 'fldYKuxwzyR0zsA6W'; // link → מאכלים (tblhkNaiSGBiLRUxA)
 const FQ_DISH_TXT = 'fldermtin9p2JInVx'; // מאכל (טקסט חופשי) — fallback בלבד
 const FQ_QTY      = 'fldZI30djxv54dm8j'; // כמות
 const FQ_PRICE    = 'fld2hjBAMbg4NeRef'; // עלות מנה בזמן ההזמנה
+const FQ_LINE_TOT = 'fldl53fNLI4oZp5Md'; // סה״כ מנה (qty × price)
 
 const SITE_URL = 'https://src-sigma-ecru-25.vercel.app';
 
@@ -226,6 +229,7 @@ export default async function handler(req, res) {
     }
 
     if (body.notes?.trim()) orderFields[FO_NOTES] = body.notes.trim();
+    if (body.lang) orderFields[FO_LANG] = body.lang;
 
     // Link to order type record (סוגי הזמנות) if provided
     if (body.order_type_record_id && /^rec[A-Za-z0-9]{14}$/.test(body.order_type_record_id)) {
@@ -253,10 +257,14 @@ export default async function handler(req, res) {
     // 2. Create qty rows in parallel
     await Promise.all(
       body.items.map(item => {
+        const qty   = Number(item.quantity)  || 0;
+        const price = Number(item.unit_price) || 0;
         const qtyFields = {
-          [FQ_ORDER]: [orderId],
-          [FQ_QTY]:   Number(item.quantity)  || 0,
-          [FQ_PRICE]: Number(item.unit_price) || 0,
+          [FQ_ORDER]:    [orderId],
+          [FQ_ORDER_ID]: orderId,
+          [FQ_QTY]:      qty,
+          [FQ_PRICE]:    price,
+          [FQ_LINE_TOT]: Math.round(qty * price),
         };
         // Link to מאכלים record if dish_id is a valid Airtable record ID
         if (item.dish_id && /^rec[A-Za-z0-9]{14}$/.test(item.dish_id)) {
@@ -348,7 +356,7 @@ export default async function handler(req, res) {
     };
     const mt = MGR_TMPL[mgrLang] || MGR_TMPL.he;
     const managerLink = managerToken && orderId
-      ? `${SITE_URL}/manager?id=${orderId}&token=${managerToken}`
+      ? `${SITE_URL}/api/manager-action?id=${orderId}&action=approve&token=${encodeURIComponent(managerToken)}`
       : '';
     const mgrMsg = [
       mt.head,

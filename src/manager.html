@@ -526,6 +526,12 @@ function renderOrderModal(o) {
       <button class="btn btn-cancel"  onclick="quickAction('reject')">❌ Отменить</button>
       ${o.phone ? `<a class="btn btn-wa" href="https://wa.me/${waNum(o.phone)}" target="_blank" style="text-decoration:none">💬 WhatsApp</a>` : '<span></span>'}
     </div>
+    <div class="section-title" style="margin-top:14px">Уведомить персонал</div>
+    <div class="action-grid">
+      <button class="btn" style="background:#0ea5e9;color:#fff" onclick="openNotifyModal('chef')">📨 Шефу</button>
+      <button class="btn" style="background:#7c3aed;color:#fff" onclick="openNotifyModal('group')">📢 В группу</button>
+    </div>
+    <div id="notifyStaffResult" style="display:none;font-size:13px;margin-top:8px;padding:8px 10px;border-radius:8px;"></div>
     <div class="err" id="modalErr"></div>
   `;
 }
@@ -567,8 +573,8 @@ async function saveOrder() {
         delivery_status: del_status, delivery_type: del_type,
       }),
     });
-    if (r.ok) { closeModal(); await loadOrders(); }
-    else { const d = await r.json(); setModalErr(d.error || 'Ошибка'); }
+    if (r.ok) { closeModal(); await new Promise(res => setTimeout(res, 800)); await loadOrders(); }
+    else { const d = await r.json().catch(()=>({})); setModalErr(d.error || d.detail || 'Ошибка'); }
   } catch { setModalErr('Ошибка соединения'); }
 }
 
@@ -953,6 +959,58 @@ function waNum(phone) {
   const d = phone.replace(/\D/g,'');
   return d.startsWith('8') && d.length === 11 ? '7'+d.slice(1) : d;
 }
+
+let _notifyTarget = 'chef';
+
+async function openNotifyModal(target) {
+  if (!editOrderId) return;
+  _notifyTarget = target;
+  // Build default message from current order data
+  const o = allOrders.find(x => x.id === editOrderId) || {};
+  const itemLines = (o.items || []).map(i => `  • ${i.name} × ${i.quantity}`).join('\n');
+  const dateStr = o.delivery_at ? new Date(o.delivery_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Almaty'}) : '';
+  const def = [
+    `🍽️ Новый заказ №${o.order_number||''}`,
+    o.order_type    ? `📋 Тип: ${o.order_type}` : '',
+    dateStr         ? `📅 ${dateStr}` : '',
+    o.customer      ? `👤 ${o.customer}` : '',
+    itemLines       ? `\nСостав:\n${itemLines}` : '',
+    o.kitchen_notes ? `💬 ${o.kitchen_notes}` : '',
+    o.status        ? `📌 ${o.status}` : '',
+  ].filter(Boolean).join('\n');
+  document.getElementById('notifyMsgTxt').value = def;
+  document.getElementById('notifyMsgRes').style.display = 'none';
+  document.getElementById('notifyModal').style.display = 'flex';
+  document.getElementById('notifyModalTitle').textContent = target === 'chef' ? '📨 Сообщение шефу' : '📢 Сообщение в группу';
+}
+
+function closeNotifyModal() { document.getElementById('notifyModal').style.display = 'none'; }
+
+async function sendNotifyMsg() {
+  const btn = document.getElementById('notifySendBtn');
+  const msg = document.getElementById('notifyMsgTxt').value.trim();
+  const resultEl = document.getElementById('notifyStaffResult');
+  const res2 = document.getElementById('notifyMsgRes');
+  if (!msg) return;
+  btn.disabled = true; btn.textContent = '⏳…';
+  try {
+    const r = await fetch(`/api/manager-action?action=notify_staff&target=${_notifyTarget}&id=${editOrderId}&token=${encodeURIComponent(managerToken)}&custom=1`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ message: msg })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (d.ok) {
+      res2.style.display=''; res2.style.color='#86efac'; res2.textContent='✅ Отправлено!';
+      setTimeout(closeNotifyModal, 1200);
+      if (resultEl) { resultEl.style.display=''; resultEl.style.background='#14532d'; resultEl.style.color='#86efac'; resultEl.textContent = _notifyTarget==='chef' ? '✅ Шеф уведомлён' : '✅ Группа уведомлена'; }
+    } else {
+      res2.style.display=''; res2.style.color='#f87171'; res2.textContent='⚠️ ' + (d.error||'Ошибка');
+      btn.disabled=false; btn.textContent='✅ Отправить';
+    }
+  } catch(e) {
+    res2.style.display=''; res2.style.color='#f87171'; res2.textContent='⚠️ Ошибка соединения';
+    btn.disabled=false; btn.textContent='✅ Отправить';
+  }
+}
 function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
@@ -960,5 +1018,18 @@ const savedToken = localStorage.getItem('manager_token');
 if (savedToken) { managerToken = savedToken; initApp(); }
 document.getElementById('tokenInput')?.addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 </script>
+
+<!-- Notify staff modal -->
+<div id="notifyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#1e293b;border-radius:16px;padding:24px;max-width:440px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+    <h3 id="notifyModalTitle" style="color:#f1f5f9;margin:0 0 12px;font-size:16px"></h3>
+    <textarea id="notifyMsgTxt" rows="11" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;line-height:1.5;resize:vertical;box-sizing:border-box"></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="closeNotifyModal()" style="flex:1;padding:12px;border-radius:10px;background:#334155;color:#e2e8f0;border:none;cursor:pointer;font-size:14px;font-weight:600">✕ Отмена</button>
+      <button id="notifySendBtn" onclick="sendNotifyMsg()" style="flex:2;padding:12px;border-radius:10px;background:#22c55e;color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700">✅ Отправить</button>
+    </div>
+    <p id="notifyMsgRes" style="margin:10px 0 0;font-size:13px;display:none"></p>
+  </div>
+</div>
 </body>
 </html>

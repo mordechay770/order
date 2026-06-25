@@ -1,5 +1,91 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-06-24 — Stripe, donation, mission banner, kaspi receipt
+
+### בוצע
+
+#### `/api/stripe-checkout.js` — חדש
+- יוצר Stripe Checkout Session דינמי (לא Payment Link סטטי)
+- KZT → USD המרה ב-STRIPE_KZT_RATE env (ברירת מחדל 450)
+- תרומה כ-line item שני `💚 Пожертвование кухне / Kitchen Donation`
+- מחזיר `{url, session_id}` | metadata: amount_kzt, order_num, order_record_id, donation_usd
+
+#### `/api/session.js` — שדרוג מלא
+- אחרי תשלום מאושר (payment_status='paid'): יוצר שורת תשלום ב-tblaNK6mYqr20YtT1
+- שערH: open.er-api.com/v6/latest/USD עם 4s timeout + fallback null
+- Idempotency: מחפש session_id ב-Notes לפני יצירה (לא מכפיל)
+- Donation qty row: יוצר שורת כמויות עם DONATION_DISH_ID (reclQgCl0ATOFhepR)
+
+#### `/api/stripe-webhook.js` — חדש (secondary)
+- Stripe webhook checkout.session.completed
+- HMAC-SHA256 signature verification
+- שניוני ל-session.js (לא נדרש אם משתמשים ב-session.js)
+
+#### `order-form.html` — שינויים
+- **Mission banner** — כרטיס ירוק על מסך בחירת סוג הזמנה + מסך תשלום (3 שפות)
+- **Stripe button** — gradient סגול, spinner, popup blocker fix (window.open סינכרוני)
+- **Donation Stripe** — checkbox + quick buttons ($5/$10/$18/$36) + input + ≈₸ display
+- **Donation Cash/Kaspi** — checkbox + quick buttons (500/1000/2000/5000₸) + input
+- **Kaspi receipt** — הוראה לשלוח קבלה בהודעה לWA (KASPI_RECEIPT i18n object)
+- **Donation dish row** — donation_kzt שלוח ל-order.js → יוצר שורת כמויות
+
+#### `/api/order.js` — donation
+- הוסף: אם `donation_kzt > 0` → יוצר שורת כמויות עם DONATION_DISH_ID (fire-and-forget)
+
+#### Airtable — donation dish
+- נוצר רשומה `reclQgCl0ATOFhepR` = "💚 Пожертвование / תרומה" בטבלת מאכלים
+
+### ⚠️ ממתין לפעולת משתמש
+- `STRIPE_SECRET_KEY` — לא מוגדר ב-Vercel → Stripe לא עובד
+- `CHEF_TOKEN` / `BAKER_TOKEN` — לא מוגדרים → chef.html/baker.html לא עובדים
+
+---
+
+## 2026-06-23/24 — manager.html + chef.html + orders-today + production fix
+
+### בוצע
+
+#### תיקון קריטי — שמות מתכונים ב-baker.html / chef.html
+- `production.js` — שדה `FP_RECIPE` (multipleRecordLinks) מכיל `{id, name}` per linked record
+- הוסר `FP_NAME_LKP` (lookup) מרשימת השדות לחלוטין — לא נדרש
+- `recipe_name = (f[FP_RECIPE] || [])[0]?.name || ''` — עובד ב-production
+
+#### `src/chef.html` — שיפורים
+- הוסף: מספר מאכלים + סה"כ מנות בכל כרטיס הזמנה (`🍽️ X блюд · Y порций`)
+- הוסף: הערות מטבח מודגשות עם רקע כחול בכל הזמנה
+- הוסף: כפתור "📦 Передано" להזמנות בסטטוס "Готов" → מעדכן delivery_status
+- הזמנות "Готов" מוצגות עכשיו בdashboard השף (כולל ב-ACTIVE_STATUSES)
+
+#### `src/api/orders-today.js` — הרחבות
+- טווחי תאריכים חדשים: `month` (חודש נוכחי), `this_week` (שבוע נוכחי), custom (`?start=&end=`)
+- שדות חדשים בתגובה: `notes_internal`, `delivery_type`, `delivery_addr`, `delivery_status`, `payment_method`, `price`, `total`
+- `ACTIVE_STATUSES` כולל עכשיו `'Готов'`
+
+#### `src/manager.html` — דף מנג'ר חדש (נבנה מאפס)
+- Login screen → localStorage `manager_token`
+- Tabs: 📋 הזמנות | 🏭 ייצור
+- Date filter: Сегодня / Завтра / 7 дней / Эта неделя / Месяц / Период (custom range)
+- Status filter bar: כל הסטטוסים
+- Stats bar: מספר הזמנות / אורחים / פוזיציות
+- לחיצה על הזמנה → modal עם עריכה מלאה: סטטוס, פריטים, הערות ×3, משלוח, תשלומים
+- תשלומים: שיטות מ-Airtable, מטבע זר (currency/amount/rate → חישוב ₸), תשלומים קיימים
+- ייצור: אותו view כמו baker + יצירת הזמנת ייצור חדשה
+- "**+ Заказ**" — modal יצירת הזמנה ידנית: חיפוש איש קשר לפי טלפון + יצירה אוטומטית אם לא נמצא
+
+#### `src/api/manager-action.js` — הרחבות
+- CORS עודכן לכלול POST
+- PATCH — עריכת שדות הזמנה (notes, delivery, status)
+- GET `action=payment_methods` — רשימת שיטות תשלום מ-Airtable
+- GET `action=payments` — תשלומים קיימים לפי order_id
+- GET `action=contacts` — חיפוש איש קשר לפי טלפון (last 9 digits)
+- POST `action=pay` — יצירת תשלום חדש עם תמיכה במטבע זר
+- POST `action=create_contact` — יצירת איש קשר חדש אם לא נמצא
+
+### Deploy
+- GitHub: mordechay770/order (master) → Vercel src-sigma-ecru-25.vercel.app ✅ 2026-06-24
+
+---
+
 ## 2026-06-22 — UI/UX + תמחור לפי סוג הזמנה + תיקוני שדות
 
 ### בוצע
