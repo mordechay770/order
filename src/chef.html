@@ -214,6 +214,7 @@ let lastData     = null;
 let refreshTimer = null;
 let dishFilter   = '';
 let selectedDay  = null;     // null = show all days
+let ordersById   = {};       // id → order object for print lookup
 
 const DAYS_RU = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
 
@@ -330,6 +331,8 @@ async function loadOrders(isAuth = false) {
 function render(data) {
   const { orders = [] } = data;
   // Filter by selected calendar day first
+  ordersById = {};
+  for (const o of orders) ordersById[o.id] = o;
   let filteredOrders = selectedDay
     ? orders.filter(o => o.delivery_at && new Date(o.delivery_at).toLocaleDateString('en-CA',{timeZone:'Asia/Almaty'}) === selectedDay)
     : orders;
@@ -416,6 +419,7 @@ function renderCard(o) {
         ${isReady?'✓ Готово':'✔ Готовым'}
       </button>
       ${isReady ? `<button class="ready-btn" style="flex:1;background:#6366f1" onclick="markDelivered('${o.id}',this)">📦 Передано</button>` : ''}
+      <button class="ready-btn" style="flex:0 0 auto;padding:10px 14px;background:#334155" title="Печать" onclick="printOrder('${o.id}')">🖨</button>
     </div>
   </div>`;
 }
@@ -565,6 +569,69 @@ async function submitCreateProd() {
     await loadProduction();
   } catch(e) { showToast('Ошибка: '+e.message,'error'); }
   finally { btn.disabled=false; btn.textContent='Заказать'; }
+}
+
+function printOrder(orderId) {
+  const o = ordersById[orderId];
+  if (!o) { showToast('Заказ не найден', 'error'); return; }
+
+  const tz = 'Asia/Almaty';
+  const date = o.delivery_at ? new Date(o.delivery_at).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:tz}) : '—';
+  const time = o.delivery_at ? new Date(o.delivery_at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:tz}) : '—';
+  const totalPortions = o.items.reduce((s,i)=>s+(i.quantity||0),0);
+
+  const itemsHtml = o.items.length
+    ? o.items.map(i => `<tr><td style="padding:2px 0">${i.name}</td><td style="text-align:right;padding:2px 0;white-space:nowrap;font-weight:700">× ${i.quantity}</td></tr>`).join('')
+    : '<tr><td colspan="2" style="color:#666">Нет позиций</td></tr>';
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+  @page{size:80mm auto;margin:5mm 4mm}
+  *{box-sizing:border-box}
+  body{font-family:'Courier New',Courier,monospace;font-size:12px;width:72mm;margin:0;color:#000}
+  .center{text-align:center}
+  .bold{font-weight:bold}
+  .big{font-size:18px;font-weight:900;letter-spacing:1px}
+  .div{border-top:1px dashed #000;margin:5px 0}
+  .div-solid{border-top:1px solid #000;margin:5px 0}
+  table{width:100%;border-collapse:collapse}
+  .label{color:#444;font-size:11px}
+  .notes-box{border:1px solid #000;padding:4px 6px;margin-top:4px;font-size:11px}
+</style>
+</head><body>
+  <div class="center div-solid"></div>
+  <div class="center big">ЗАКАЗ №${o.order_number||'—'}</div>
+  <div class="center" style="font-size:11px">${o.order_type||''}</div>
+  <div class="center div-solid"></div>
+
+  <table style="margin-top:4px">
+    <tr><td class="label">Клиент:</td><td style="font-weight:bold">${o.customer||'—'}</td></tr>
+    <tr><td class="label">Дата:</td><td>${date}</td></tr>
+    <tr><td class="label">Время:</td><td style="font-weight:bold;font-size:14px">${time}</td></tr>
+  </table>
+
+  <div class="div"></div>
+  <div class="bold center" style="font-size:13px">СОСТАВ ЗАКАЗА</div>
+  <div class="div"></div>
+  <table>${itemsHtml}</table>
+  <div class="div"></div>
+  <div style="text-align:right;font-size:11px">Итого порций: <b>${totalPortions}</b></div>
+
+  ${o.kitchen_notes ? `<div class="notes-box"><b>📝 Кухне:</b><br>${o.kitchen_notes}</div>` : ''}
+  ${o.notes && !o.kitchen_notes ? `<div class="notes-box">${o.notes}</div>` : ''}
+  ${o.delivery_address ? `<div class="div"></div><div><b>Доставка:</b><br>${o.delivery_address}</div>` : ''}
+
+  <div class="div-solid" style="margin-top:8px"></div>
+  <div class="center" style="font-size:10px;color:#666">${new Date().toLocaleString('ru-RU',{timeZone:'${tz}'})}</div>
+
+  <script>window.onload=function(){window.print();setTimeout(()=>window.close(),800);}<\/script>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=420,height=700');
+  if (!win) { showToast('Разрешите всплывающие окна в браузере', 'error'); return; }
+  win.document.write(html);
+  win.document.close();
 }
 
 function showToast(msg, type='') {
