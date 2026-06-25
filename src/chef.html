@@ -624,7 +624,7 @@ function printOrder(orderId) {
   ${o.delivery_address ? `<div class="div"></div><div><b>Доставка:</b><br>${o.delivery_address}</div>` : ''}
 
   <div class="div-solid" style="margin-top:8px"></div>
-  <div class="center" style="font-size:10px;color:#666">${new Date().toLocaleString('ru-RU',{timeZone:'${tz}'})}</div>
+  <div class="center" style="font-size:10px;color:#666">${new Date().toLocaleString('ru-RU',{timeZone:tz})}</div>
 
   <script>window.onload=function(){window.print();setTimeout(()=>window.close(),800);}<\/script>
 </body></html>`;
