@@ -627,13 +627,14 @@ ${o.kitchen_notes ? `<pre>${LINE}</pre><pre>Кухне: ${o.kitchen_notes}</pre>
 ${o.delivery_address ? `<pre>${LINE}</pre><pre>Доставка:\n${o.delivery_address}</pre>` : ''}
 <pre>${SEP}</pre>
 <pre class="c" style="font-size:11px">${new Date().toLocaleString('ru-RU',{timeZone:tz})}</pre>
-<script>setTimeout(function(){window.print();setTimeout(function(){window.close();},1000);},400);<\/script>
+<script>setTimeout(function(){window.print();},600);<\/script>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=420,height=700');
-  if (!win) { showToast('Разрешите всплывающие окна в браузере', 'error'); return; }
-  win.document.write(html);
-  win.document.close();
+  const blob = new Blob([html], {type: 'text/html; charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, '_blank', 'width=420,height=700');
+  if (!win) { showToast('Разрешите всплывающие окна в браузере', 'error'); URL.revokeObjectURL(url); return; }
+  win.addEventListener('afterprint', () => { URL.revokeObjectURL(url); win.close(); });
 }
 
 function showToast(msg, type='') {
