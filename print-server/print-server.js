@@ -9,7 +9,7 @@ const path = require('path');
 const os   = require('os');
 
 const PORT      = 3001;
-const PRINTER   = 'USB002'; // Windows printer port name
+const PRINTER   = process.env.PRINTER_PORT || 'USB002'; // override with: set PRINTER_PORT=USB001
 
 const ESC = 0x1B;
 const GS  = 0x1D;
@@ -85,16 +85,24 @@ const server = http.createServer((req, res) => {
         const tmpFile = path.join(os.tmpdir(), 'kc_receipt.bin');
         fs.writeFileSync(tmpFile, buf);
 
-        // Windows: copy /b file USB002  — sends raw bytes directly to printer port
-        execFile('cmd.exe', ['/c', `copy /b "${tmpFile}" ${PRINTER}`], (err, stdout, stderr) => {
-          if (err) {
-            console.error('Print error:', err.message);
-            res.writeHead(500); res.end(JSON.stringify({ error: err.message }));
-          } else {
-            console.log(`Printed order #${order.order_number}`);
-            res.writeHead(200); res.end(JSON.stringify({ ok: true }));
-          }
-        });
+        // Try USB001..USB004 until one works
+        const ports = [PRINTER, 'USB001', 'USB002', 'USB003', 'USB004'].filter((v,i,a) => a.indexOf(v)===i);
+        let tried = 0;
+        function tryPort(port) {
+          execFile('cmd.exe', ['/c', `copy /b "${tmpFile}" ${port}`], (err, stdout) => {
+            if (!err && stdout && stdout.includes('1')) {
+              console.log(`Printed order #${order.order_number} → ${port}`);
+              res.writeHead(200); res.end(JSON.stringify({ ok: true, port }));
+            } else if (++tried < ports.length) {
+              tryPort(ports[tried]);
+            } else {
+              const msg = `Failed on all ports: ${ports.join(',')}`;
+              console.error(msg);
+              res.writeHead(500); res.end(JSON.stringify({ error: msg }));
+            }
+          });
+        }
+        tryPort(ports[0]);
       } catch (e) {
         res.writeHead(400); res.end(JSON.stringify({ error: e.message }));
       }
