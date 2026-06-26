@@ -571,69 +571,80 @@ async function submitCreateProd() {
   finally { btn.disabled=false; btn.textContent='Заказать'; }
 }
 
-function printOrder(orderId) {
+async function printOrder(orderId) {
   const o = ordersById[orderId];
   if (!o) { showToast('Заказ не найден', 'error'); return; }
 
-  const tz = 'Asia/Almaty';
-  const date = o.delivery_at ? new Date(o.delivery_at).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:tz}) : '—';
-  const time = o.delivery_at ? new Date(o.delivery_at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:tz}) : '—';
-  const totalPortions = o.items.reduce((s,i)=>s+(i.quantity||0),0);
+  const tz   = 'Asia/Almaty';
+  const date = o.delivery_at ? new Date(o.delivery_at).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:tz}) : '';
+  const time = o.delivery_at ? new Date(o.delivery_at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:tz}) : '';
+  const totalPortions = o.items.reduce((s,i)=>s+(Number(i.quantity)||0),0);
 
-  const itemsHtml = o.items.length
-    ? o.items.map(i => `<tr><td style="padding:2px 0">${i.name}</td><td style="text-align:right;padding:2px 0;white-space:nowrap;font-weight:700">× ${i.quantity}</td></tr>`).join('')
-    : '<tr><td colspan="2" style="color:#666">Нет позиций</td></tr>';
+  // Try ESC/POS local print server first (runs on chef's PC)
+  const payload = {
+    order_number:    o.order_number,
+    order_type:      o.order_type || '',
+    customer:        o.customer || '—',
+    date,
+    time,
+    kitchen_notes:   o.kitchen_notes || '',
+    delivery_address:o.delivery_address || '',
+    items: o.items.map(i => ({ name: i.name || '—', qty: i.quantity || 1 }))
+  };
 
-  const SEP  = '================================';
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 2000);
+    const r = await fetch('http://localhost:3001/print', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal
+    });
+    if (r.ok) { showToast('✅ Отправлено на принтер'); return; }
+    throw new Error('server error ' + r.status);
+  } catch (e) {
+    if (e.name !== 'AbortError') console.warn('Print server unavailable, falling back to browser print:', e.message);
+  }
+
+  // Fallback: browser window.print()
+  const SEP = '================================';
   const LINE = '--------------------------------';
-  const itemsHtml2 = o.items.length
-    ? o.items.map(i => {
-        const name = i.name.length > 22 ? i.name.slice(0,22)+'\n                      ' : i.name;
-        const qty  = ('× '+i.quantity).padStart(SEP.length - (i.name.length > 22 ? 22 : i.name.length) - 1);
-        return `<tr><td style="padding:3px 0">${i.name}</td><td style="text-align:right;font-weight:700;padding:3px 0;white-space:nowrap">× ${i.quantity}</td></tr>`;
-      }).join('')
+  const itemsHtml = o.items.length
+    ? o.items.map(i => `<tr><td style="padding:3px 0">${i.name}</td><td style="text-align:right;font-weight:700;padding:3px 0;white-space:nowrap">× ${i.quantity}</td></tr>`).join('')
     : '<tr><td colspan="2">—</td></tr>';
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <style>
   @page{size:80mm auto;margin:0}
-  body{font-family:'Courier New',Courier,monospace;font-size:13px;width:80mm;padding:4mm;margin:0;
-       color:#000;background:#fff;
-       -webkit-font-smoothing:none;font-smooth:never;
-       -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .c{text-align:center}
-  .b{font-weight:bold}
+  body{font-family:'Courier New',Courier,monospace;font-size:13px;width:80mm;padding:4mm;margin:0;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .c{text-align:center}.b{font-weight:bold}
   pre{font-family:inherit;font-size:inherit;margin:3px 0;white-space:pre-wrap;word-break:break-word}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  td{padding:2px 0;vertical-align:top}
-  td:last-child{text-align:right;white-space:nowrap}
-</style>
-</head><body>
+  td{padding:2px 0;vertical-align:top}td:last-child{text-align:right;white-space:nowrap}
+</style></head><body>
 <pre class="c">${SEP}</pre>
 <pre class="c b" style="font-size:16px">ЗАКАЗ №${o.order_number||'—'}</pre>
-${o.order_type ? `<pre class="c">${o.order_type}</pre>` : ''}
+${o.order_type?`<pre class="c">${o.order_type}</pre>`:''}
 <pre class="c">${SEP}</pre>
 <pre>Клиент: <b>${o.customer||'—'}</b>
-Дата:   ${date}
-Время:  <b>${time}</b></pre>
-<pre>${LINE}</pre>
-<pre class="c b">  СОСТАВ ЗАКАЗА  </pre>
-<pre>${LINE}</pre>
-<table>${itemsHtml2}</table>
+${date?'Дата:   '+date+'\n':''}Время:  <b>${time||'—'}</b></pre>
+<pre>${LINE}</pre><pre class="c b">  СОСТАВ ЗАКАЗА  </pre><pre>${LINE}</pre>
+<table>${itemsHtml}</table>
 <pre>${LINE}</pre>
 <pre style="text-align:right">Итого порций: <b>${totalPortions}</b></pre>
-${o.kitchen_notes ? `<pre>${LINE}</pre><pre>Кухне: ${o.kitchen_notes}</pre>` : ''}
-${o.delivery_address ? `<pre>${LINE}</pre><pre>Доставка:\n${o.delivery_address}</pre>` : ''}
+${o.kitchen_notes?`<pre>${LINE}</pre><pre>Кухне: ${o.kitchen_notes}</pre>`:''}
+${o.delivery_address?`<pre>${LINE}</pre><pre>Доставка:\n${o.delivery_address}</pre>`:''}
 <pre>${SEP}</pre>
 <pre class="c" style="font-size:11px">${new Date().toLocaleString('ru-RU',{timeZone:tz})}</pre>
-<script>window.onload=function(){window.focus();setTimeout(function(){window.print();},250);};<\/script>
+<script>window.onload=function(){window.focus();setTimeout(function(){window.print();},300);};<\/script>
 </body></html>`;
 
-  const blob = new Blob([html], {type: 'text/html; charset=utf-8'});
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
   const url  = URL.createObjectURL(blob);
-  const win  = window.open(url, '_blank', 'width=420,height=700');
-  if (!win) { showToast('Разрешите всплывающие окна в браузере', 'error'); URL.revokeObjectURL(url); return; }
+  const win  = window.open(url,'_blank','width=420,height=700');
+  if (!win) { showToast('Разрешите всплывающие окна','error'); URL.revokeObjectURL(url); return; }
   win.addEventListener('afterprint', () => { URL.revokeObjectURL(url); win.close(); });
 }
 
