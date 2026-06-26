@@ -1,15 +1,42 @@
 // print-server.js — ESC/POS local print server for Windows 7+
-const http     = require('http');
-const fs       = require('fs');
-const path     = require('path');
-const os       = require('os');
-const { exec } = require('child_process');
+var http     = require('http');
+var fs       = require('fs');
+var path     = require('path');
+var os       = require('os');
+var exec     = require('child_process').exec;
 
-const PORT         = 3001;
-const PRINTER_NAME = process.env.PRINTER_NAME || 'Kassa';
+var PORT         = 3001;
+var PRINTER_NAME = process.env.PRINTER_NAME || 'Kassa';
+var PRINTER_DLL  = path.join(os.tmpdir(), 'kc_printer.dll');
 
-const ESC = 0x1B;
-const GS  = 0x1D;
+var ESC = 0x1B;
+var GS  = 0x1D;
+
+// C# source for winspool.drv P/Invoke — compiled once to disk on startup
+var CS_SRC = [
+  'using System;',
+  'using System.Runtime.InteropServices;',
+  'public class RawPrinter {',
+  '  [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)]',
+  '  public struct DOCINFOW { public int cbSize; public string pDocName; public string pOutputFile; public string pDatatype; public int fwType; }',
+  '  [DllImport("winspool.drv",CharSet=CharSet.Unicode)] public static extern bool OpenPrinter(string n,out IntPtr h,IntPtr d);',
+  '  [DllImport("winspool.drv")] public static extern bool ClosePrinter(IntPtr h);',
+  '  [DllImport("winspool.drv",CharSet=CharSet.Unicode)] public static extern int StartDocPrinter(IntPtr h,int l,ref DOCINFOW d);',
+  '  [DllImport("winspool.drv")] public static extern bool EndDocPrinter(IntPtr h);',
+  '  [DllImport("winspool.drv")] public static extern bool StartPagePrinter(IntPtr h);',
+  '  [DllImport("winspool.drv")] public static extern bool EndPagePrinter(IntPtr h);',
+  '  [DllImport("winspool.drv")] public static extern bool WritePrinter(IntPtr h,byte[] b,int c,out int w);',
+  '  public static bool Print(string printer, byte[] data) {',
+  '    IntPtr h; if(!OpenPrinter(printer,out h,IntPtr.Zero)) return false;',
+  '    var di = new DOCINFOW { cbSize=20, pDocName="Order", pDatatype="RAW" };',
+  '    if(StartDocPrinter(h,1,ref di)<1){ClosePrinter(h);return false;}',
+  '    StartPagePrinter(h);',
+  '    int w; WritePrinter(h,data,data.Length,out w);',
+  '    EndPagePrinter(h); EndDocPrinter(h); ClosePrinter(h);',
+  '    return w==data.Length;',
+  '  }',
+  '}',
+].join('\n');
 
 function toCP866(s) {
   var buf = [];
@@ -80,80 +107,43 @@ function buildEscPos(o) {
   return Buffer.concat(parts);
 }
 
-// Send raw bytes to printer via Windows Spooler API (bypasses driver rendering)
-function rawPrint(filePath, printerName, cb) {
-  var ps = [
-    '$file = "' + filePath.replace(/\\/g, '\\\\') + '"',
-    '$printer = "' + printerName + '"',
-    '$bytes = [System.IO.File]::ReadAllBytes($file)',
-    'Add-Type -TypeDefinition @\'',
-    'using System;',
-    'using System.Runtime.InteropServices;',
-    'public class WinPrint {',
-    '  [DllImport("winspool.drv",CharSet=CharSet.Unicode,SetLastError=true)]',
-    '  public static extern bool OpenPrinter(string n,out IntPtr h,IntPtr d);',
-    '  [DllImport("winspool.drv",SetLastError=true)]',
-    '  public static extern bool ClosePrinter(IntPtr h);',
-    '  [DllImport("winspool.drv",CharSet=CharSet.Unicode,SetLastError=true)]',
-    '  public static extern int StartDocPrinter(IntPtr h,int l,int[] di);',
-    '  [DllImport("winspool.drv",SetLastError=true)]',
-    '  public static extern bool EndDocPrinter(IntPtr h);',
-    '  [DllImport("winspool.drv",SetLastError=true)]',
-    '  public static extern bool StartPagePrinter(IntPtr h);',
-    '  [DllImport("winspool.drv",SetLastError=true)]',
-    '  public static extern bool EndPagePrinter(IntPtr h);',
-    '  [DllImport("winspool.drv",SetLastError=true)]',
-    '  public static extern bool WritePrinter(IntPtr h,byte[] b,int c,out int w);',
-    '}',
-    '\'@',
-    '$h=[IntPtr]::Zero',
-    'if(-not [WinPrint]::OpenPrinter($printer,[ref]$h,[IntPtr]::Zero)){Write-Host "ERR:OpenPrinter";exit 1}',
-    // DOCINFO as array: [size, pDocName ptr, pOutputFile ptr, pDatatype ptr]
-    // Use simpler approach with PrintDocument
-    // Actually use direct WritePrinter after marshaling DOCINFO manually
-    // Simplest: use net start/stop or just try a different approach
-    // Use the RAW data type string
-    '$docName = [System.Runtime.InteropServices.Marshal]::StringToHGlobalUni("KitchenOrder")',
-    '$dataType = [System.Runtime.InteropServices.Marshal]::StringToHGlobalUni("RAW")',
-    '$diSize = [System.Runtime.InteropServices.Marshal]::SizeOf([System.IntPtr]) * 3 + 4',
-    // Skip complex DOCINFO, use simpler PowerShell approach
-    '[WinPrint]::ClosePrinter($h)',
-    // Use System.Drawing.Printing instead
-    'Write-Host "SKIP"',
-  ].join('\n');
-
-  // Simpler: use net use / rundll32 approach... actually use System.Printing namespace
-  // Most reliable on Win7: use the spooler via a small C# inline script
-  var psScript = [
-    '$printerName = "' + printerName + '"',
-    '$filePath = "' + filePath.replace(/\\/g, '\\\\') + '"',
-    '$rawData = [System.IO.File]::ReadAllBytes($filePath)',
-    'Add-Type -AssemblyName System.Drawing',
+// Compile C# assembly to disk once; subsequent runs load from DLL (fast)
+function warmupAssembly(cb) {
+  var dllEsc     = PRINTER_DLL.replace(/\\/g, '\\\\');
+  var warmupPs   = path.join(os.tmpdir(), 'kc_warmup.ps1');
+  var script = [
+    '$dllPath = "' + dllEsc + '"',
     '$src = @"',
-    'using System;',
-    'using System.Runtime.InteropServices;',
-    'public class RawPrinter {',
-    '  [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)]',
-    '  public struct DOCINFOW { public int cbSize; public string pDocName; public string pOutputFile; public string pDatatype; public int fwType; }',
-    '  [DllImport("winspool.drv",CharSet=CharSet.Unicode)] public static extern bool OpenPrinter(string n,out IntPtr h,IntPtr d);',
-    '  [DllImport("winspool.drv")] public static extern bool ClosePrinter(IntPtr h);',
-    '  [DllImport("winspool.drv",CharSet=CharSet.Unicode)] public static extern int StartDocPrinter(IntPtr h,int l,ref DOCINFOW d);',
-    '  [DllImport("winspool.drv")] public static extern bool EndDocPrinter(IntPtr h);',
-    '  [DllImport("winspool.drv")] public static extern bool StartPagePrinter(IntPtr h);',
-    '  [DllImport("winspool.drv")] public static extern bool EndPagePrinter(IntPtr h);',
-    '  [DllImport("winspool.drv")] public static extern bool WritePrinter(IntPtr h,byte[] b,int c,out int w);',
-    '  public static bool Print(string printer, byte[] data) {',
-    '    IntPtr h; if(!OpenPrinter(printer,out h,IntPtr.Zero)) return false;',
-    '    var di = new DOCINFOW { cbSize=20, pDocName="Order", pDatatype="RAW" };',
-    '    if(StartDocPrinter(h,1,ref di)<1){ClosePrinter(h);return false;}',
-    '    StartPagePrinter(h);',
-    '    int w; WritePrinter(h,data,data.Length,out w);',
-    '    EndPagePrinter(h); EndDocPrinter(h); ClosePrinter(h);',
-    '    return w==data.Length;',
-    '  }',
-    '}',
+    CS_SRC,
     '"@',
-    'Add-Type -TypeDefinition $src',
+    'if(-not (Test-Path $dllPath)) {',
+    '  Add-Type -TypeDefinition $src -OutputAssembly $dllPath',
+    '  Write-Host "COMPILED"',
+    '} else {',
+    '  Write-Host "CACHED"',
+    '}',
+  ].join('\n');
+  fs.writeFileSync(warmupPs, script, 'utf8');
+  exec('powershell.exe -ExecutionPolicy Bypass -File "' + warmupPs + '"', function(err, stdout, stderr) {
+    var msg = (stdout || '').trim();
+    if (err || msg === '') {
+      console.log('   Warmup warning: ' + (stderr || (err && err.message) || 'no output'));
+    } else {
+      console.log('   Assembly: ' + msg);
+    }
+    cb();
+  });
+}
+
+// Send raw bytes to printer — loads pre-compiled DLL, no inline C# compile
+function rawPrint(filePath, printerName, cb) {
+  var dllEsc  = PRINTER_DLL.replace(/\\/g, '\\\\');
+  var fileEsc = filePath.replace(/\\/g, '\\\\');
+  var psScript = [
+    '$dllPath     = "' + dllEsc + '"',
+    '$printerName = "' + printerName + '"',
+    '$rawData     = [System.IO.File]::ReadAllBytes("' + fileEsc + '")',
+    'Add-Type -Path $dllPath',
     'if([RawPrinter]::Print($printerName,$rawData)){Write-Host "OK"}else{Write-Host "ERR";exit 1}',
   ].join('\n');
 
@@ -162,7 +152,11 @@ function rawPrint(filePath, printerName, cb) {
 
   exec('powershell.exe -ExecutionPolicy Bypass -File "' + tmpPs + '"', function(err, stdout, stderr) {
     if (err || (stdout && stdout.indexOf('ERR') >= 0)) {
-      cb(new Error('PowerShell error: ' + (stderr || stdout || (err && err.message))));
+      // DLL may be stale — delete and retry with inline compile
+      if (fs.existsSync(PRINTER_DLL)) {
+        try { fs.unlinkSync(PRINTER_DLL); } catch(e) {}
+      }
+      cb(new Error('PowerShell: ' + (stderr || stdout || (err && err.message))));
     } else if (stdout && stdout.indexOf('OK') >= 0) {
       cb(null);
     } else {
@@ -210,6 +204,9 @@ var server = http.createServer(function(req, res) {
 
 server.listen(PORT, '127.0.0.1', function() {
   console.log('\nPrint server ready -> http://localhost:' + PORT);
-  console.log('   Printer name: ' + PRINTER_NAME);
-  console.log('   Press Ctrl+C to stop\n');
+  console.log('   Printer: ' + PRINTER_NAME);
+  console.log('   Compiling printer assembly (one-time, ~10 sec)...');
+  warmupAssembly(function() {
+    console.log('   Ready! Press Ctrl+C to stop.\n');
+  });
 });
