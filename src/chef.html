@@ -672,24 +672,32 @@ function downloadPrintServer() {
     '',
     'echo Downloading print server...',
     'certutil -urlcache -split -f "https://raw.githubusercontent.com/mordechay770/order/master/print-server/print-server.js" "%KDIR%\\print-server.js"',
-    'if %ERRORLEVEL% neq 0 ( echo ERROR: Download failed. Check internet connection. & pause & exit )',
+    'if %ERRORLEVEL% neq 0 ( echo ERROR: Download failed & pause & exit )',
     '',
-    'where node >nul 2>&1',
-    'if %ERRORLEVEL% equ 0 goto :run',
+    ':: Try node from PATH first',
+    'where node >nul 2>&1 && goto :run',
     '',
-    'echo Node.js not found. Downloading installer (~30MB)...',
+    ':: Try common install paths',
+    'if exist "C:\\Program Files\\nodejs\\node.exe" ( set NODE="C:\\Program Files\\nodejs\\node.exe" & goto :run )',
+    'if exist "C:\\Program Files (x86)\\nodejs\\node.exe" ( set NODE="C:\\Program Files (x86)\\nodejs\\node.exe" & goto :run )',
+    '',
+    'echo Node.js not found. Downloading installer...',
     'certutil -urlcache -split -f "https://nodejs.org/dist/v20.18.0/node-v20.18.0-x64.msi" "%KDIR%\\node-setup.msi"',
-    'echo Installing Node.js (this may take a minute)...',
+    'echo Installing Node.js...',
     'msiexec /i "%KDIR%\\node-setup.msi" /quiet /norestart ADDLOCAL=ALL',
-    'echo Done. Please close this window and run the file again.',
-    'pause',
-    'exit',
+    'echo.',
+    'echo Installation done! Restarting server...',
+    'set NODE="C:\\Program Files\\nodejs\\node.exe"',
     '',
     ':run',
+    'if not defined NODE set NODE=node',
     'echo.',
-    'echo  Print server running... Keep this window open!',
+    'echo  ===================================',
+    'echo   Print server running on port 3001',
+    'echo   Keep this window open!',
+    'echo  ===================================',
     'echo.',
-    'node "%KDIR%\\print-server.js"',
+    '%NODE% "%KDIR%\\print-server.js"',
     'pause',
   ].join('\r\n');
   const a = document.createElement('a');
@@ -705,7 +713,15 @@ async function checkPrintServer() {
       document.getElementById('printer-setup-banner').style.display = 'none';
       showToast('✅ Принтер подключён!');
     } else { showToast('Сервер ответил с ошибкой', 'error'); }
-  } catch { showToast('Сервер не найден — запустите .bat файл', 'error'); }
+  } catch (e) {
+    // Mixed content or server not running
+    const banner = document.getElementById('printer-setup-banner');
+    banner.querySelector('div[style]').innerHTML =
+      '<div style="font-weight:700;color:#fca5a5;margin-bottom:4px">⚠ Сервер не найден</div>' +
+      '<div style="font-size:12px;color:#94a3b8">1. Убедитесь что чёрное окно открыто и показывает "running on port 3001"<br>' +
+      '2. Если браузер блокирует: откройте <b>chrome://flags/#allow-insecure-localhost</b> → Enable → перезапустите Chrome</div>';
+    showToast('Проверьте чёрное окно сервера', 'error');
+  }
 }
 async function initPrinterBanner() {
   try {
