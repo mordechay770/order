@@ -65,6 +65,17 @@ function toCP1251(s) {
   }
   return Buffer.from(buf);
 }
+function toCP862(s) {
+  var buf = [];
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charCodeAt(i);
+    if (c < 0x80) { buf.push(c); continue; }
+    // Hebrew Unicode 0x05D0-0x05EA → CP862 0x80-0x9A
+    if (c >= 0x05D0 && c <= 0x05EA) { buf.push(c - 0x05D0 + 0x80); continue; }
+    buf.push(0x3F);
+  }
+  return Buffer.from(buf);
+}
 function encode(s) { return ENCODING === 'cp1251' ? toCP1251(s) : toCP866(s); }
 function txt(s) { return Buffer.concat([encode(s), Buffer.from([0x0A])]); }
 function cmd()  { return Buffer.from(Array.prototype.slice.call(arguments)); }
@@ -87,7 +98,7 @@ function buildEscPos(o) {
 
   var parts = [
     cmd(ESC, 0x40),
-    cmd(ESC, 0x74, 0x11),
+    cmd(ESC, 0x74, 0x07),
     cmd(ESC, 0x61, 0x01),
     cmd(ESC, 0x21, 0x10),
     txt('ZAKAZ #' + (o.order_number || '-')),
@@ -130,32 +141,36 @@ var server = http.createServer(function(req, res) {
   }
 
   if (req.method === 'GET' && req.url === '/test') {
-    // Comprehensive encoding test — find which ESC t value works for this printer
-    var LF  = Buffer.from([0x0A]);
+    // Encoding test: Russian (all combos) + Hebrew (CP862 with various ESC t)
+    var LF    = Buffer.from([0x0A]);
     var c866  = toCP866('Привет');
     var c1251 = toCP1251('Привет');
-    // ESC t values to test, paired with encoding
-    var tests = [
-      [0x00, c866,  't00+866'],
-      [0x07, c866,  't07+866'],
-      [0x0E, c866,  't0E+866'],
-      [0x11, c866,  't11+866'],
-      [0x12, c866,  't12+866'],
-      [0x11, c1251, 't11+1251'],
-      [0x12, c1251, 't12+1251'],
-      [0x17, c866,  't17+866'],
-      [0x23, c1251, 't23+1251'],
+    var cHeb  = toCP862('שלום');
+    var ruTests = [
+      [0x00, c866,  'RU t00+866'],
+      [0x07, c866,  'RU t07+866 *'],
+      [0x0E, c866,  'RU t0E+866'],
+      [0x11, c866,  'RU t11+866'],
+      [0x12, c1251, 'RU t12+1251'],
+      [0x17, c866,  'RU t17+866'],
+      [0x23, c1251, 'RU t23+1251'],
     ];
-    var parts = [
-      Buffer.from('ENC TEST\n'),  // no ESC @ — keep printer default
+    var hebTests = [
+      [0x0D, cHeb, 'HE t0D+862'],
+      [0x0F, cHeb, 'HE t0F+862'],
+      [0x11, cHeb, 'HE t11+862'],
+      [0x00, cHeb, 'HE t00+862'],
     ];
-    // First line: no ESC t at all (printer default)
+    var parts = [ Buffer.from('--- RUSSIAN ---\n') ];
     parts.push(Buffer.from('noESCt: ')); parts.push(c866); parts.push(LF);
-    tests.forEach(function(t) {
+    ruTests.forEach(function(t) {
       parts.push(Buffer.from([ESC, 0x74, t[0]]));
-      parts.push(Buffer.from(t[2] + ': '));
-      parts.push(t[1]);
-      parts.push(LF);
+      parts.push(Buffer.from(t[2] + ': ')); parts.push(t[1]); parts.push(LF);
+    });
+    parts.push(Buffer.from('--- HEBREW ---\n'));
+    hebTests.forEach(function(t) {
+      parts.push(Buffer.from([ESC, 0x74, t[0]]));
+      parts.push(Buffer.from(t[2] + ': ')); parts.push(t[1]); parts.push(LF);
     });
     parts.push(Buffer.from('\n\n'));
     parts.push(Buffer.from([GS, 0x56, 0x42, 0x00]));
