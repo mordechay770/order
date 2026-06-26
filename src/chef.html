@@ -171,7 +171,7 @@ main{flex:1;padding:20px;max-width:1200px;width:100%;margin:0 auto}
     <span style="font-size:20px">🖨</span>
     <div style="flex:1;min-width:200px">
       <div style="font-weight:700;color:#93c5fd;margin-bottom:2px">Установка локального принтера</div>
-      <div style="font-size:13px;color:#94a3b8">Скачайте файл, дважды кликните по нему — он запустится автоматически. Окно должно остаться открытым.</div>
+      <div style="font-size:13px;color:#94a3b8">Скачается 2 файла — положите оба в одну папку и запустите <b>.bat</b> от имени администратора.</div>
     </div>
     <button onclick="downloadPrintServer()" style="padding:10px 18px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap">⬇ Скачать и запустить</button>
     <button onclick="checkPrintServer()" style="padding:10px 18px;border-radius:8px;border:1px solid #3b82f6;background:transparent;color:#93c5fd;font-size:14px;cursor:pointer;white-space:nowrap">✓ Проверить</button>
@@ -663,6 +663,13 @@ ${o.delivery_address?`<pre>${LINE}</pre><pre>Доставка:\n${o.delivery_add
 
 // ── PRINTER SETUP (remove after installation) ──────────────────────
 function downloadPrintServer() {
+  // print-server.js embedded as base64 — no internet download needed
+  const JS_B64 = 'Ly8gcHJpbnQtc2VydmVyLmpzIOKAlCBFU0MvUE9TIGxvY2FsIHByaW50IHNlcnZlcgovLyBSdW5zIG9uIGNoZWYncyBQQywgbGlzdGVucyBvbiBsb2NhbGhvc3Q6MzAwMQovLyBSZWNlaXZlcyBvcmRlciBKU09OIOKGkiBzZW5kcyBFU0MvUE9TIHRvIFVTQjAwMiBwcmludGVyIHBvcnQKCmNvbnN0IGh0dHAgPSByZXF1aXJlKCdodHRwJyk7CmNvbnN0IHsgZXhlY0ZpbGUgfSA9IHJlcXVpcmUoJ2NoaWxkX3Byb2Nlc3MnKTsKY29uc3QgZnMgICA9IHJlcXVpcmUoJ2ZzJyk7CmNvbnN0IHBhdGggPSByZXF1aXJlKCdwYXRoJyk7CmNvbnN0IG9zICAgPSByZXF1aXJlKCdvcycpOwoKY29uc3QgUE9SVCAgICAgID0gMzAwMTsKY29uc3QgUFJJTlRFUiAgID0gJ1VTQjAwMic7IC8vIFdpbmRvd3MgcHJpbnRlciBwb3J0IG5hbWUKCmNvbnN0IEVTQyA9IDB4MUI7CmNvbnN0IEdTICA9IDB4MUQ7CmNvbnN0IExGICA9IDB4MEE7CgpmdW5jdGlvbiB0eHQocykgICAgIHsgcmV0dXJuIEJ1ZmZlci5mcm9tKHMgKyAnXG4nLCAnY3A4NjYnKTsgfQpmdW5jdGlvbiBjbWQoLi4uYikgIHsgcmV0dXJuIEJ1ZmZlci5mcm9tKGIpOyB9CgpmdW5jdGlvbiBidWlsZEVzY1BvcyhvKSB7CiAgY29uc3QgaXRlbXMgPSBvLml0ZW1zIHx8IFtdOwogIGNvbnN0IFNFUCAgID0gJz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09JzsKICBjb25zdCBMSU5FICA9ICctLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLSc7CiAgY29uc3QgdHogICAgPSAnQXNpYS9BbG1hdHknOwogIGNvbnN0IG5vdyAgID0gbmV3IERhdGUoKS50b0xvY2FsZVN0cmluZygncnUtUlUnLCB7IHRpbWVab25lOiB0eiB9KTsKCiAgbGV0IHRvdGFsID0gMDsKICBjb25zdCBpdGVtUm93cyA9IGl0ZW1zLm1hcChpdCA9PiB7CiAgICB0b3RhbCArPSBOdW1iZXIoaXQucXR5KSB8fCAwOwogICAgY29uc3QgbmFtZSA9IFN0cmluZyhpdC5uYW1lIHx8ICcnKS5zdWJzdHJpbmcoMCwgMjIpLnBhZEVuZCgyMik7CiAgICBjb25zdCBxdHkgID0gU3RyaW5nKGl0LnF0eSB8fCAxKS5wYWRTdGFydCg0KTsKICAgIHJldHVybiB0eHQoYCR7bmFtZX0ke3F0eX1gKTsKICB9KTsKCiAgcmV0dXJuIEJ1ZmZlci5jb25jYXQoWwogICAgY21kKEVTQywgMHg0MCksICAgICAgICAgICAvLyBpbml0CiAgICBjbWQoRVNDLCAweDYxLCAweDAxKSwgICAgIC8vIGNlbnRlcgogICAgY21kKEVTQywgMHgyMSwgMHgxMCksICAgICAvLyBkb3VibGUtaGVpZ2h0CiAgICB0eHQoYNCX0JDQmtCQ0Jcg4oSGJHtvLm9yZGVyX251bWJlciB8fCAn4oCUJ31gKSwKICAgIGNtZChFU0MsIDB4MjEsIDB4MDApLCAgICAgLy8gbm9ybWFsCiAgICBvLm9yZGVyX3R5cGUgPyB0eHQoby5vcmRlcl90eXBlKSA6IEJ1ZmZlci5hbGxvYygwKSwKICAgIHR4dChTRVApLAogICAgY21kKEVTQywgMHg2MSwgMHgwMCksICAgICAvLyBsZWZ0CiAgICB0eHQoYNCa0LvQuNC10L3RgjogJHtvLmN1c3RvbWVyIHx8ICfigJQnfWApLAogICAgdHh0KGDQlNCw0YLQsDogICAke28uZGF0ZSAgIHx8ICcnfWApLAogICAgdHh0KGDQktGA0LXQvNGPOiAgJHtvLnRpbWUgICB8fCAnJ31gKSwKICAgIHR4dChMSU5FKSwKICAgIGNtZChFU0MsIDB4NjEsIDB4MDEpLAogICAgdHh0KCcgINCh0J7QodCi0JDQkiDQl9CQ0JrQkNCX0JAgICcpLAogICAgY21kKEVTQywgMHg2MSwgMHgwMCksCiAgICB0eHQoTElORSksCiAgICAuLi5pdGVtUm93cywKICAgIHR4dChMSU5FKSwKICAgIHR4dChg0JjRgtC+0LPQviDQv9C+0YDRhtC40Lk6ICAgICAgICAgICAgICAke1N0cmluZyh0b3RhbCkucGFkU3RhcnQoNCl9YCksCiAgICBvLmtpdGNoZW5fbm90ZXMgPyBCdWZmZXIuY29uY2F0KFt0eHQoTElORSksIHR4dChg0JrRg9GF0L3QtTogJHtvLmtpdGNoZW5fbm90ZXN9YCldKSA6IEJ1ZmZlci5hbGxvYygwKSwKICAgIG8uZGVsaXZlcnlfYWRkcmVzcyA/IEJ1ZmZlci5jb25jYXQoW3R4dChMSU5FKSwgdHh0KGDQlNC+0YHRgtCw0LLQutCwOiAke28uZGVsaXZlcnlfYWRkcmVzc31gKV0pIDogQnVmZmVyLmFsbG9jKDApLAogICAgdHh0KFNFUCksCiAgICBjbWQoRVNDLCAweDYxLCAweDAxKSwKICAgIHR4dChub3cpLAogICAgdHh0KCcnKSwKICAgIHR4dCgnJyksCiAgICBjbWQoR1MsIDB4NTYsIDB4NDIsIDB4MDApLCAvLyBmdWxsIGN1dAogIF0pOwp9Cgpjb25zdCBzZXJ2ZXIgPSBodHRwLmNyZWF0ZVNlcnZlcigocmVxLCByZXMpID0+IHsKICByZXMuc2V0SGVhZGVyKCdBY2Nlc3MtQ29udHJvbC1BbGxvdy1PcmlnaW4nLCAnKicpOwogIHJlcy5zZXRIZWFkZXIoJ0FjY2Vzcy1Db250cm9sLUFsbG93LU1ldGhvZHMnLCAnUE9TVCwgT1BUSU9OUycpOwogIHJlcy5zZXRIZWFkZXIoJ0FjY2Vzcy1Db250cm9sLUFsbG93LUhlYWRlcnMnLCAnQ29udGVudC1UeXBlJyk7CgogIGlmIChyZXEubWV0aG9kID09PSAnT1BUSU9OUycpIHsgcmVzLndyaXRlSGVhZCgyMDQpOyByZXMuZW5kKCk7IHJldHVybjsgfQoKICBpZiAocmVxLm1ldGhvZCA9PT0gJ0dFVCcgJiYgcmVxLnVybCA9PT0gJy9waW5nJykgewogICAgcmVzLndyaXRlSGVhZCgyMDApOyByZXMuZW5kKEpTT04uc3RyaW5naWZ5KHsgb2s6IHRydWUsIHBvcnQ6IFBSSU5URVIgfSkpOyByZXR1cm47CiAgfQoKICBpZiAocmVxLm1ldGhvZCA9PT0gJ1BPU1QnICYmIHJlcS51cmwgPT09ICcvcHJpbnQnKSB7CiAgICBsZXQgYm9keSA9ICcnOwogICAgcmVxLm9uKCdkYXRhJywgZCA9PiBib2R5ICs9IGQpOwogICAgcmVxLm9uKCdlbmQnLCAoKSA9PiB7CiAgICAgIHRyeSB7CiAgICAgICAgY29uc3Qgb3JkZXIgID0gSlNPTi5wYXJzZShib2R5KTsKICAgICAgICBjb25zdCBidWYgICAgPSBidWlsZEVzY1BvcyhvcmRlcik7CiAgICAgICAgY29uc3QgdG1wRmlsZSA9IHBhdGguam9pbihvcy50bXBkaXIoKSwgJ2tjX3JlY2VpcHQuYmluJyk7CiAgICAgICAgZnMud3JpdGVGaWxlU3luYyh0bXBGaWxlLCBidWYpOwoKICAgICAgICAvLyBXaW5kb3dzOiBjb3B5IC9iIGZpbGUgVVNCMDAyICDigJQgc2VuZHMgcmF3IGJ5dGVzIGRpcmVjdGx5IHRvIHByaW50ZXIgcG9ydAogICAgICAgIGV4ZWNGaWxlKCdjbWQuZXhlJywgWycvYycsIGBjb3B5IC9iICIke3RtcEZpbGV9IiAke1BSSU5URVJ9YF0sIChlcnIsIHN0ZG91dCwgc3RkZXJyKSA9PiB7CiAgICAgICAgICBpZiAoZXJyKSB7CiAgICAgICAgICAgIGNvbnNvbGUuZXJyb3IoJ1ByaW50IGVycm9yOicsIGVyci5tZXNzYWdlKTsKICAgICAgICAgICAgcmVzLndyaXRlSGVhZCg1MDApOyByZXMuZW5kKEpTT04uc3RyaW5naWZ5KHsgZXJyb3I6IGVyci5tZXNzYWdlIH0pKTsKICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgIGNvbnNvbGUubG9nKGBQcmludGVkIG9yZGVyICMke29yZGVyLm9yZGVyX251bWJlcn1gKTsKICAgICAgICAgICAgcmVzLndyaXRlSGVhZCgyMDApOyByZXMuZW5kKEpTT04uc3RyaW5naWZ5KHsgb2s6IHRydWUgfSkpOwogICAgICAgICAgfQogICAgICAgIH0pOwogICAgICB9IGNhdGNoIChlKSB7CiAgICAgICAgcmVzLndyaXRlSGVhZCg0MDApOyByZXMuZW5kKEpTT04uc3RyaW5naWZ5KHsgZXJyb3I6IGUubWVzc2FnZSB9KSk7CiAgICAgIH0KICAgIH0pOwogICAgcmV0dXJuOwogIH0KCiAgcmVzLndyaXRlSGVhZCg0MDQpOyByZXMuZW5kKCk7Cn0pOwoKc2VydmVyLmxpc3RlbihQT1JULCAnMTI3LjAuMC4xJywgKCkgPT4gewogIGNvbnNvbGUubG9nKGBcbuKchSBQcmludCBzZXJ2ZXIgcmVhZHkg4oaSIGh0dHA6Ly9sb2NhbGhvc3Q6JHtQT1JUfWApOwogIGNvbnNvbGUubG9nKGAgICBQcmludGVyIHBvcnQ6ICR7UFJJTlRFUn1gKTsKICBjb25zb2xlLmxvZygnICAgUHJlc3MgQ3RybCtDIHRvIHN0b3BcbicpOwp9KTsK';
+
+  // Split base64 into 64-char lines for certutil decode format
+  const lines = JS_B64.match(/.{1,64}/g).join('\r\n');
+  const b64block = '-----BEGIN CERTIFICATE-----\r\n' + lines + '\r\n-----END CERTIFICATE-----\r\n';
+
   const bat = [
     '@echo off',
     'title Kitchen Print Server',
@@ -670,24 +677,22 @@ function downloadPrintServer() {
     'set KDIR=%USERPROFILE%\\kitchen-print',
     'mkdir "%KDIR%" 2>nul',
     '',
-    'echo Downloading print server...',
-    'certutil -urlcache -split -f "https://raw.githubusercontent.com/mordechay770/order/master/print-server/print-server.js" "%KDIR%\\print-server.js"',
-    'if %ERRORLEVEL% neq 0 ( echo ERROR: Download failed & pause & exit )',
+    'echo Writing print server (no internet required)...',
+    // Write the b64 file using PowerShell echo workaround — we embed via separate file
+    // Actually we write it line by line using a VBScript approach
+    'cscript //nologo "%~dp0decode.vbs" "%KDIR%\\print-server.js"',
     '',
-    ':: Try node from PATH first',
+    ':: Find node.exe',
     'where node >nul 2>&1 && goto :run',
-    '',
-    ':: Try common install paths',
     'if exist "C:\\Program Files\\nodejs\\node.exe" ( set NODE="C:\\Program Files\\nodejs\\node.exe" & goto :run )',
     'if exist "C:\\Program Files (x86)\\nodejs\\node.exe" ( set NODE="C:\\Program Files (x86)\\nodejs\\node.exe" & goto :run )',
     '',
-    'echo Node.js not found. Downloading installer...',
-    'certutil -urlcache -split -f "https://nodejs.org/dist/v20.18.0/node-v20.18.0-x64.msi" "%KDIR%\\node-setup.msi"',
-    'echo Installing Node.js...',
-    'msiexec /i "%KDIR%\\node-setup.msi" /quiet /norestart ADDLOCAL=ALL',
     'echo.',
-    'echo Installation done! Restarting server...',
-    'set NODE="C:\\Program Files\\nodejs\\node.exe"',
+    'echo Node.js is not installed.',
+    'echo Please install it from: https://nodejs.org',
+    'echo After installation, run this file again.',
+    'pause',
+    'exit',
     '',
     ':run',
     'if not defined NODE set NODE=node',
@@ -700,11 +705,37 @@ function downloadPrintServer() {
     '%NODE% "%KDIR%\\print-server.js"',
     'pause',
   ].join('\r\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([bat], {type:'application/octet-stream'}));
-  a.download = 'start-print-server.bat';
-  a.click();
-  showToast('Файл скачан — запустите его двойным кликом');
+
+  // VBScript that writes the base64 and decodes it using MSXML
+  const vbs = `
+Dim sB64, sPath, oXML, oNode, oStream
+sPath = WScript.Arguments(0)
+sB64 = "${JS_B64}"
+Set oXML = CreateObject("MSXML2.DOMDocument")
+Set oNode = oXML.createElement("b64")
+oNode.dataType = "bin.base64"
+oNode.text = sB64
+Set oStream = CreateObject("ADODB.Stream")
+oStream.Type = 1
+oStream.Open
+oStream.Write oNode.nodeTypedValue
+oStream.SaveToFile sPath, 2
+oStream.Close
+WScript.Echo "OK: " & sPath
+`.trim();
+  // Download bat
+  const aB = document.createElement('a');
+  aB.href = URL.createObjectURL(new Blob([bat], {type:'application/octet-stream'}));
+  aB.download = 'start-print-server.bat';
+  aB.click();
+  // Download vbs (must be in same folder as bat)
+  setTimeout(() => {
+    const aV = document.createElement('a');
+    aV.href = URL.createObjectURL(new Blob([vbs], {type:'application/octet-stream'}));
+    aV.download = 'decode.vbs';
+    aV.click();
+    showToast('Скачано 2 файла — положите их в одну папку и запустите .bat');
+  }, 500);
 }
 async function checkPrintServer() {
   try {
