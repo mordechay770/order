@@ -663,7 +663,35 @@ ${o.delivery_address?`<pre>${LINE}</pre><pre>Доставка:\n${o.delivery_add
 
 // ── PRINTER SETUP (remove after installation) ──────────────────────
 function downloadPrintServer() {
-  const bat = `@echo off\r\ntitle Kitchen Print Server\r\necho.\r\necho  Downloading print server...\r\nmkdir "%USERPROFILE%\\kitchen-print" 2>nul\r\npowershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/mordechay770/order/master/print-server/print-server.js' -OutFile '%USERPROFILE%\\kitchen-print\\print-server.js'"\r\necho  Starting...\r\nnode "%USERPROFILE%\\kitchen-print\\print-server.js"\r\npause\r\n`;
+  const bat = [
+    '@echo off',
+    'title Kitchen Print Server',
+    'echo.',
+    'set KDIR=%USERPROFILE%\\kitchen-print',
+    'mkdir "%KDIR%" 2>nul',
+    '',
+    'echo Downloading print server...',
+    'certutil -urlcache -split -f "https://raw.githubusercontent.com/mordechay770/order/master/print-server/print-server.js" "%KDIR%\\print-server.js"',
+    'if %ERRORLEVEL% neq 0 ( echo ERROR: Download failed. Check internet connection. & pause & exit )',
+    '',
+    'where node >nul 2>&1',
+    'if %ERRORLEVEL% equ 0 goto :run',
+    '',
+    'echo Node.js not found. Downloading installer (~30MB)...',
+    'certutil -urlcache -split -f "https://nodejs.org/dist/v20.18.0/node-v20.18.0-x64.msi" "%KDIR%\\node-setup.msi"',
+    'echo Installing Node.js (this may take a minute)...',
+    'msiexec /i "%KDIR%\\node-setup.msi" /quiet /norestart ADDLOCAL=ALL',
+    'echo Done. Please close this window and run the file again.',
+    'pause',
+    'exit',
+    '',
+    ':run',
+    'echo.',
+    'echo  Print server running... Keep this window open!',
+    'echo.',
+    'node "%KDIR%\\print-server.js"',
+    'pause',
+  ].join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([bat], {type:'application/octet-stream'}));
   a.download = 'start-print-server.bat';
