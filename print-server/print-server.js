@@ -77,7 +77,25 @@ function toCP862(s) {
   return Buffer.from(buf);
 }
 function encode(s) { return ENCODING === 'cp1251' ? toCP1251(s) : toCP866(s); }
-function txt(s) { return Buffer.concat([encode(s), Buffer.from([0x0A])]); }
+function hasHebrew(s) { return /[א-ת]/.test(s); }
+function reverseHebPart(s) {
+  var sep = s.indexOf(': ');
+  if (sep >= 0) return s.substring(0, sep + 2) + s.substring(sep + 2).split('').reverse().join('');
+  return s.split('').reverse().join('');
+}
+function txt(s) {
+  if (hasHebrew(s)) {
+    var rev = reverseHebPart(s);
+    // Switch to CP862 (Hebrew), print, switch back to CP866
+    return Buffer.concat([
+      Buffer.from([ESC, 0x74, 0x0F]),
+      toCP862(rev),
+      Buffer.from([0x0A]),
+      Buffer.from([ESC, 0x74, 0x07]),
+    ]);
+  }
+  return Buffer.concat([encode(s), Buffer.from([0x0A])]);
+}
 function cmd()  { return Buffer.from(Array.prototype.slice.call(arguments)); }
 
 // sectionTitle: optional header line (e.g. '== МAФИЯ =='), null for full order
