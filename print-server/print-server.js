@@ -91,13 +91,27 @@ function buildEscPos(o, sectionTitle) {
   var now   = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
   var total = 0;
 
-  var itemRows = items.map(function(it) {
-    total += Number(it.qty) || 0;
-    var name = String(it.name || '').substring(0, 22);
-    while (name.length < 22) name += ' ';
-    var qty = String(it.qty || 1);
-    while (qty.length < 4) qty = ' ' + qty;
-    return txt(name + qty);
+  var totalGrams = 0;
+  var itemRows = [];
+  items.forEach(function(it) {
+    var qty     = Number(it.qty) || 1;
+    var portion = Number(it.portion) || 0;
+    var rowGrams = qty * portion;
+    total      += qty;
+    totalGrams += rowGrams;
+
+    // Line 1: name (left) + qty (right)
+    var name = String(it.name || '').substring(0, 24);
+    while (name.length < 24) name += ' ';
+    var qtyStr = String(qty);
+    while (qtyStr.length < 4) qtyStr = ' ' + qtyStr;
+    itemRows.push(txt(name + qtyStr));
+
+    // Line 2 (if portion known): "  NNN g x QQ = NNNN g"
+    if (portion > 0) {
+      var portionLine = '  ' + portion + 'g x ' + qty + ' = ' + rowGrams + 'g';
+      itemRows.push(txt(portionLine));
+    }
   });
 
   var parts = [
@@ -123,6 +137,7 @@ function buildEscPos(o, sectionTitle) {
   itemRows.forEach(function(r) { parts.push(r); });
   parts.push(txt(LINE));
   parts.push(txt('Itogo: ' + total + ' pors.'));
+  if (totalGrams > 0) parts.push(txt('Ves:   ' + totalGrams + ' g'));
   if (o.kitchen_notes)    { parts.push(txt(LINE)); parts.push(txt('Kukhne: '   + o.kitchen_notes)); }
   if (o.delivery_address) { parts.push(txt(LINE)); parts.push(txt('Dostavka: ' + o.delivery_address)); }
   parts.push(txt(SEP));
