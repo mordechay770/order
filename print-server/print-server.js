@@ -31,6 +31,9 @@ function rawPrint(filePath, printerName, cb) {
   });
 }
 
+// Active encoding — change to 'cp1251' if Cyrillic prints as garbage
+var ENCODING = process.env.ENCODING || 'cp866';
+
 function toCP866(s) {
   var buf = [];
   for (var i = 0; i < s.length; i++) {
@@ -47,7 +50,23 @@ function toCP866(s) {
   }
   return Buffer.from(buf);
 }
-function txt(s) { return Buffer.concat([toCP866(s), Buffer.from([0x0A])]); }
+function toCP1251(s) {
+  var buf = [];
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charCodeAt(i);
+    if (c < 0x80) { buf.push(c); continue; }
+    if (c >= 0x0410 && c <= 0x042F) { buf.push(c - 0x0410 + 0xC0); continue; }
+    if (c >= 0x0430 && c <= 0x044F) { buf.push(c - 0x0430 + 0xE0); continue; }
+    if (c === 0x0401) { buf.push(0xA8); continue; }
+    if (c === 0x0451) { buf.push(0xB8); continue; }
+    if (c === 0x2116) { buf.push(0xB9); continue; }
+    if (c === 0x2014 || c === 0x2013) { buf.push(0x2D); continue; }
+    buf.push(0x3F);
+  }
+  return Buffer.from(buf);
+}
+function encode(s) { return ENCODING === 'cp1251' ? toCP1251(s) : toCP866(s); }
+function txt(s) { return Buffer.concat([encode(s), Buffer.from([0x0A])]); }
 function cmd()  { return Buffer.from(Array.prototype.slice.call(arguments)); }
 
 function buildEscPos(o) {
@@ -111,13 +130,25 @@ var server = http.createServer(function(req, res) {
   }
 
   if (req.method === 'GET' && req.url === '/test') {
-    var testOrder = {
-      order_number: 'TEST', order_type: 'Test print',
-      customer: 'Test', date: '', time: '',
-      items: [{ name: 'Test item', qty: 1 }],
-      kitchen_notes: ''
-    };
-    var buf = buildEscPos(testOrder);
+    // Print encoding test: both CP866 and CP1251 lines so user can see which is correct
+    var cyrillic866 = toCP866('Привет заказ');
+    var cyrillic1251 = toCP1251('Привет заказ');
+    var LF = Buffer.from([0x0A]);
+    var buf = Buffer.concat([
+      Buffer.from([ESC, 0x40]),                    // init
+      Buffer.from([ESC, 0x61, 0x01]),              // center
+      Buffer.from([ESC, 0x21, 0x10]),              // bold
+      Buffer.from('ENCODING TEST\n'),
+      Buffer.from([ESC, 0x21, 0x00]),              // normal
+      Buffer.from([ESC, 0x74, 0x11]),              // CP866
+      Buffer.from('866: '), cyrillic866, LF,
+      Buffer.from([ESC, 0x74, 0x12]),              // try CP1251 slot
+      Buffer.from('1251: '), cyrillic1251, LF,
+      Buffer.from([ESC, 0x74, 0x00]),              // try default
+      Buffer.from('def: '), cyrillic866, LF,
+      Buffer.from('\n\n'),
+      Buffer.from([GS, 0x56, 0x42, 0x00]),        // cut
+    ]);
     var tmpFile = path.join(os.tmpdir(), 'kc_test.bin');
     fs.writeFileSync(tmpFile, buf);
     rawPrint(tmpFile, PRINTER_NAME, function(err) {
