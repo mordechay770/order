@@ -627,7 +627,7 @@ ${o.kitchen_notes ? `<pre>${LINE}</pre><pre>Кухне: ${o.kitchen_notes}</pre>
 ${o.delivery_address ? `<pre>${LINE}</pre><pre>Доставка:\n${o.delivery_address}</pre>` : ''}
 <pre>${SEP}</pre>
 <pre class="c" style="font-size:11px">${new Date().toLocaleString('ru-RU',{timeZone:tz})}</pre>
-<script>setTimeout(function(){window.print();},600);<\/script>
+<script>window.onload=function(){window.focus();setTimeout(function(){window.print();},250);};<\/script>
 </body></html>`;
 
   const blob = new Blob([html], {type: 'text/html; charset=utf-8'});
