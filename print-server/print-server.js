@@ -130,25 +130,36 @@ var server = http.createServer(function(req, res) {
   }
 
   if (req.method === 'GET' && req.url === '/test') {
-    // Print encoding test: both CP866 and CP1251 lines so user can see which is correct
-    var cyrillic866 = toCP866('Привет заказ');
-    var cyrillic1251 = toCP1251('Привет заказ');
-    var LF = Buffer.from([0x0A]);
-    var buf = Buffer.concat([
-      Buffer.from([ESC, 0x40]),                    // init
-      Buffer.from([ESC, 0x61, 0x01]),              // center
-      Buffer.from([ESC, 0x21, 0x10]),              // bold
-      Buffer.from('ENCODING TEST\n'),
-      Buffer.from([ESC, 0x21, 0x00]),              // normal
-      Buffer.from([ESC, 0x74, 0x11]),              // CP866
-      Buffer.from('866: '), cyrillic866, LF,
-      Buffer.from([ESC, 0x74, 0x12]),              // try CP1251 slot
-      Buffer.from('1251: '), cyrillic1251, LF,
-      Buffer.from([ESC, 0x74, 0x00]),              // try default
-      Buffer.from('def: '), cyrillic866, LF,
-      Buffer.from('\n\n'),
-      Buffer.from([GS, 0x56, 0x42, 0x00]),        // cut
-    ]);
+    // Comprehensive encoding test — find which ESC t value works for this printer
+    var LF  = Buffer.from([0x0A]);
+    var c866  = toCP866('Привет');
+    var c1251 = toCP1251('Привет');
+    // ESC t values to test, paired with encoding
+    var tests = [
+      [0x00, c866,  't00+866'],
+      [0x07, c866,  't07+866'],
+      [0x0E, c866,  't0E+866'],
+      [0x11, c866,  't11+866'],
+      [0x12, c866,  't12+866'],
+      [0x11, c1251, 't11+1251'],
+      [0x12, c1251, 't12+1251'],
+      [0x17, c866,  't17+866'],
+      [0x23, c1251, 't23+1251'],
+    ];
+    var parts = [
+      Buffer.from('ENC TEST\n'),  // no ESC @ — keep printer default
+    ];
+    // First line: no ESC t at all (printer default)
+    parts.push(Buffer.from('noESCt: ')); parts.push(c866); parts.push(LF);
+    tests.forEach(function(t) {
+      parts.push(Buffer.from([ESC, 0x74, t[0]]));
+      parts.push(Buffer.from(t[2] + ': '));
+      parts.push(t[1]);
+      parts.push(LF);
+    });
+    parts.push(Buffer.from('\n\n'));
+    parts.push(Buffer.from([GS, 0x56, 0x42, 0x00]));
+    var buf = Buffer.concat(parts);
     var tmpFile = path.join(os.tmpdir(), 'kc_test.bin');
     fs.writeFileSync(tmpFile, buf);
     rawPrint(tmpFile, PRINTER_NAME, function(err) {
