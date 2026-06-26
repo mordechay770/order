@@ -1,141 +1,37 @@
-// print-server.js — ESC/POS local print server for Windows 7+
+﻿// print-server.js -- ESC/POS local print server for Windows 7+
 var http  = require('http');
 var fs    = require('fs');
 var path  = require('path');
 var os    = require('os');
-var spawn = require('child_process').spawn;
+var exec  = require('child_process').exec;
 
 var PORT         = 3001;
 var PRINTER_NAME = process.env.PRINTER_NAME || 'Kassa';
+var EXE_PATH     = path.join(os.tmpdir(), 'kc_print.exe');
 
 var ESC = 0x1B;
 var GS  = 0x1D;
 
-// C# source — compiled once per process lifetime
-var CS_SRC = [
-  'using System;',
-  'using System.Runtime.InteropServices;',
-  'public class RawPrinter {',
-  '  [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)]',
-  '  public struct DOCINFOW {',
-  '    public int cbSize; public string pDocName;',
-  '    public string pOutputFile; public string pDatatype; public int fwType;',
-  '  }',
-  '  [DllImport("winspool.drv",CharSet=CharSet.Unicode)]',
-  '  public static extern bool OpenPrinter(string n,out IntPtr h,IntPtr d);',
-  '  [DllImport("winspool.drv")]',
-  '  public static extern bool ClosePrinter(IntPtr h);',
-  '  [DllImport("winspool.drv",CharSet=CharSet.Unicode)]',
-  '  public static extern int StartDocPrinter(IntPtr h,int l,ref DOCINFOW d);',
-  '  [DllImport("winspool.drv")]',
-  '  public static extern bool EndDocPrinter(IntPtr h);',
-  '  [DllImport("winspool.drv")]',
-  '  public static extern bool StartPagePrinter(IntPtr h);',
-  '  [DllImport("winspool.drv")]',
-  '  public static extern bool EndPagePrinter(IntPtr h);',
-  '  [DllImport("winspool.drv")]',
-  '  public static extern bool WritePrinter(IntPtr h,byte[] b,int c,out int w);',
-  '  public static bool Print(string printer, byte[] data) {',
-  '    IntPtr h;',
-  '    if(!OpenPrinter(printer,out h,IntPtr.Zero)) return false;',
-  '    var di = new DOCINFOW{cbSize=20,pDocName="Order",pDatatype="RAW"};',
-  '    if(StartDocPrinter(h,1,ref di)<1){ClosePrinter(h);return false;}',
-  '    StartPagePrinter(h);',
-  '    int w; WritePrinter(h,data,data.Length,out w);',
-  '    EndPagePrinter(h); EndDocPrinter(h); ClosePrinter(h);',
-  '    return w==data.Length;',
-  '  }',
-  '}',
-].join('\n');
+// Pre-compiled RAW-print helper (embedded as base64)
+var EXE_B64 = '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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAwAAAAgOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
 
-// ── Persistent PowerShell process ──────────────────────────────────────────
-var psProc   = null;
-var psReady  = false;
-var psPend   = null;   // current in-flight callback
-var psQueue  = [];     // pending { filePath, printerName, cb }
-var psBuf    = '';
-
-function startPS() {
-  psReady = false;
-  psProc = spawn('powershell.exe', [
-    '-NoLogo', '-NoProfile', '-NonInteractive',
-    '-ExecutionPolicy', 'Bypass',
-    '-Command', '-'
-  ], { stdio: ['pipe', 'pipe', 'pipe'] });
-
-  psProc.stdout.on('data', function(chunk) {
-    psBuf += chunk.toString();
-    var lines = psBuf.split(/\r?\n/);
-    psBuf = lines.pop();
-    lines.forEach(handlePSLine);
-  });
-
-  psProc.stderr.on('data', function(chunk) {
-    var msg = chunk.toString().trim();
-    if (!msg) return;
-    console.error('PS:', msg);
-    if (psPend) { var cb = psPend; psPend = null; cb(new Error(msg)); drainPS(); }
-  });
-
-  psProc.on('exit', function(code) {
-    console.log('PS exited (' + code + '), restarting in 3s...');
-    psReady = false; psProc = null; psPend = null;
-    setTimeout(startPS, 3000);
-  });
-
-  // Send init: compile C# then signal ready
-  psProc.stdin.write(
-    '$src = @"\n' + CS_SRC + '\n"@\n' +
-    'try { Add-Type -TypeDefinition $src -ErrorAction Stop; Write-Output "PS_READY" }' +
-    'catch { Write-Output "PS_FAIL:$($_.Exception.Message)" }\n'
-  );
-}
-
-function handlePSLine(line) {
-  line = line.trim();
-  if (!line) return;
-  if (line === 'PS_READY') {
-    psReady = true;
-    console.log('   PowerShell ready — prints will be instant.\n');
-    drainPS();
-    return;
-  }
-  if (line.indexOf('PS_FAIL:') === 0) {
-    console.error('PS compile failed: ' + line.slice(8));
-    // flush queue with error
-    psQueue.forEach(function(j) { j.cb(new Error(line.slice(8))); });
-    psQueue = [];
-    return;
-  }
-  if (psPend) {
-    var cb = psPend; psPend = null;
-    if (line === 'PRINT_OK') cb(null);
-    else cb(new Error(line.replace(/^PRINT_ERR:/, '')));
-    drainPS();
-  }
-}
-
-function drainPS() {
-  if (!psReady || psPend || psQueue.length === 0) return;
-  var job = psQueue.shift();
-  psPend = job.cb;
-  var fe = job.filePath.replace(/\\/g, '\\\\');
-  psProc.stdin.write(
-    'try {' +
-    ' $r=[RawPrinter]::Print("' + job.printerName + '",' +
-    '[System.IO.File]::ReadAllBytes("' + fe + '"));' +
-    ' if($r){Write-Output "PRINT_OK"}else{Write-Output "PRINT_ERR:WritePrinter returned false"}' +
-    '} catch { Write-Output "PRINT_ERR:$($_.Exception.Message)" }\n'
-  );
+function ensureExe() {
+  if (fs.existsSync(EXE_PATH)) return;
+  var buf = Buffer.from(EXE_B64, 'base64');
+  fs.writeFileSync(EXE_PATH, buf);
+  console.log('   Extracted kc_print.exe -> ' + EXE_PATH);
 }
 
 function rawPrint(filePath, printerName, cb) {
-  if (!psProc) { cb(new Error('PowerShell not started')); return; }
-  psQueue.push({ filePath: filePath, printerName: printerName, cb: cb });
-  drainPS();
+  ensureExe();
+  var cmd = '"' + EXE_PATH + '" "' + printerName + '" "' + filePath + '"';
+  exec(cmd, { timeout: 10000 }, function(err, stdout, stderr) {
+    var out = (stdout || '').trim();
+    if (out === 'OK') { cb(null); return; }
+    cb(new Error(out || (stderr || '').trim() || (err && err.message) || 'unknown'));
+  });
 }
 
-// ── ESC/POS receipt builder ────────────────────────────────────────────────
 function toCP866(s) {
   var buf = [];
   for (var i = 0; i < s.length; i++) {
@@ -203,7 +99,6 @@ function buildEscPos(o) {
   return Buffer.concat(parts);
 }
 
-// ── HTTP server ────────────────────────────────────────────────────────────
 var server = http.createServer(function(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -212,7 +107,7 @@ var server = http.createServer(function(req, res) {
 
   if (req.method === 'GET' && req.url === '/ping') {
     res.writeHead(200);
-    res.end(JSON.stringify({ ok: true, printer: PRINTER_NAME, ready: psReady }));
+    res.end(JSON.stringify({ ok: true, printer: PRINTER_NAME }));
     return;
   }
 
@@ -246,6 +141,6 @@ var server = http.createServer(function(req, res) {
 server.listen(PORT, '127.0.0.1', function() {
   console.log('\nPrint server -> http://localhost:' + PORT);
   console.log('   Printer: ' + PRINTER_NAME);
-  console.log('   Starting PowerShell (compiling C#, ~15 sec)...');
-  startPS();
+  ensureExe();
+  console.log('   Ready! Press Ctrl+C to stop.\n');
 });
