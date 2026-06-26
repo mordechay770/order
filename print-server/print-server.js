@@ -111,6 +111,27 @@ var server = http.createServer(function(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && req.url === '/test') {
+    var testOrder = {
+      order_number: 'TEST', order_type: 'Test print',
+      customer: 'Test', date: '', time: '',
+      items: [{ name: 'Test item', qty: 1 }],
+      kitchen_notes: ''
+    };
+    var buf = buildEscPos(testOrder);
+    var tmpFile = path.join(os.tmpdir(), 'kc_test.bin');
+    fs.writeFileSync(tmpFile, buf);
+    rawPrint(tmpFile, PRINTER_NAME, function(err) {
+      if (err) {
+        console.error('Test error:', err.message);
+        res.writeHead(500); res.end(JSON.stringify({ error: err.message }));
+      } else {
+        res.writeHead(200); res.end(JSON.stringify({ ok: true, printer: PRINTER_NAME }));
+      }
+    });
+    return;
+  }
+
   if (req.method === 'POST' && req.url === '/print') {
     var body = '';
     req.on('data', function(d) { body += d; });
