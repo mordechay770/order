@@ -71,7 +71,7 @@ main{flex:1;padding:20px;max-width:1200px;width:100%;margin:0 auto}
 .items-list{list-style:none;display:flex;flex-direction:column;gap:3px}
 .items-list li{display:flex;justify-content:space-between;font-size:13px;color:#cbd5e1;padding:3px 0;border-bottom:1px solid #1e293b}
 .items-list li:last-child{border-bottom:none}
-.item-qty{font-weight:700;color:#a5b4fc}
+.item-qty{font-weight:700;color:#a5b4fc}.item-weight{font-size:11px;color:#64748b;margin-left:6px}
 .order-notes{font-size:12px;color:#64748b;font-style:italic;padding-top:4px;border-top:1px solid #334155}
 .ready-btn{width:100%;padding:10px;border-radius:8px;border:none;background:#22c55e;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
 .ready-btn:hover{background:#16a34a}
@@ -414,7 +414,7 @@ function renderCard(o) {
   const totalPortions = o.items.reduce((s,i) => s+(i.quantity||0), 0);
   const dishCount = o.items.length;
   const items = dishCount
-    ? `<ul class="items-list">${o.items.map(i=>`<li><span>${esc(i.name)}</span><span class="item-qty">×${i.quantity}</span></li>`).join('')}</ul>`
+    ? `<ul class="items-list">${o.items.map(i=>{const p=i.portion||0,q=i.quantity||1;const w=p?`<span class="item-weight">${p}г×${q}=${p*q}г</span>`:'';return`<li><span>${esc(i.name)}</span><span class="item-qty">×${q}</span>${w}</li>`;}).join('')}</ul>`
     : '<p style="color:#475569;font-size:13px">Нет позиций</p>';
   const kitNotes = o.kitchen_notes ? `<div class="order-notes" style="background:#172554;border-left:3px solid #6366f1">📝 Кухне: ${esc(o.kitchen_notes)}</div>` : '';
   const custNotes = (!o.kitchen_notes && o.notes) ? `<div class="order-notes">${esc(o.notes)}</div>` : '';

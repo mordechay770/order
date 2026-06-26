@@ -52,6 +52,7 @@ const FQ_QTY  = 'fldZI30djxv54dm8j';
 
 const FD_NAME     = 'fld8ia1Q9b1WoZhE7';
 const FD_CATEGORY = 'fldQHBaXkahg5Bcq7'; // קטגוריה (from מתכון)
+const FD_PORTION  = 'fldXNADlCSPdnowbQ'; // גרמים/מ"ל למנה
 
 // Field NAMES for use in filterByFormula (Airtable requires names, not IDs, in formulas)
 const FN_STATUS   = 'סטטוס הזמנה';
@@ -114,7 +115,7 @@ async function fetchItems(qtyIds, token) {
   const dishMap = {};
   if (dishIds.length) {
     const formula = `OR(${dishIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
-    const qs = `filterByFormula=${encodeURIComponent(formula)}&fields[]=${FD_NAME}&fields[]=${FD_CATEGORY}&returnFieldsByFieldId=true`;
+    const qs = `filterByFormula=${encodeURIComponent(formula)}&fields[]=${FD_NAME}&fields[]=${FD_CATEGORY}&fields[]=${FD_PORTION}&returnFieldsByFieldId=true`;
     const r = await fetch(`${AT_BASE}/${T_DISHES}?${qs}`, { headers: atHeaders(token) });
     if (r.ok) {
       const d = await r.json();
@@ -122,6 +123,7 @@ async function fetchItems(qtyIds, token) {
         dishMap[rec.id] = {
           name:     rec.fields[FD_NAME] || '',
           category: typeof rec.fields[FD_CATEGORY] === 'object' ? rec.fields[FD_CATEGORY]?.name : (rec.fields[FD_CATEGORY] || ''),
+          portion:  rec.fields[FD_PORTION] || 0,
         };
       }
     }
@@ -131,6 +133,7 @@ async function fetchItems(qtyIds, token) {
     name:     dishMap[row.fields[FQ_DISH]?.[0]]?.name || row.fields[FQ_TXT] || '—',
     category: dishMap[row.fields[FQ_DISH]?.[0]]?.category || '',
     quantity: row.fields[FQ_QTY] || 0,
+    portion:  dishMap[row.fields[FQ_DISH]?.[0]]?.portion || 0,
   })).filter(i => i.quantity > 0);
 }
 
