@@ -80,8 +80,12 @@ function encode(s) { return ENCODING === 'cp1251' ? toCP1251(s) : toCP866(s); }
 function txt(s) { return Buffer.concat([encode(s), Buffer.from([0x0A])]); }
 function cmd()  { return Buffer.from(Array.prototype.slice.call(arguments)); }
 
-function buildEscPos(o) {
-  var items = o.items || [];
+// sectionTitle: optional header line (e.g. '== МAФИЯ =='), null for full order
+function buildEscPos(o, sectionTitle) {
+  var allItems = o.items || [];
+  var items = sectionTitle
+    ? allItems.filter(function(it) { return String(it.category || '').trim() === sectionTitle.cat; })
+    : allItems;
   var SEP   = '================================';
   var LINE  = '--------------------------------';
   var now   = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
@@ -104,6 +108,7 @@ function buildEscPos(o) {
     txt('ZAKAZ #' + (o.order_number || '-')),
     cmd(ESC, 0x21, 0x00),
   ];
+  if (sectionTitle) parts.push(txt(sectionTitle.label));
   if (o.order_type) parts.push(txt(o.order_type));
   parts.push(txt(SEP));
   parts.push(cmd(ESC, 0x61, 0x00));
@@ -112,12 +117,12 @@ function buildEscPos(o) {
   if (o.time) parts.push(txt('Vremja: ' + o.time));
   parts.push(txt(LINE));
   parts.push(cmd(ESC, 0x61, 0x01));
-  parts.push(txt('  SOSTAV ZAKAZA  '));
+  parts.push(txt(sectionTitle ? sectionTitle.label : '  VSE BLYUDA  '));
   parts.push(cmd(ESC, 0x61, 0x00));
   parts.push(txt(LINE));
   itemRows.forEach(function(r) { parts.push(r); });
   parts.push(txt(LINE));
-  parts.push(txt('Itogo: ' + total));
+  parts.push(txt('Itogo: ' + total + ' pors.'));
   if (o.kitchen_notes)    { parts.push(txt(LINE)); parts.push(txt('Kukhne: '   + o.kitchen_notes)); }
   if (o.delivery_address) { parts.push(txt(LINE)); parts.push(txt('Dostavka: ' + o.delivery_address)); }
   parts.push(txt(SEP));
@@ -193,19 +198,45 @@ var server = http.createServer(function(req, res) {
     req.on('data', function(d) { body += d; });
     req.on('end', function() {
       try {
-        var order   = JSON.parse(body);
-        var buf     = buildEscPos(order);
-        var tmpFile = path.join(os.tmpdir(), 'kc_receipt.bin');
-        fs.writeFileSync(tmpFile, buf);
-        rawPrint(tmpFile, PRINTER_NAME, function(err) {
-          if (err) {
-            console.error('Print error:', err.message);
-            res.writeHead(500); res.end(JSON.stringify({ error: err.message }));
-          } else {
-            console.log('Printed order #' + order.order_number);
-            res.writeHead(200); res.end(JSON.stringify({ ok: true }));
+        var order = JSON.parse(body);
+        var items = order.items || [];
+
+        // Collect unique non-empty categories from items
+        var seenCats = {};
+        var sectionsToprint = [];
+        items.forEach(function(it) {
+          var cat = String(it.category || '').trim();
+          if (cat && !seenCats[cat]) {
+            seenCats[cat] = true;
+            sectionsToprint.push({ cat: cat, label: '== ' + cat + ' ==' });
           }
         });
+
+        // Full receipt first, then one per category
+        var receipts = [{ buf: buildEscPos(order, null), label: 'full' }];
+        sectionsToprint.forEach(function(sec) {
+          receipts.push({ buf: buildEscPos(order, sec), label: sec.label });
+        });
+
+        function printNext(i) {
+          if (i >= receipts.length) {
+            console.log('Printed ' + receipts.length + ' receipts for order #' + order.order_number);
+            res.writeHead(200); res.end(JSON.stringify({ ok: true, receipts: receipts.length }));
+            return;
+          }
+          var tmpFile = path.join(os.tmpdir(), 'kc_receipt_' + i + '.bin');
+          fs.writeFileSync(tmpFile, receipts[i].buf);
+          rawPrint(tmpFile, PRINTER_NAME, function(err) {
+            if (err) {
+              console.error('Print error receipt ' + i + ':', err.message);
+              res.writeHead(500); res.end(JSON.stringify({ error: err.message }));
+            } else {
+              printNext(i + 1);
+            }
+          });
+        }
+        printNext(0);
+
       } catch(e) {
         res.writeHead(400); res.end(JSON.stringify({ error: e.message }));
       }
