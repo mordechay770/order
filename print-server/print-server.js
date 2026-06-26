@@ -1,34 +1,44 @@
 // print-server.js — ESC/POS local print server for Windows 7+
-var http     = require('http');
-var fs       = require('fs');
-var path     = require('path');
-var os       = require('os');
-var exec     = require('child_process').exec;
+var http  = require('http');
+var fs    = require('fs');
+var path  = require('path');
+var os    = require('os');
+var spawn = require('child_process').spawn;
 
 var PORT         = 3001;
 var PRINTER_NAME = process.env.PRINTER_NAME || 'Kassa';
-var PRINTER_DLL  = path.join(os.tmpdir(), 'kc_printer.dll');
 
 var ESC = 0x1B;
 var GS  = 0x1D;
 
-// C# source for winspool.drv P/Invoke — compiled once to disk on startup
+// C# source — compiled once per process lifetime
 var CS_SRC = [
   'using System;',
   'using System.Runtime.InteropServices;',
   'public class RawPrinter {',
   '  [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)]',
-  '  public struct DOCINFOW { public int cbSize; public string pDocName; public string pOutputFile; public string pDatatype; public int fwType; }',
-  '  [DllImport("winspool.drv",CharSet=CharSet.Unicode)] public static extern bool OpenPrinter(string n,out IntPtr h,IntPtr d);',
-  '  [DllImport("winspool.drv")] public static extern bool ClosePrinter(IntPtr h);',
-  '  [DllImport("winspool.drv",CharSet=CharSet.Unicode)] public static extern int StartDocPrinter(IntPtr h,int l,ref DOCINFOW d);',
-  '  [DllImport("winspool.drv")] public static extern bool EndDocPrinter(IntPtr h);',
-  '  [DllImport("winspool.drv")] public static extern bool StartPagePrinter(IntPtr h);',
-  '  [DllImport("winspool.drv")] public static extern bool EndPagePrinter(IntPtr h);',
-  '  [DllImport("winspool.drv")] public static extern bool WritePrinter(IntPtr h,byte[] b,int c,out int w);',
+  '  public struct DOCINFOW {',
+  '    public int cbSize; public string pDocName;',
+  '    public string pOutputFile; public string pDatatype; public int fwType;',
+  '  }',
+  '  [DllImport("winspool.drv",CharSet=CharSet.Unicode)]',
+  '  public static extern bool OpenPrinter(string n,out IntPtr h,IntPtr d);',
+  '  [DllImport("winspool.drv")]',
+  '  public static extern bool ClosePrinter(IntPtr h);',
+  '  [DllImport("winspool.drv",CharSet=CharSet.Unicode)]',
+  '  public static extern int StartDocPrinter(IntPtr h,int l,ref DOCINFOW d);',
+  '  [DllImport("winspool.drv")]',
+  '  public static extern bool EndDocPrinter(IntPtr h);',
+  '  [DllImport("winspool.drv")]',
+  '  public static extern bool StartPagePrinter(IntPtr h);',
+  '  [DllImport("winspool.drv")]',
+  '  public static extern bool EndPagePrinter(IntPtr h);',
+  '  [DllImport("winspool.drv")]',
+  '  public static extern bool WritePrinter(IntPtr h,byte[] b,int c,out int w);',
   '  public static bool Print(string printer, byte[] data) {',
-  '    IntPtr h; if(!OpenPrinter(printer,out h,IntPtr.Zero)) return false;',
-  '    var di = new DOCINFOW { cbSize=20, pDocName="Order", pDatatype="RAW" };',
+  '    IntPtr h;',
+  '    if(!OpenPrinter(printer,out h,IntPtr.Zero)) return false;',
+  '    var di = new DOCINFOW{cbSize=20,pDocName="Order",pDatatype="RAW"};',
   '    if(StartDocPrinter(h,1,ref di)<1){ClosePrinter(h);return false;}',
   '    StartPagePrinter(h);',
   '    int w; WritePrinter(h,data,data.Length,out w);',
@@ -38,6 +48,94 @@ var CS_SRC = [
   '}',
 ].join('\n');
 
+// ── Persistent PowerShell process ──────────────────────────────────────────
+var psProc   = null;
+var psReady  = false;
+var psPend   = null;   // current in-flight callback
+var psQueue  = [];     // pending { filePath, printerName, cb }
+var psBuf    = '';
+
+function startPS() {
+  psReady = false;
+  psProc = spawn('powershell.exe', [
+    '-NoLogo', '-NoProfile', '-NonInteractive',
+    '-ExecutionPolicy', 'Bypass',
+    '-Command', '-'
+  ], { stdio: ['pipe', 'pipe', 'pipe'] });
+
+  psProc.stdout.on('data', function(chunk) {
+    psBuf += chunk.toString();
+    var lines = psBuf.split(/\r?\n/);
+    psBuf = lines.pop();
+    lines.forEach(handlePSLine);
+  });
+
+  psProc.stderr.on('data', function(chunk) {
+    var msg = chunk.toString().trim();
+    if (!msg) return;
+    console.error('PS:', msg);
+    if (psPend) { var cb = psPend; psPend = null; cb(new Error(msg)); drainPS(); }
+  });
+
+  psProc.on('exit', function(code) {
+    console.log('PS exited (' + code + '), restarting in 3s...');
+    psReady = false; psProc = null; psPend = null;
+    setTimeout(startPS, 3000);
+  });
+
+  // Send init: compile C# then signal ready
+  psProc.stdin.write(
+    '$src = @"\n' + CS_SRC + '\n"@\n' +
+    'try { Add-Type -TypeDefinition $src -ErrorAction Stop; Write-Output "PS_READY" }' +
+    'catch { Write-Output "PS_FAIL:$($_.Exception.Message)" }\n'
+  );
+}
+
+function handlePSLine(line) {
+  line = line.trim();
+  if (!line) return;
+  if (line === 'PS_READY') {
+    psReady = true;
+    console.log('   PowerShell ready — prints will be instant.\n');
+    drainPS();
+    return;
+  }
+  if (line.indexOf('PS_FAIL:') === 0) {
+    console.error('PS compile failed: ' + line.slice(8));
+    // flush queue with error
+    psQueue.forEach(function(j) { j.cb(new Error(line.slice(8))); });
+    psQueue = [];
+    return;
+  }
+  if (psPend) {
+    var cb = psPend; psPend = null;
+    if (line === 'PRINT_OK') cb(null);
+    else cb(new Error(line.replace(/^PRINT_ERR:/, '')));
+    drainPS();
+  }
+}
+
+function drainPS() {
+  if (!psReady || psPend || psQueue.length === 0) return;
+  var job = psQueue.shift();
+  psPend = job.cb;
+  var fe = job.filePath.replace(/\\/g, '\\\\');
+  psProc.stdin.write(
+    'try {' +
+    ' $r=[RawPrinter]::Print("' + job.printerName + '",' +
+    '[System.IO.File]::ReadAllBytes("' + fe + '"));' +
+    ' if($r){Write-Output "PRINT_OK"}else{Write-Output "PRINT_ERR:WritePrinter returned false"}' +
+    '} catch { Write-Output "PRINT_ERR:$($_.Exception.Message)" }\n'
+  );
+}
+
+function rawPrint(filePath, printerName, cb) {
+  if (!psProc) { cb(new Error('PowerShell not started')); return; }
+  psQueue.push({ filePath: filePath, printerName: printerName, cb: cb });
+  drainPS();
+}
+
+// ── ESC/POS receipt builder ────────────────────────────────────────────────
 function toCP866(s) {
   var buf = [];
   for (var i = 0; i < s.length; i++) {
@@ -54,16 +152,14 @@ function toCP866(s) {
   }
   return Buffer.from(buf);
 }
-
 function txt(s) { return Buffer.concat([toCP866(s), Buffer.from([0x0A])]); }
-function cmd() { return Buffer.from(Array.prototype.slice.call(arguments)); }
+function cmd()  { return Buffer.from(Array.prototype.slice.call(arguments)); }
 
 function buildEscPos(o) {
   var items = o.items || [];
   var SEP   = '================================';
   var LINE  = '--------------------------------';
-  var tz    = 'Asia/Almaty';
-  var now   = new Date().toLocaleString('ru-RU', { timeZone: tz });
+  var now   = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
   var total = 0;
 
   var itemRows = items.map(function(it) {
@@ -86,7 +182,7 @@ function buildEscPos(o) {
   if (o.order_type) parts.push(txt(o.order_type));
   parts.push(txt(SEP));
   parts.push(cmd(ESC, 0x61, 0x00));
-  parts.push(txt('Klient: ' + (o.customer || '-')));
+  parts.push(txt('Klient: '  + (o.customer || '-')));
   if (o.date) parts.push(txt('Data:   ' + o.date));
   if (o.time) parts.push(txt('Vremja: ' + o.time));
   parts.push(txt(LINE));
@@ -97,8 +193,8 @@ function buildEscPos(o) {
   itemRows.forEach(function(r) { parts.push(r); });
   parts.push(txt(LINE));
   parts.push(txt('Itogo: ' + total));
-  if (o.kitchen_notes)    { parts.push(txt(LINE)); parts.push(txt('Kukhne: '    + o.kitchen_notes)); }
-  if (o.delivery_address) { parts.push(txt(LINE)); parts.push(txt('Dostavka: '  + o.delivery_address)); }
+  if (o.kitchen_notes)    { parts.push(txt(LINE)); parts.push(txt('Kukhne: '   + o.kitchen_notes)); }
+  if (o.delivery_address) { parts.push(txt(LINE)); parts.push(txt('Dostavka: ' + o.delivery_address)); }
   parts.push(txt(SEP));
   parts.push(cmd(ESC, 0x61, 0x01));
   parts.push(txt(now));
@@ -107,64 +203,7 @@ function buildEscPos(o) {
   return Buffer.concat(parts);
 }
 
-// Compile C# assembly to disk once; subsequent runs load from DLL (fast)
-function warmupAssembly(cb) {
-  var dllEsc     = PRINTER_DLL.replace(/\\/g, '\\\\');
-  var warmupPs   = path.join(os.tmpdir(), 'kc_warmup.ps1');
-  var script = [
-    '$dllPath = "' + dllEsc + '"',
-    '$src = @"',
-    CS_SRC,
-    '"@',
-    'if(-not (Test-Path $dllPath)) {',
-    '  Add-Type -TypeDefinition $src -OutputAssembly $dllPath',
-    '  Write-Host "COMPILED"',
-    '} else {',
-    '  Write-Host "CACHED"',
-    '}',
-  ].join('\n');
-  fs.writeFileSync(warmupPs, script, 'utf8');
-  exec('powershell.exe -ExecutionPolicy Bypass -File "' + warmupPs + '"', function(err, stdout, stderr) {
-    var msg = (stdout || '').trim();
-    if (err || msg === '') {
-      console.log('   Warmup warning: ' + (stderr || (err && err.message) || 'no output'));
-    } else {
-      console.log('   Assembly: ' + msg);
-    }
-    cb();
-  });
-}
-
-// Send raw bytes to printer — loads pre-compiled DLL, no inline C# compile
-function rawPrint(filePath, printerName, cb) {
-  var dllEsc  = PRINTER_DLL.replace(/\\/g, '\\\\');
-  var fileEsc = filePath.replace(/\\/g, '\\\\');
-  var psScript = [
-    '$dllPath     = "' + dllEsc + '"',
-    '$printerName = "' + printerName + '"',
-    '$rawData     = [System.IO.File]::ReadAllBytes("' + fileEsc + '")',
-    'Add-Type -Path $dllPath',
-    'if([RawPrinter]::Print($printerName,$rawData)){Write-Host "OK"}else{Write-Host "ERR";exit 1}',
-  ].join('\n');
-
-  var tmpPs = path.join(os.tmpdir(), 'kc_print.ps1');
-  fs.writeFileSync(tmpPs, psScript, 'utf8');
-
-  exec('powershell.exe -ExecutionPolicy Bypass -File "' + tmpPs + '"', function(err, stdout, stderr) {
-    if (err || (stdout && stdout.indexOf('ERR') >= 0)) {
-      // DLL may be stale — delete and retry with inline compile
-      if (fs.existsSync(PRINTER_DLL)) {
-        try { fs.unlinkSync(PRINTER_DLL); } catch(e) {}
-      }
-      cb(new Error('PowerShell: ' + (stderr || stdout || (err && err.message))));
-    } else if (stdout && stdout.indexOf('OK') >= 0) {
-      cb(null);
-    } else {
-      cb(new Error('Unknown result: ' + stdout));
-    }
-  });
-}
-
+// ── HTTP server ────────────────────────────────────────────────────────────
 var server = http.createServer(function(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -172,7 +211,9 @@ var server = http.createServer(function(req, res) {
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   if (req.method === 'GET' && req.url === '/ping') {
-    res.writeHead(200); res.end(JSON.stringify({ ok: true, printer: PRINTER_NAME })); return;
+    res.writeHead(200);
+    res.end(JSON.stringify({ ok: true, printer: PRINTER_NAME, ready: psReady }));
+    return;
   }
 
   if (req.method === 'POST' && req.url === '/print') {
@@ -203,10 +244,8 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(PORT, '127.0.0.1', function() {
-  console.log('\nPrint server ready -> http://localhost:' + PORT);
+  console.log('\nPrint server -> http://localhost:' + PORT);
   console.log('   Printer: ' + PRINTER_NAME);
-  console.log('   Compiling printer assembly (one-time, ~10 sec)...');
-  warmupAssembly(function() {
-    console.log('   Ready! Press Ctrl+C to stop.\n');
-  });
+  console.log('   Starting PowerShell (compiling C#, ~15 sec)...');
+  startPS();
 });
