@@ -1163,7 +1163,7 @@
 <!-- SCREEN 1B — DATE -->
 <div id="screen1b" class="screen">
   <div class="header">
-    <button class="back-btn" onclick="goToScreen(1)" aria-label="Назад">&#8592;</button>
+    <button class="back-btn" onclick="goToScreen(1)" aria-label="Назад" data-i18n-aria="back_aria">&#8592;</button>
     <div class="header-text">
       <h1 id="s1bTitle">Выберите дату</h1>
       <p id="s1bSub">Доступные даты для заказа</p>
@@ -1177,7 +1177,7 @@
 <!-- SCREEN 2 — DISHES -->
 <div id="screen2" class="screen">
   <div class="header">
-    <button class="back-btn" onclick="goBackFromDishes()" aria-label="Назад">&#8592;</button>
+    <button class="back-btn" onclick="goBackFromDishes()" aria-label="Назад" data-i18n-aria="back_aria">&#8592;</button>
     <div class="header-text">
       <h1 id="s2Title">Выбор блюд</h1>
       <p id="s2Sub"></p>
@@ -1212,12 +1212,12 @@
 <!-- SCREEN 3 — CUSTOMER -->
 <div id="screen3" class="screen">
   <div class="header">
-    <button class="back-btn" onclick="goToScreen(2)" aria-label="Назад">&#8592;</button>
+    <button class="back-btn" onclick="goToScreen(2)" aria-label="Назад" data-i18n-aria="back_aria">&#8592;</button>
     <div class="header-text">
-      <h1>Оформить заказ</h1>
-      <p>Шаг 2 из 3 — данные клиента</p>
+      <h1 data-i18n="s3_header_title">Оформить заказ</h1>
+      <p data-i18n="s3_header_sub">Шаг 2 из 3 — данные клиента</p>
     </div>
-    <div class="step-pill">Шаг 2</div>
+    <div class="step-pill" data-i18n="step2_label">Шаг 2</div>
   </div>
 
   <div class="page-body" style="padding-bottom: 20px;">
@@ -1227,7 +1227,7 @@
       <div class="order-type-badge" id="s3TypeBadge" style="margin-bottom:12px;"></div>
       <ul class="order-summary-list" id="orderSummaryList"></ul>
       <div class="order-total-row">
-        <span class="label">Итого:</span>
+        <span class="label" data-i18n="order_total_colon">Итого:</span>
         <span class="amount" id="s3Total">0 ₸</span>
       </div>
     </div>
@@ -1296,7 +1296,7 @@
     <button type="button" class="btn-submit" id="submitBtn"
       onclick="goToPayment()"
       onkeydown="if(event.key==='Enter')goToPayment()">
-      <span>Далее — оплата →</span>
+      <span data-i18n="btn_checkout">Далее — оплата →</span>
     </button>
 
   </div>
@@ -1305,16 +1305,16 @@
 <!-- SCREEN PAY -->
 <div id="screenPay" class="screen">
   <div class="header">
-    <button class="back-btn" onclick="goToScreen(3)" aria-label="Назад">&#8592;</button>
+    <button class="back-btn" onclick="goToScreen(3)" aria-label="Назад" data-i18n-aria="back_aria">&#8592;</button>
     <div class="header-text">
-      <h1>Способ оплаты</h1>
-      <p>Шаг 3 из 3 — выберите оплату</p>
+      <h1 data-i18n="pay_title">Способ оплаты</h1>
+      <p data-i18n="pay_step_sub">Шаг 3 из 3 — выберите оплату</p>
     </div>
-    <div class="step-pill">Шаг 3</div>
+    <div class="step-pill" data-i18n="step3_label">Шаг 3</div>
   </div>
 
   <div class="pay-total-bar">
-    <span>Итого к оплате</span>
+    <span data-i18n="pay_total_label">Итого к оплате</span>
     <span id="payTotalAmount" class="pay-total-num">0 ₸</span>
   </div>
 
@@ -1328,28 +1328,28 @@
     <div class="pay-methods-grid" id="payMethodsGrid">
       <div class="pay-card" id="payCardCash" onclick="selectPayMethod('cash')">
         <div class="pay-card-icon">💵</div>
-        <div class="pay-card-title">Наличными</div>
-        <div class="pay-card-sub">При получении</div>
+        <div class="pay-card-title" data-i18n="pay_cash_title">Наличными</div>
+        <div class="pay-card-sub" data-i18n="pay_cash_sub">При получении</div>
       </div>
       <div class="pay-card" id="payCardKaspi" onclick="selectPayMethod('kaspi')">
         <div class="pay-card-icon">📱</div>
-        <div class="pay-card-title">Kaspi</div>
-        <div class="pay-card-sub">Ссылка в WhatsApp</div>
+        <div class="pay-card-title" data-i18n="pay_kaspi_title">Kaspi</div>
+        <div class="pay-card-sub" data-i18n="pay_kaspi_sub">Ссылка в WhatsApp</div>
       </div>
       <div class="pay-card" id="payCardVoucher" onclick="selectPayMethod('voucher')">
         <div class="pay-card-icon">🎫</div>
-        <div class="pay-card-title">Ваучер</div>
-        <div class="pay-card-sub">Оплата талоном</div>
+        <div class="pay-card-title" data-i18n="pay_voucher_title">Ваучер</div>
+        <div class="pay-card-sub" data-i18n="pay_voucher_sub">Оплата талоном</div>
       </div>
       <div class="pay-card pay-card-combined" id="payCardCombined" onclick="selectPayMethod('combined')">
         <div class="pay-card-icon">💳</div>
-        <div class="pay-card-title">Частичная</div>
-        <div class="pay-card-sub">Разделить сумму</div>
+        <div class="pay-card-title" data-i18n="pay_combined_title">Частичная</div>
+        <div class="pay-card-sub" data-i18n="pay_combined_sub">Разделить сумму</div>
       </div>
       <div class="pay-card" id="payCardStripe" onclick="selectPayMethod('stripe')">
         <div class="pay-card-icon">🌐</div>
-        <div class="pay-card-title">Кредитная карта</div>
-        <div class="pay-card-sub">Иностранная карта (USD)</div>
+        <div class="pay-card-title" data-i18n="pay_stripe_title">Кредитная карта</div>
+        <div class="pay-card-sub" data-i18n="pay_stripe_sub">Иностранная карта (USD)</div>
       </div>
     </div>
 
@@ -1560,7 +1560,7 @@
         </div>
 
         <div id="combinedError" class="pay-voucher-error" style="display:none;"></div>
-        <button class="btn-submit" id="combinedSubmitBtn" onclick="doSubmitCombined()">
+        <button class="btn-submit" id="combinedSubmitBtn" onclick="doSubmitCombined()" data-i18n="btn_place_order">
           ✅ Оформить заказ
         </button>
       </div>
@@ -1740,7 +1740,7 @@ const T = {
     ph_notes: 'Пожелания: без лука, острее, к 13:00…',
     hint_address: 'Оставьте пустым, если будете забирать сами',
     btn_submit: 'Отправить заказ', btn_sending: 'Отправляем…',
-    btn_checkout: 'Оформить →', btn_new_order: 'Новый заказ',
+    btn_checkout: 'Далее — оплата →', btn_new_order: 'Новый заказ',
     err_name_required: 'Пожалуйста, укажите имя.',
     err_phone_short: 'Номер телефона должен содержать не менее 10 цифр.',
     err_date_required: 'Пожалуйста, выберите дату доставки.',
@@ -1800,6 +1800,16 @@ const T = {
     donate_desc: 'Необязательно. Сумма в USD будет добавлена к оплате.',
     donate_thanks: '💚 Спасибо за пожертвование!',
     pay_title: 'Способ оплаты',
+    s3_header_title: 'Оформить заказ', s3_header_sub: 'Шаг 2 из 3 — данные клиента',
+    step2_label: 'Шаг 2', step3_label: 'Шаг 3', back_aria: 'Назад',
+    order_total_colon: 'Итого:',
+    pay_step_sub: 'Шаг 3 из 3 — выберите оплату', pay_total_label: 'Итого к оплате',
+    pay_cash_title: 'Наличными', pay_cash_sub: 'При получении',
+    pay_kaspi_title: 'Kaspi', pay_kaspi_sub: 'Ссылка в WhatsApp',
+    pay_voucher_title: 'Ваучер', pay_voucher_sub: 'Оплата талоном',
+    pay_combined_title: 'Частичная', pay_combined_sub: 'Разделить сумму',
+    pay_stripe_title: 'Кредитная карта', pay_stripe_sub: 'Иностранная карта (USD)',
+    btn_place_order: '✅ Оформить заказ',
   },
   en: {
     app_title: 'Food Order', app_subtitle: 'Select order type',
@@ -1871,6 +1881,16 @@ const T = {
     donate_desc: 'Optional. Amount in USD will be added to your payment.',
     donate_thanks: '💚 Thank you for your donation!',
     pay_title: 'Payment method',
+    s3_header_title: 'Place your order', s3_header_sub: 'Step 2 of 3 — your details',
+    step2_label: 'Step 2', step3_label: 'Step 3', back_aria: 'Back',
+    order_total_colon: 'Total:',
+    pay_step_sub: 'Step 3 of 3 — choose payment', pay_total_label: 'Total to pay',
+    pay_cash_title: 'Cash', pay_cash_sub: 'On pickup',
+    pay_kaspi_title: 'Kaspi', pay_kaspi_sub: 'Link via WhatsApp',
+    pay_voucher_title: 'Voucher', pay_voucher_sub: 'Pay by voucher',
+    pay_combined_title: 'Split payment', pay_combined_sub: 'Split the amount',
+    pay_stripe_title: 'Credit card', pay_stripe_sub: 'Foreign card (USD)',
+    btn_place_order: '✅ Place order',
   },
   he: {
     app_title: 'הזמנת אוכל', app_subtitle: 'בחרו סוג הזמנה',
@@ -1941,6 +1961,16 @@ const T = {
     donate_desc: 'אופציונלי. הסכום בדולר יתווסף לתשלום.',
     donate_thanks: '💚 תודה על התרומה!',
     pay_title: 'אמצעי תשלום',
+    s3_header_title: 'השלמת ההזמנה', s3_header_sub: 'שלב 2 מתוך 3 — פרטי הלקוח',
+    step2_label: 'שלב 2', step3_label: 'שלב 3', back_aria: 'חזרה',
+    order_total_colon: 'סה״כ:',
+    pay_step_sub: 'שלב 3 מתוך 3 — בחרו אמצעי תשלום', pay_total_label: 'סה״כ לתשלום',
+    pay_cash_title: 'מזומן', pay_cash_sub: 'בעת קבלה',
+    pay_kaspi_title: 'Kaspi', pay_kaspi_sub: 'קישור בוואטסאפ',
+    pay_voucher_title: 'תלוש', pay_voucher_sub: 'תשלום בתלוש',
+    pay_combined_title: 'תשלום חלקי', pay_combined_sub: 'לחלק את הסכום',
+    pay_stripe_title: 'כרטיס אשראי', pay_stripe_sub: 'כרטיס זר (USD)',
+    btn_place_order: '✅ שליחת הזמנה',
   },
 };
 
@@ -1953,6 +1983,7 @@ function applyLang() {
   document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
   document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.getAttribute('data-i18n')));
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => el.placeholder = t(el.getAttribute('data-i18n-placeholder')));
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria'))));
   document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-lang') === currentLang));
   if (activeCat !== undefined) {
     buildCatBar();
@@ -1986,14 +2017,14 @@ const ORDER_API = '/api/order';
 
 const ORDER_TYPES = [
   // delivery_time: display time, lead_days: min days advance, lead_cutoff: order-by time same/prev day
-  { id:'בוקר',  icon:'🌅', title:'Завтрак', title_en:'Breakfast', title_he:'ארוחת בוקר', sub:'Заказ накануне до 20:00', sub_en:'Order by 20:00 the day before', sub_he:'הזמנה עד 20:00 ביום הקודם', model:'fixed', category:'daily',   date_mode:'none', delivery_time:null, time_slots:['09:30','10:00','10:30','11:00','11:30','12:00'], lead_days:1, lead_cutoff:'20:00' },
+  { id:'בוקר',  icon:'🌅', title:'Завтрак', title_en:'Breakfast', title_he:'ארוחת בוקר', sub:'Заказ накануне до 20:00', sub_en:'Order by 20:00 the day before', sub_he:'הזמנה עד 20:00 ביום הקודם', model:'fixed', category:'daily',   date_mode:'none', delivery_time:null, time_slots:['09:30','10:00','10:30','11:00','11:30','12:00'], lead_days:1, lead_cutoff:'20:00', show_categories:false },
   { id:'צהריים', icon:'🍱', title:'Обед',    title_en:'Lunch', title_he:'ארוחת צהריים', sub:'Заказ до 09:00 в день',  sub_en:'Order by 09:00 same day', sub_he:'הזמנה עד 09:00 באותו יום', model:'fixed', category:'daily',   date_mode:'none', delivery_time:null, time_slots:['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'], lead_days:0, lead_cutoff:'09:00' },
   { id:'ערב',             icon:'🌙', title:'Ужин',            title_en:'Dinner', title_he:'ארוחת ערב', sub:'Заказ до 11:00 в день • 17:00',    sub_en:'Order by 11:00 same day • 17:00', sub_he:'הזמנה עד 11:00 באותו יום • 17:00', model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'17:00', lead_days:0, lead_cutoff:'11:00' },
   { id:'שבת',             icon:'🕯', title:'Шаббат',          title_en:'Shabbat', title_he:'שבת', sub:'Заказы: вторник–четверг до 12:00', sub_en:'Orders: Tue–Thu by 12:00', sub_he:'הזמנות: שלישי–חמישי עד 12:00', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:2, lead_cutoff:'12:00' },
   { id:'חג',              icon:'✡',  title:'Праздник',        title_en:'Holiday', title_he:'חג', sub:'Заказы открыты до указанной даты', sub_en:'Orders open until the listed date', sub_he:'הזמנות פתוחות עד התאריך הנקוב', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:3, lead_cutoff:'12:00', active:false },
   { id:'טיול',            icon:'🎒', title:'В дорогу',        title_en:'On the go', title_he:'לדרך', sub:'Еда на поездку или мероприятие',   sub_en:'Food for a trip or event', sub_he:'אוכל לטיול או לאירוע', model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'20:00', min_qty:1 },
   { id:'מיוחד',           icon:'⭐', title:'Спецзаказ',       title_en:'Special order', title_he:'הזמנה מיוחדת', sub:'Индивидуальный заказ по меню',     sub_en:'Custom order from the menu', sub_he:'הזמנה אישית לפי התפריט', model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'12:00', min_qty:1 },
-  { id:'מאפים',           icon:'🥐', title:'Выпечка',         title_en:'Bakery', title_he:'מאפים', sub:'Заказ за 2 дня • хлеб и сдоба',   sub_en:'Order 2 days ahead • bread & pastries', sub_he:'הזמנה יומיים מראש • לחם ומאפים', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:2, lead_cutoff:'20:00', min_qty:5 },
+  { id:'מאפים',           icon:'🥐', title:'Выпечка',         title_en:'Bakery', title_he:'מאפים', sub:'Заказ за 2 дня • хлеб и сдоба',   sub_en:'Order 2 days ahead • bread & pastries', sub_he:'הזמנה יומיים מראש • לחם ומאפים', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:2, lead_cutoff:'20:00', min_qty:5, show_categories:false },
   { id:'מוצרים מוכנים',  icon:'🥟', title:'Полуфабрикаты',   title_en:'Ready-to-cook', title_he:'מוצרים מוכנים', sub:'Заказ за 3 дня • готово к варке', sub_en:'Order 3 days ahead • ready to cook', sub_he:'הזמנה 3 ימים מראש • מוכן לבישול', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:3, lead_cutoff:'20:00', min_qty:10 },
 ];
 
@@ -2169,7 +2200,7 @@ function goToScreen(n) {
     renderSummary();
     screen3OpenTime = Date.now();
     const sb = document.getElementById('submitBtn');
-    if (sb) { sb.disabled = false; sb.innerHTML = '<span>Далее — оплата →</span>'; }
+    if (sb) { sb.disabled = false; sb.innerHTML = '<span>'+t('btn_checkout')+'</span>'; }
     try { const raw = sessionStorage.getItem('kc_cart'); if (raw) restoreFormData(JSON.parse(raw).formData); } catch (_) {}
   }
   if (n !== 4 && n !== 'WaFailed') saveCart();
@@ -2446,8 +2477,13 @@ function selectMenuDate(dateStr) {
   activeCat = 'all'; buildCatBar(); renderDishes();
 }
 
+function categoriesEnabled() {
+  return !currentType || currentType.show_categories !== false;
+}
+
 function buildCatBar() {
   const bar = document.getElementById('catBar');
+  if (!categoriesEnabled()) { bar.style.display = 'none'; return; }
   const cats = [...new Set(dishes.map(d => d.category).filter(Boolean))];
   if (cats.length < 2) { bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
@@ -2459,7 +2495,10 @@ function buildCatBar() {
 
 function jumpToCat(slug) {
   const el = document.getElementById(slug);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Re-correct after smooth-scroll settles — late layout shifts (fonts/images) can land short or long
+  setTimeout(() => { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 400);
 }
 
 function renderDishes() {
@@ -2471,7 +2510,7 @@ function renderDishes() {
       : `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:14px;">${t('no_dishes')}</div>`;
     grid.innerHTML = msg; return;
   }
-  const hasCats = dishes.some(d => d.category);
+  const hasCats = categoriesEnabled() && dishes.some(d => d.category);
   if (hasCats) {
     const groups = {};
     dishes.forEach(d => { const k = d.category || ''; if (!groups[k]) groups[k]=[]; groups[k].push(d); });
@@ -2663,7 +2702,7 @@ function showResult(success, orderNum, paymentMethod, breakdown) {
     msg.innerHTML = t('result_error_msg') || 'Попробуйте ещё раз или свяжитесь с нами напрямую.';
     num.textContent=''; badge.style.display='none';
     rbtn.className='btn-secondary red'; rbtn.textContent = t('btn_retry') || 'Попробовать снова';
-    rbtn.onclick=()=>{ goToScreen(3); document.getElementById('submitBtn').disabled=false; document.getElementById('submitBtn').innerHTML='<span>Далее — оплата →</span>'; };
+    rbtn.onclick=()=>{ goToScreen(3); document.getElementById('submitBtn').disabled=false; document.getElementById('submitBtn').innerHTML='<span>'+t('btn_checkout')+'</span>'; };
     const noWaRow = document.getElementById('noWaRow');
     if (noWaRow) noWaRow.style.display = 'none';
   }
@@ -2968,7 +3007,7 @@ async function doSubmitCombined() {
   const btn = document.getElementById('combinedSubmitBtn'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Отправляем…';
   const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL) || ORDER_API;
   try { const r = await fetch(orderUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error(); let num=''; try { const d=await r.json(); num=d.order_number||d.id||''; } catch(_) {} clearCart(); showResult(true,num,'combined',bd); }
-  catch(_) { btn.disabled=false; btn.textContent='✅ Оформить заказ'; showCombinedError('Ошибка отправки. Попробуйте ещё раз.'); }
+  catch(_) { btn.disabled=false; btn.textContent=t('btn_place_order'); showCombinedError('Ошибка отправки. Попробуйте ещё раз.'); }
 }
 
 function showCombinedError(m) { const e=document.getElementById('combinedError'); e.textContent=m; e.style.display=''; }
