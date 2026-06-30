@@ -484,6 +484,7 @@
       padding: 12px 2px 8px;
       letter-spacing: -0.01em;
       display: flex; align-items: center; gap: 10px;
+      scroll-margin-top: 16px;
     }
     .cat-heading::after {
       content: ""; flex: 1; height: 1px; background: var(--line);
@@ -1779,7 +1780,9 @@ const T = {
     no_dates: 'Нет доступных дат для этого типа заказа.',
     date_delivery: 'Дата готовности', time_delivery: 'Время готовности', date_other: 'позже',
     ready_label: 'Готово к', ready_note: 'Это время готовности заказа на кухне, а не время доставки к вам.',
-    unit_pcs: 'шт.',
+    unit_pcs: 'шт.', unit_g: 'г',
+    bd_unit_price: 'Цена / ед.', bd_qty: 'Кол-во', bd_yield: 'Выход / ед.', bd_total_weight: 'Общий вес', bd_total: 'Итого',
+    min_qty_label: 'мин.',
     label_delivery_method: 'Как вы получите заказ?',
     dm_pickup: 'Заберу сам(а)', dm_pickup_sub: 'Самовывоз с кухни в выбранное время',
     dm_customer: 'Закажу доставку сам(а)', dm_customer_sub: 'Вы сами вызовете курьера (Yandex, inDriver и т.п.) к указанному времени готовности',
@@ -1852,7 +1855,9 @@ const T = {
     preorder_menu_label: 'Pre-orders', preorder_menu_desc: 'Baked goods & semi-prepared — ordered in advance with minimum quantity',
     date_delivery: 'Ready date', time_delivery: 'Ready time', date_other: 'other',
     ready_label: 'Ready by', ready_note: 'This is when your order will be ready at the kitchen — not a delivery arrival time.',
-    unit_pcs: 'pcs',
+    unit_pcs: 'pcs', unit_g: 'g',
+    bd_unit_price: 'Price / unit', bd_qty: 'Quantity', bd_yield: 'Yield / unit', bd_total_weight: 'Total weight', bd_total: 'Total',
+    min_qty_label: 'min.',
     label_delivery_method: 'How will you get your order?',
     dm_pickup: 'I\'ll pick it up', dm_pickup_sub: 'Self-pickup from the kitchen at the chosen time',
     dm_customer: 'I\'ll arrange delivery myself', dm_customer_sub: 'You\'ll order a courier (Yandex, inDriver, etc.) for the ready time',
@@ -1920,7 +1925,9 @@ const T = {
     preorder_menu_label: 'הזמנה מראש', preorder_menu_desc: 'מאפים וחצי מוכנים — מוזמן מראש עם כמות מינימום',
     date_delivery: 'תאריך מוכנות', time_delivery: 'שעת מוכנות', date_other: 'אחר',
     ready_label: 'מוכן ל', ready_note: 'זהו הזמן שבו ההזמנה תהיה מוכנה במטבח — לא זמן ההגעה אליכם.',
-    unit_pcs: 'יח׳',
+    unit_pcs: 'יח׳', unit_g: 'גרם',
+    bd_unit_price: 'מחיר ליח׳', bd_qty: 'כמות', bd_yield: 'תפוקה ליח׳', bd_total_weight: 'משקל כולל', bd_total: 'סה״כ',
+    min_qty_label: 'מינ׳',
     label_delivery_method: 'איך תקבלו את ההזמנה?',
     dm_pickup: 'אאסוף בעצמי', dm_pickup_sub: 'איסוף עצמי מהמטבח בזמן שנבחר',
     dm_customer: 'אזמין משלוח בעצמי', dm_customer_sub: 'אתם תזמינו שליח (Yandex, inDriver וכו׳) לזמן המוכנות',
@@ -1953,6 +1960,11 @@ function applyLang() {
     if (totalInfo) totalInfo.textContent = t('selected_label') + ': ' + Object.values(quantities).filter(v=>v>0).length;
     const checkout = document.querySelector('.sticky-checkout-btn');
     if (checkout) checkout.textContent = t('btn_checkout');
+    if (dishes.length) {
+      dishes.forEach(d => { d.name = (currentLang==='he'&&d.name_he) ? d.name_he : (currentLang==='en'&&d.name_en) ? d.name_en : (d.name_ru || d.name); });
+      buildCatBar(); renderDishes();
+      Object.entries(quantities).forEach(([id,qty]) => { if (qty>0) { const el=document.getElementById('qty-'+id); if(el) el.textContent=qty; const c=document.getElementById('card-'+id); if(c) c.classList.add('selected'); } });
+    }
   }
   const slotGrid = document.getElementById('slotGrid');
   if (slotGrid?.querySelector?.('.slot-loading')) slotGrid.querySelector('.slot-loading').textContent = t('loading_dates');
@@ -1996,6 +2008,33 @@ function typeSub(type) {
   if (currentLang === 'he' && type.sub_he) return type.sub_he;
   if (currentLang === 'en' && type.sub_en) return type.sub_en;
   return type.sub;
+}
+
+// Category names come from Airtable as Russian-only text — translate known values for EN/HE display
+const CATEGORY_LABELS = {
+  'Закуски Салаты':                 { en: 'Salads & Starters',  he: 'סלטים ומנות פתיחה' },
+  'Супы':                           { en: 'Soups',              he: 'מרקים' },
+  'Вторые блюда (мясо,курица)':     { en: 'Main Courses (meat, chicken)', he: 'מנות עיקריות (בשר, עוף)' },
+  'Рыбные блюда':                   { en: 'Fish Dishes',        he: 'מנות דגים' },
+  'Гарниры':                        { en: 'Side Dishes',        he: 'תוספות' },
+  'Выпечка (пекарня)':              { en: 'Baked Goods',        he: 'מאפים' },
+  'Выпечка/Десерты':                { en: 'Bakery & Desserts',  he: 'מאפים וקינוחים' },
+  'Фрукты/Сухофрукты':              { en: 'Fruit & Dried Fruit', he: 'פירות ופירות יבשים' },
+  'Напитки':                        { en: 'Drinks',             he: 'משקאות' },
+  'Банкет':                         { en: 'Banquet',            he: 'בנקט' },
+  'Поминки':                        { en: 'Memorial Meal',      he: 'סעודת אבלים' },
+};
+function catLabel(catRu) {
+  if (!catRu) return '';
+  const key = catRu.trim();
+  const tr = CATEGORY_LABELS[key];
+  if (!tr) return catRu;
+  if (currentLang === 'he' && tr.he) return tr.he;
+  if (currentLang === 'en' && tr.en) return tr.en;
+  return catRu;
+}
+function catSlug(catRu) {
+  return 'cat-' + String(catRu||'').replace(/[^a-zA-Zא-ת0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 let currentType = null, currentSlot = null, dishes = [], quantities = {};
@@ -2409,41 +2448,42 @@ function selectMenuDate(dateStr) {
 
 function buildCatBar() {
   const bar = document.getElementById('catBar');
-  const cats = ['all', ...new Set(dishes.map(d => d.category).filter(Boolean))];
-  if (cats.length <= 2) { bar.style.display = 'none'; return; }
+  const cats = [...new Set(dishes.map(d => d.category).filter(Boolean))];
+  if (cats.length < 2) { bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
   bar.innerHTML = cats.map(c => {
-    const count = c==='all' ? dishes.length : dishes.filter(d => d.category===c).length;
-    const label = c==='all' ? t('all_cats') : c;
-    return `<button class="cat-chip${c===activeCat?' active':''}" onclick="filterCat('${c}')">${label}<span class="cat-count">${count}</span></button>`;
+    const count = dishes.filter(d => d.category===c).length;
+    return `<button class="cat-chip" onclick="jumpToCat('${catSlug(c)}')">${catLabel(c)}<span class="cat-count">${count}</span></button>`;
   }).join('');
 }
 
-function filterCat(cat) { activeCat = cat; buildCatBar(); renderDishes(); }
+function jumpToCat(slug) {
+  const el = document.getElementById(slug);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 function renderDishes() {
   const grid = document.getElementById('dishGrid');
   grid.innerHTML = '';
-  const visible = activeCat==='all' ? dishes : dishes.filter(d=>d.category===activeCat);
-  if (!visible.length) {
+  if (!dishes.length) {
     const msg = menuByDate && !selectedMenuDate
       ? `<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--muted);font-size:15px;">👆 Выберите дату чтобы увидеть меню</div>`
       : `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:14px;">${t('no_dishes')}</div>`;
     grid.innerHTML = msg; return;
   }
-  if (activeCat === 'all') {
-    const hasCats = dishes.some(d => d.category);
-    if (hasCats) {
-      const groups = {};
-      dishes.forEach(d => { const k = d.category || 'Прочее'; if (!groups[k]) groups[k]=[]; groups[k].push(d); });
-      Object.entries(groups).forEach(([cat, catDishes]) => {
-        const h = document.createElement('div'); h.className = 'cat-heading'; h.textContent = cat; grid.appendChild(h);
-        catDishes.forEach(dish => appendDishCard(grid, dish));
-      });
-      return;
-    }
+  const hasCats = dishes.some(d => d.category);
+  if (hasCats) {
+    const groups = {};
+    dishes.forEach(d => { const k = d.category || ''; if (!groups[k]) groups[k]=[]; groups[k].push(d); });
+    Object.entries(groups).forEach(([cat, catDishes]) => {
+      if (cat) {
+        const h = document.createElement('div'); h.className = 'cat-heading'; h.id = catSlug(cat); h.textContent = catLabel(cat); grid.appendChild(h);
+      }
+      catDishes.forEach(dish => appendDishCard(grid, dish));
+    });
+    return;
   }
-  visible.forEach(dish => appendDishCard(grid, dish));
+  dishes.forEach(dish => appendDishCard(grid, dish));
 }
 
 function appendDishCard(grid, dish) {
@@ -2457,14 +2497,14 @@ function appendDishCard(grid, dish) {
     ${photoHtml}
     <div class="dish-card-body">
       <div class="dish-card-name">${dish.name}</div>
-      ${dish.portion > 0 ? `<div class="dish-card-portion">⚖ ${dish.portion} г</div>` : ''}
-      ${dish.min_qty > 1 ? `<div class="dish-card-portion" style="color:var(--warn);">мин. ${dish.min_qty} шт.</div>` : ''}
+      ${dish.portion > 0 ? `<div class="dish-card-portion">⚖ ${dish.portion} ${t('unit_g')}</div>` : ''}
+      ${dish.min_qty > 1 ? `<div class="dish-card-portion" style="color:var(--warn);">${t('min_qty_label')} ${dish.min_qty} ${t('unit_pcs')}</div>` : ''}
       <div class="dish-card-price" id="price-${dish.id}">${dish.price > 0 ? dish.price + ' ₸' : '—'}</div>
       <div class="dish-card-breakdown" id="breakdown-${dish.id}">
-        <div class="bd-row"><span class="bd-label">Цена / ед.</span><span class="bd-value" id="bd-unit-${dish.id}">${dish.price>0?dish.price+' ₸':'—'}</span></div>
-        <div class="bd-row"><span class="bd-label">Кол-во</span><span class="bd-value" id="bd-qty-${dish.id}">—</span></div>
-        ${dish.portion > 0 ? `<div class="bd-row"><span class="bd-label">Выход / ед.</span><span class="bd-value">${dish.portion} г</span></div><div class="bd-row"><span class="bd-label">Общий вес</span><span class="bd-value" id="bd-weight-${dish.id}">—</span></div>`:''}
-        <div class="bd-row bd-total"><span class="bd-label">Итого</span><span class="bd-value" id="bd-total-${dish.id}">—</span></div>
+        <div class="bd-row"><span class="bd-label">${t('bd_unit_price')}</span><span class="bd-value" id="bd-unit-${dish.id}">${dish.price>0?dish.price+' ₸':'—'}</span></div>
+        <div class="bd-row"><span class="bd-label">${t('bd_qty')}</span><span class="bd-value" id="bd-qty-${dish.id}">—</span></div>
+        ${dish.portion > 0 ? `<div class="bd-row"><span class="bd-label">${t('bd_yield')}</span><span class="bd-value">${dish.portion} ${t('unit_g')}</span></div><div class="bd-row"><span class="bd-label">${t('bd_total_weight')}</span><span class="bd-value" id="bd-weight-${dish.id}">—</span></div>`:''}
+        <div class="bd-row bd-total"><span class="bd-label">${t('bd_total')}</span><span class="bd-value" id="bd-total-${dish.id}">—</span></div>
       </div>
     </div>
     <div class="dish-qty-row">

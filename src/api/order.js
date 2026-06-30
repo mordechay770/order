@@ -70,11 +70,19 @@ const DELIVERY_METHOD_MAP = {
 // ── Green API — WhatsApp ──────────────────────────────────────────────────────
 
 function toWaId(phone) {
+  // Already a Green API chat ID (personal @c.us or group @g.us) — pass through unchanged
+  if (phone.includes('@')) return phone;
   // Strip everything except digits, ensure international format + @c.us
   const digits = phone.replace(/\D/g, '');
   // Kazakhstan: numbers starting with 8 → replace with 7
   const norm = digits.startsWith('8') && digits.length === 11 ? '7' + digits.slice(1) : digits;
   return norm + '@c.us';
+}
+
+/** Manager notification target: WhatsApp group if configured, else the personal manager number */
+function managerTarget() {
+  const groupId = (process.env.MANAGER_GROUP_ID || '').trim();
+  return groupId || (process.env.MANAGER_PHONE || '').trim();
 }
 
 /** Returns true if message was sent successfully, false otherwise */
@@ -303,7 +311,8 @@ export default async function handler(req, res) {
     }
 
     // 3. WhatsApp notifications — fire-and-forget (don't block response)
-    const managerPhone = (process.env.MANAGER_PHONE || '').trim();
+    const managerPhone = managerTarget();
+    const isManagerGroup = managerPhone.includes('@g.us');
     const managerToken = (process.env.MANAGER_TOKEN || '').trim();
     const custPhone    = body.customer_phone.trim();
     const custName     = body.customer_name.trim();
@@ -385,6 +394,7 @@ export default async function handler(req, res) {
       dmLabelLine,
       itemLinesMgr,
       total     ? `${mt.total} ${total} ₸`  : '',
+      managerLink ? `🔗 ${mt.btnApprove}:\n${managerLink}` : '',
     ].filter(Boolean).join('\n');
 
     // Manager buttons: approval link + customer WA link (max 3 buttons, max 25 chars each)
@@ -403,8 +413,9 @@ export default async function handler(req, res) {
           buttons: custButtons,
         })
       : sendWa(custPhone, custMsg);
+    // Interactive buttons are unreliable in group chats — use plain text (URLs inline) for groups
     const sendMgr = managerPhone
-      ? (mgrButtons.length
+      ? (mgrButtons.length && !isManagerGroup
           ? sendWaButtons(managerPhone, {
               header:  mt.head,
               body:    [`${mt.client}: ${custName} · ${custPhone}`, orderType ? `${mt.type} ${orderType}` : '', delivery ? `${mt.date} ${delivery}` : '', dmLabelLine, itemLinesMgr, total ? `${mt.total} ${total} ₸` : ''].filter(Boolean).join('\n'),

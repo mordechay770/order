@@ -63,9 +63,17 @@ function atHeaders(token) {
 }
 
 function toWaId(phone) {
+  // Already a Green API chat ID (personal @c.us or group @g.us) — pass through unchanged
+  if (phone.includes('@')) return phone;
   const digits = phone.replace(/\D/g, '');
   const norm = digits.startsWith('8') && digits.length === 11 ? '7' + digits.slice(1) : digits;
   return norm + '@c.us';
+}
+
+/** Manager notification target: WhatsApp group if configured, else the personal manager number */
+function managerTarget() {
+  const groupId = (process.env.MANAGER_GROUP_ID || '').trim();
+  return groupId || (process.env.MANAGER_PHONE || '').trim();
 }
 
 async function sendWa(phone, message) {
@@ -193,6 +201,28 @@ function itemsTable(items) {
 }
 
 const LANG_LABEL = { ru: '🇷🇺 Русский', en: '🇬🇧 English', he: '🇮🇱 עברית' };
+
+// Customer-facing WhatsApp templates for approve/ready/reject, keyed by customer language ({num} placeholder)
+const CUST_ACTION_TMPL = {
+  ru: {
+    approveHead: '✅ Заказ {num} подтверждён!',
+    readyHead: '🍽️ Заказ {num} готов!', readyBody: 'Заберите заказ',
+    rejectHead: '❌ Заказ {num} отменён', rejectBody: 'Свяжитесь с нами для уточнения деталей.',
+    btnStatus: 'Статус заказа', btnKaspi: 'Оплатить Kaspi',
+  },
+  en: {
+    approveHead: '✅ Order {num} confirmed!',
+    readyHead: '🍽️ Order {num} is ready!', readyBody: 'Please pick up your order',
+    rejectHead: '❌ Order {num} cancelled', rejectBody: 'Please contact us for details.',
+    btnStatus: 'Order status', btnKaspi: 'Pay with Kaspi',
+  },
+  he: {
+    approveHead: '✅ הזמנה {num} אושרה!',
+    readyHead: '🍽️ הזמנה {num} מוכנה!', readyBody: 'נא לאסוף את ההזמנה',
+    rejectHead: '❌ הזמנה {num} בוטלה', rejectBody: 'צרו איתנו קשר לפרטים נוספים.',
+    btnStatus: 'סטטוס הזמנה', btnKaspi: 'תשלום Kaspi',
+  },
+};
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -449,6 +479,7 @@ export default async function handler(req, res) {
     const custLang  = f[FO_LANG]      || 'ru';
     const statusUrl = f[FO_SERIAL] ? `${SITE_URL}/status?num=${f[FO_SERIAL]}` : '';
     const kitNotes  = f[FO_KITCHEN_NOTES] || '';
+    const statusBefore = f[FO_STATUS] || '';
 
     const dateStr = orderDate
       ? new Date(orderDate).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' })
@@ -493,7 +524,7 @@ export default async function handler(req, res) {
         }
         </script>` : '';
       const notifyChefUrl = `${SITE_URL}/api/manager-action?action=notify_staff&target=chef&id=${id}&token=${tknEnc}`;
-      const currentStatus = f[FO_STATUS] || '';
+      const currentStatus = statusBefore;
       const statusColor = {
         'Ожидает подтверждения менеджера': '#f59e0b',
         'Подтверждён': '#22c55e', 'Готов': '#a78bfa', 'Отменён': '#ef4444',
@@ -509,8 +540,11 @@ export default async function handler(req, res) {
         currentStatus ? `📌 ${currentStatus}` : '',
       ].filter(Boolean).join('\n');
 
-      const readyUrlDirect  = `${SITE_URL}/api/manager-action?id=${id}&action=ready&token=${tknEnc}&confirm=1`;
-      const deliverUrlDirect= `${SITE_URL}/api/manager-action?id=${id}&action=deliver&token=${tknEnc}&confirm=1`;
+      // No confirm=1 here on purpose — these are convenience links on a page that
+      // may get auto-prefetched (data-saver browsers, link scanners); they must
+      // land on another preview/confirm step, never execute a side effect via bare GET.
+      const readyUrlDirect  = `${SITE_URL}/api/manager-action?id=${id}&action=ready&token=${tknEnc}`;
+      const deliverUrlDirect= `${SITE_URL}/api/manager-action?id=${id}&action=deliver&token=${tknEnc}`;
 
       const pageBody = `
         <div class="icon">📋</div>
@@ -638,24 +672,27 @@ export default async function handler(req, res) {
     });
     if (!patchR.ok) throw new Error(`PATCH ${patchR.status}`);
 
-    // Send WhatsApp to customer
-    if (custPhone) {
+    // Send WhatsApp to customer — only on the transition into newStatus, never on a
+    // repeat hit (double-tap, page refresh, link-prefetch) that finds it already there.
+    const isRepeatHit = statusBefore === newStatus;
+    if (custPhone && !isRepeatHit) {
       const isKaspi = payment === 'כספי';
+      const cl = CUST_ACTION_TMPL[custLang] || CUST_ACTION_TMPL.ru;
       let header = '', waBody = '', buttons = [];
       if (action === 'approve') {
-        header = `✅ Заказ ${orderNum} подтверждён!`;
+        header = cl.approveHead.replace('{num}', orderNum);
         waBody = orderType ? `📋 ${orderType}` : '';
-        if (statusUrl) buttons.push({ type: 'url', buttonId: '1', buttonText: 'Статус заказа', url: statusUrl });
-        if (isKaspi && kaspiUrl) buttons.push({ type: 'url', buttonId: '2', buttonText: 'Оплатить Kaspi', url: kaspiUrl });
+        if (statusUrl) buttons.push({ type: 'url', buttonId: '1', buttonText: cl.btnStatus, url: statusUrl });
+        if (isKaspi && kaspiUrl) buttons.push({ type: 'url', buttonId: '2', buttonText: cl.btnKaspi, url: kaspiUrl });
       } else if (action === 'ready') {
-        header = `🍽️ Заказ ${orderNum} готов!`;
-        waBody = orderType || 'Заберите заказ';
-        if (statusUrl) buttons.push({ type: 'url', buttonId: '1', buttonText: 'Статус заказа', url: statusUrl });
-        const managerPhone = (process.env.MANAGER_PHONE || '').trim();
-        if (managerPhone) sendWa(managerPhone, `✅ Заказ ${orderNum} готов!\n👤 ${custName}\n📋 ${orderType}`).catch(() => {});
+        header = cl.readyHead.replace('{num}', orderNum);
+        waBody = orderType || cl.readyBody;
+        if (statusUrl) buttons.push({ type: 'url', buttonId: '1', buttonText: cl.btnStatus, url: statusUrl });
+        const managerTgt = managerTarget();
+        if (managerTgt) sendWa(managerTgt, `✅ Заказ ${orderNum} готов!\n👤 ${custName}\n📋 ${orderType}`).catch(() => {});
       } else if (action === 'reject') {
-        header = `❌ Заказ ${orderNum} отменён`;
-        waBody = 'Свяжитесь с нами для уточнения деталей.';
+        header = cl.rejectHead.replace('{num}', orderNum);
+        waBody = cl.rejectBody;
       }
       if (header) sendWaButtons(custPhone, { header, body: waBody, buttons }).catch(() => {});
     }

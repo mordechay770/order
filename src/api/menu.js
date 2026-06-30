@@ -22,6 +22,7 @@ const FD_TYPES     = 'flddm1dEMqIXBfieF'; // סוגי הזמנות (multipleSele
 const FD_MINQTY    = 'fldnDpI70fL8sRXKF'; // min_qty_per_order
 const FD_STATUS    = 'fldnxpBolUFbfUxNX'; // סטטוס
 const FD_PRC_LINK  = 'fldosw1NlPlqWbcWI'; // link → T_PRICES (price record IDs per dish)
+const FD_CATEGORY  = 'fldQHBaXkahg5Bcq7'; // קטגוריה (from מתכון) — lookup singleSelect, returns array
 
 // Fields — prices (אבלת מחירי מאכלים)
 // NOTE: FP_DISH links to the recipes/BOM table, NOT to מאכלים — do not filter by dish ID
@@ -107,16 +108,23 @@ function extractAiText(raw) {
   return (raw.state === 'generated' && raw.value) ? raw.value : null;
 }
 
+function extractLookupFirst(raw) {
+  if (!raw) return '';
+  if (Array.isArray(raw)) return raw[0] || '';
+  return raw;
+}
+
 function formatDish(rec, priceMap) {
   const price  = priceMap?.[rec.id] ?? 0;
   return {
-    id:      rec.id,
-    name:    rec.fields[FD_NAME]    || '',
-    name_he: extractAiText(rec.fields[FD_NAME_HE]),
-    name_en: extractAiText(rec.fields[FD_NAME_EN]),
-    price:   Number(price)          || 0,
-    portion: rec.fields[FD_PORTION] || 0,
-    min_qty: rec.fields[FD_MINQTY]  || 0,
+    id:       rec.id,
+    name:     rec.fields[FD_NAME]    || '',
+    name_he:  extractAiText(rec.fields[FD_NAME_HE]),
+    name_en:  extractAiText(rec.fields[FD_NAME_EN]),
+    price:    Number(price)          || 0,
+    portion:  rec.fields[FD_PORTION] || 0,
+    min_qty:  rec.fields[FD_MINQTY]  || 0,
+    category: extractLookupFirst(rec.fields[FD_CATEGORY]),
   };
 }
 
@@ -171,7 +179,7 @@ async function fetchStaticMenu(type, token) {
 
   const records = await atList(T_DISHES, {
     filterByFormula: formula,
-    fields: [FD_NAME, FD_NAME_HE, FD_NAME_EN, FD_PORTION, FD_MINQTY, FD_PRC_LINK],
+    fields: [FD_NAME, FD_NAME_HE, FD_NAME_EN, FD_PORTION, FD_MINQTY, FD_PRC_LINK, FD_CATEGORY],
   }, token);
 
   const dishPriceLinks = records.map(r => ({
@@ -220,7 +228,7 @@ async function fetchDailyMenu(type, token) {
   const dishFormula = `OR(${dishIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
   const dishRecords = await atList(T_DISHES, {
     filterByFormula: dishFormula,
-    fields: [FD_NAME, FD_NAME_HE, FD_NAME_EN, FD_PORTION, FD_MINQTY, FD_PRC_LINK],
+    fields: [FD_NAME, FD_NAME_HE, FD_NAME_EN, FD_PORTION, FD_MINQTY, FD_PRC_LINK, FD_CATEGORY],
   }, token);
   const dishPriceLinks = dishRecords.map(r => ({
     dishId:      r.id,
