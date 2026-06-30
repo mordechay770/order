@@ -1878,6 +1878,15 @@ function applyLang() {
   if (slotGrid?.querySelector?.('.slot-loading')) slotGrid.querySelector('.slot-loading').textContent = t('loading_dates');
   // re-render type cards to update section labels in new language
   if (document.getElementById('screen1')?.classList.contains('active')) renderTypeCards();
+  if (currentType) {
+    const slotLabel = currentSlot ? (currentSlot.name || typeTitle(currentType)) : typeTitle(currentType);
+    const badge = currentType.icon + ' ' + slotLabel;
+    const typeBadge = document.getElementById('typeBadge'); if (typeBadge) typeBadge.textContent = badge;
+    const s3Badge = document.getElementById('s3TypeBadge'); if (s3Badge) s3Badge.textContent = badge;
+    const s1bTitle = document.getElementById('s1bTitle'); if (s1bTitle) s1bTitle.textContent = currentType.icon + ' ' + typeTitle(currentType);
+    const s2Title = document.getElementById('s2Title'); if (s2Title) s2Title.textContent = typeTitle(currentType);
+    const s2Sub = document.getElementById('s2Sub'); if (s2Sub) s2Sub.textContent = currentSlot ? (currentSlot.name || typeSub(currentType)) : typeSub(currentType);
+  }
 }
 
 const MENU_API  = '/api/menu';
@@ -1885,16 +1894,29 @@ const ORDER_API = '/api/order';
 
 const ORDER_TYPES = [
   // delivery_time: display time, lead_days: min days advance, lead_cutoff: order-by time same/prev day
-  { id:'בוקר',  icon:'🌅', title:'Завтрак', sub:'Заказ накануне до 20:00', model:'fixed', category:'daily',   date_mode:'none', delivery_time:null, time_slots:['09:30','10:00','10:30','11:00','11:30','12:00'], lead_days:1, lead_cutoff:'20:00' },
-  { id:'צהריים', icon:'🍱', title:'Обед',    sub:'Заказ до 09:00 в день',  model:'fixed', category:'daily',   date_mode:'none', delivery_time:null, time_slots:['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'], lead_days:0, lead_cutoff:'09:00' },
-  { id:'ערב',             icon:'🌙', title:'Ужин',            sub:'Заказ до 11:00 в день • 17:00',    model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'17:00', lead_days:0, lead_cutoff:'11:00' },
-  { id:'שבת',             icon:'🕯', title:'Шаббат',          sub:'Заказы: вторник–четверг до 12:00', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:2, lead_cutoff:'12:00' },
-  { id:'חג',              icon:'✡',  title:'Праздник',        sub:'Заказы открыты до указанной даты', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:3, lead_cutoff:'12:00', active:false },
-  { id:'טיול',            icon:'🎒', title:'В дорогу',        sub:'Еда на поездку или мероприятие',   model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'20:00', min_qty:1 },
-  { id:'מיוחד',           icon:'⭐', title:'Спецзаказ',       sub:'Индивидуальный заказ по меню',     model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'12:00', min_qty:1 },
-  { id:'מאפים',           icon:'🥐', title:'Выпечка',         sub:'Заказ за 2 дня • хлеб и сдоба',   model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:2, lead_cutoff:'20:00', min_qty:5 },
-  { id:'מוצרים מוכנים',  icon:'🥟', title:'Полуфабрикаты',   sub:'Заказ за 3 дня • готово к варке', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:3, lead_cutoff:'20:00', min_qty:10 },
+  { id:'בוקר',  icon:'🌅', title:'Завтрак', title_en:'Breakfast', title_he:'ארוחת בוקר', sub:'Заказ накануне до 20:00', sub_en:'Order by 20:00 the day before', sub_he:'הזמנה עד 20:00 ביום הקודם', model:'fixed', category:'daily',   date_mode:'none', delivery_time:null, time_slots:['09:30','10:00','10:30','11:00','11:30','12:00'], lead_days:1, lead_cutoff:'20:00' },
+  { id:'צהריים', icon:'🍱', title:'Обед',    title_en:'Lunch', title_he:'ארוחת צהריים', sub:'Заказ до 09:00 в день',  sub_en:'Order by 09:00 same day', sub_he:'הזמנה עד 09:00 באותו יום', model:'fixed', category:'daily',   date_mode:'none', delivery_time:null, time_slots:['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'], lead_days:0, lead_cutoff:'09:00' },
+  { id:'ערב',             icon:'🌙', title:'Ужин',            title_en:'Dinner', title_he:'ארוחת ערב', sub:'Заказ до 11:00 в день • 17:00',    sub_en:'Order by 11:00 same day • 17:00', sub_he:'הזמנה עד 11:00 באותו יום • 17:00', model:'fixed', category:'daily',    date_mode:'none',    delivery_time:'17:00', lead_days:0, lead_cutoff:'11:00' },
+  { id:'שבת',             icon:'🕯', title:'Шаббат',          title_en:'Shabbat', title_he:'שבת', sub:'Заказы: вторник–четверг до 12:00', sub_en:'Orders: Tue–Thu by 12:00', sub_he:'הזמנות: שלישי–חמישי עד 12:00', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:2, lead_cutoff:'12:00' },
+  { id:'חג',              icon:'✡',  title:'Праздник',        title_en:'Holiday', title_he:'חג', sub:'Заказы открыты до указанной даты', sub_en:'Orders open until the listed date', sub_he:'הזמנות פתוחות עד התאריך הנקוב', model:'fixed', category:'shabbat',  date_mode:'none',    delivery_time:'13:00', lead_days:3, lead_cutoff:'12:00', active:false },
+  { id:'טיול',            icon:'🎒', title:'В дорогу',        title_en:'On the go', title_he:'לדרך', sub:'Еда на поездку или мероприятие',   sub_en:'Food for a trip or event', sub_he:'אוכל לטיול או לאירוע', model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'20:00', min_qty:1 },
+  { id:'מיוחד',           icon:'⭐', title:'Спецзаказ',       title_en:'Special order', title_he:'הזמנה מיוחדת', sub:'Индивидуальный заказ по меню',     sub_en:'Custom order from the menu', sub_he:'הזמנה אישית לפי התפריט', model:'open',  category:'custom',   date_mode:'none',    delivery_time:null, lead_days:1, lead_cutoff:'12:00', min_qty:1 },
+  { id:'מאפים',           icon:'🥐', title:'Выпечка',         title_en:'Bakery', title_he:'מאפים', sub:'Заказ за 2 дня • хлеб и сдоба',   sub_en:'Order 2 days ahead • bread & pastries', sub_he:'הזמנה יומיים מראש • לחם ומאפים', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:2, lead_cutoff:'20:00', min_qty:5 },
+  { id:'מוצרים מוכנים',  icon:'🥟', title:'Полуфабрикаты',   title_en:'Ready-to-cook', title_he:'מוצרים מוכנים', sub:'Заказ за 3 дня • готово к варке', sub_en:'Order 3 days ahead • ready to cook', sub_he:'הזמנה 3 ימים מראש • מוכן לבישול', model:'open',  category:'preorder', date_mode:'none',    delivery_time:null, lead_days:3, lead_cutoff:'20:00', min_qty:10 },
 ];
+
+function typeTitle(type) {
+  if (!type) return '';
+  if (currentLang === 'he' && type.title_he) return type.title_he;
+  if (currentLang === 'en' && type.title_en) return type.title_en;
+  return type.title;
+}
+function typeSub(type) {
+  if (!type) return '';
+  if (currentLang === 'he' && type.sub_he) return type.sub_he;
+  if (currentLang === 'en' && type.sub_en) return type.sub_en;
+  return type.sub;
+}
 
 let currentType = null, currentSlot = null, dishes = [], quantities = {};
 let menuByDate = null, selectedMenuDate = null;
@@ -2041,7 +2063,7 @@ function renderTypeCards() {
   function makeCard(type) {
     const card = document.createElement('div');
     card.className = 'type-card' + (type.category === 'preorder' ? ' preorder-model' : type.model === 'open' ? ' open-model' : '');
-    card.innerHTML = `<div class="type-icon-wrap">${type.icon}</div><div class="type-title">${type.title}</div><div class="type-sub">${type.sub}</div>`;
+    card.innerHTML = `<div class="type-icon-wrap">${type.icon}</div><div class="type-title">${typeTitle(type)}</div><div class="type-sub">${typeSub(type)}</div>`;
     card.onclick = () => selectType(type);
     return card;
   }
@@ -2082,15 +2104,15 @@ async function selectType(type) {
   currentType = type; currentSlot = null; quantities = {}; dishes = [];
   currentDeliveryDate = null; currentDeliveryTime = null;
   document.getElementById('deliveryBanner').style.display = 'none';
-  document.getElementById('typeBadge').textContent = type.icon + ' ' + type.title;
-  document.getElementById('s3TypeBadge').textContent = type.icon + ' ' + type.title;
+  document.getElementById('typeBadge').textContent = type.icon + ' ' + typeTitle(type);
+  document.getElementById('s3TypeBadge').textContent = type.icon + ' ' + typeTitle(type);
   hideStickyTotal();
   if (type.model === 'open' || type.date_mode === 'none') {
-    document.getElementById('s2Title').textContent = type.title;
-    document.getElementById('s2Sub').textContent = type.sub;
+    document.getElementById('s2Title').textContent = typeTitle(type);
+    document.getElementById('s2Sub').textContent = typeSub(type);
     goToScreen(2); showSkeletons(); await loadDishes(type.id, null); return;
   }
-  document.getElementById('s1bTitle').textContent = type.icon + ' ' + type.title;
+  document.getElementById('s1bTitle').textContent = type.icon + ' ' + typeTitle(type);
   document.getElementById('s1bSub').textContent = t('choose_date_sub');
   goToScreen('1b'); await loadSlots(type);
 }
@@ -2171,8 +2193,8 @@ function renderSlotCards(slots) {
 
 async function selectSlot(slot) {
   currentSlot = slot;
-  const label = slot.name || slot.date || currentType.title;
-  document.getElementById('s2Title').textContent = currentType.title;
+  const label = slot.name || slot.date || typeTitle(currentType);
+  document.getElementById('s2Title').textContent = typeTitle(currentType);
   document.getElementById('s2Sub').textContent = label;
   document.getElementById('typeBadge').textContent = currentType.icon + ' ' + label;
   document.getElementById('s3TypeBadge').textContent = currentType.icon + ' ' + label;
@@ -2423,12 +2445,12 @@ async function restoreCart() {
     const type = ORDER_TYPES.find(t => t.id===saved.typeId); if (!type) return;
     currentType = type;
     if (saved.slotId) currentSlot = { id: saved.slotId, name: saved.slotName, date: saved.slotDate };
-    document.getElementById('s1bTitle').textContent = type.icon + ' ' + type.title;
+    document.getElementById('s1bTitle').textContent = type.icon + ' ' + typeTitle(type);
     document.getElementById('s1bSub').textContent = t('choose_date_sub');
-    document.getElementById('typeBadge').textContent = type.icon + ' ' + (currentSlot ? (currentSlot.name || type.title) : type.title);
+    document.getElementById('typeBadge').textContent = type.icon + ' ' + (currentSlot ? (currentSlot.name || typeTitle(type)) : typeTitle(type));
     document.getElementById('s3TypeBadge').textContent = document.getElementById('typeBadge').textContent;
-    document.getElementById('s2Title').textContent = type.title;
-    document.getElementById('s2Sub').textContent = currentSlot ? (currentSlot.name || type.sub) : type.sub;
+    document.getElementById('s2Title').textContent = typeTitle(type);
+    document.getElementById('s2Sub').textContent = currentSlot ? (currentSlot.name || typeSub(type)) : typeSub(type);
     if (currentSlot) loadSlots(type);
     goToScreen(2); showSkeletons();
     await loadDishes(type.id, currentSlot ? currentSlot.date : null);

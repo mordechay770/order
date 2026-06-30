@@ -245,11 +245,16 @@ var server = http.createServer(function(req, res) {
           }
         });
 
-        // Full receipt first, then one per category
-        var receipts = [{ buf: buildEscPos(order, null), label: 'full' }];
-        sectionsToprint.forEach(function(sec) {
-          receipts.push({ buf: buildEscPos(order, sec), label: sec.label });
-        });
+        var mode = order.mode || 'full';
+        var receipts = [];
+        if (mode !== 'split') {
+          receipts.push({ buf: buildEscPos(order, null), label: 'full' });
+        }
+        if (mode !== 'full') {
+          sectionsToprint.forEach(function(sec) {
+            receipts.push({ buf: buildEscPos(order, sec), label: sec.label });
+          });
+        }
 
         function printNext(i) {
           if (i >= receipts.length) {

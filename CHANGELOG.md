@@ -1,5 +1,31 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-06-26 — ESC/POS Thermal Printer + Portion Weight
+
+### בוצע
+
+#### `print-server/print-server.js` — שדרוג
+- **`mode` support:** `mode:'full'` = קבלה אחת כולל הכל | `mode:'split'` = קבלה נפרדת לכל קטגוריה
+- עברית: `hasHebrew()` + `reverseHebPart()` + ESC t 0x0F + CP862 encoding
+
+#### `src/chef.html` — שדרוג
+- שני כפתורי הדפסה בכל כרטיס: **🖨 Весь заказ** (full) | **🖨 По цехам** (split)
+- כרטיס הזמנה מציג משקל: `NNNג×כמות=סה"כג` לצד כל מנה
+- `JS_B64` עודכן לגרסת print-server.js הנוכחית
+
+#### `src/api/orders-today.js` — שדרוג
+- מחזיר `portion` (fldXNADlCSPdnowbQ = גרמים/מ"ל) לכל item
+- נוסף `FD_PORTION` const + שדה ב-dishMap + מיפוי ב-return
+
+#### `docs/thermal-printer-setup.md` — חדש
+- תיעוד מלא: חומרה, encoding שעובד, ארכיטקטורה, שגיאות שנפתרו, מדריך עדכון
+
+### פתוח
+- עברית מדפיסה `-` — `hasHebrew()` regex ייתכן בעיה בקובץ מוטמע (לבדיקה)
+- מדפסת מדבקות חדשה — שבוע הבא
+
+---
+
 ## 2026-06-24 — Stripe, donation, mission banner, kaspi receipt
 
 ### בוצע
