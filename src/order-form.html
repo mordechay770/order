@@ -1357,9 +1357,9 @@
     <div id="paySectionStripe" class="pay-detail-section" style="display:none;">
       <div class="pay-detail-card">
         <div class="pay-detail-icon">🌐</div>
-        <h3>Оплата картой (Stripe)</h3>
+        <h3 data-i18n="stripe_title">Оплата картой (Stripe)</h3>
         <p id="stripeAmountInfo" style="margin:12px 0;color:var(--muted);font-size:14px"></p>
-        <p style="margin-bottom:12px;font-size:14px">Вы будете перенаправлены на страницу оплаты Stripe. После оплаты заказ будет подтверждён.</p>
+        <p style="margin-bottom:12px;font-size:14px" data-i18n="stripe_desc">Вы будете перенаправлены на страницу оплаты Stripe. После оплаты заказ будет подтверждён.</p>
 
         <!-- Donation section -->
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin-bottom:16px">
@@ -1397,10 +1397,10 @@
         " onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'"
            onmousedown="this.style.transform='scale(.98)'" onmouseup="this.style.transform=''">
           <span style="font-size:22px">💳</span>
-          <span>Перейти к оплате Stripe</span>
+          <span data-i18n="stripe_btn">Перейти к оплате Stripe</span>
           <span style="opacity:.7;font-size:14px">→</span>
         </button>
-        <p style="margin:10px 0 0;font-size:12px;color:#94a3b8;text-align:center">Откроется в новой вкладке · Безопасно · Stripe</p>
+        <p style="margin:10px 0 0;font-size:12px;color:#94a3b8;text-align:center" data-i18n="stripe_note">Откроется в новой вкладке · Безопасно · Stripe</p>
       </div>
     </div>
 
@@ -1408,8 +1408,8 @@
     <div id="paySectionCash" class="pay-detail-section" style="display:none;">
       <div class="pay-detail-card">
         <div class="pay-detail-icon">💵</div>
-        <h3>Оплата наличными</h3>
-        <div class="pay-cash-desc">
+        <h3 data-i18n="cash_title">Оплата наличными</h3>
+        <div class="pay-cash-desc" data-i18n-html="cash_desc_html">
           💡 <strong>Оплата при получении.</strong><br>
           Подготовьте точную сумму или попросите сдачу заранее.
         </div>
@@ -1435,7 +1435,7 @@
             </div>
           </div>
         </div>
-        <button class="btn-submit" onclick="doSubmitOrder('cash')">
+        <button class="btn-submit" onclick="doSubmitOrder('cash')" data-i18n="btn_confirm_order">
           ✅ Подтвердить заказ
         </button>
       </div>
@@ -1445,9 +1445,9 @@
     <div id="paySectionKaspi" class="pay-detail-section" style="display:none;">
       <div class="pay-detail-card">
         <div class="pay-detail-icon">📱</div>
-        <h3>Оплата через Kaspi</h3>
+        <h3 data-i18n="kaspi_title">Оплата через Kaspi</h3>
         <p class="pay-kaspi-amount" id="kaspiAmountDisplay">0 ₸</p>
-        <div class="pay-cash-desc">
+        <div class="pay-cash-desc" data-i18n-html="kaspi_desc_html">
           📲 После оформления заказа мы пришлём <strong>ссылку на оплату Kaspi</strong> в WhatsApp.
           Оплатите по ссылке — заказ подтвердится автоматически.
         </div>
@@ -1476,14 +1476,14 @@
         </div>
 
         <div class="pay-confirm-block">
-          <div class="pay-confirm-label">📱 Ваш WhatsApp для получения ссылки</div>
+          <div class="pay-confirm-label" data-i18n="kaspi_whatsapp_label">📱 Ваш WhatsApp для получения ссылки</div>
           <input type="tel" id="kaspiWhatsappInput" class="pay-confirm-input"
-            placeholder="+7 700 000 0000" autocomplete="tel" />
-          <div class="pay-confirm-hint">Убедитесь, что номер правильный — ссылка придёт сюда</div>
+            data-i18n-placeholder="ph_phone" placeholder="+7 700 000 0000" autocomplete="tel" />
+          <div class="pay-confirm-hint" data-i18n="kaspi_whatsapp_hint">Убедитесь, что номер правильный — ссылка придёт сюда</div>
         </div>
 
         <div id="kaspiConfirmError" class="pay-voucher-error" style="display:none;"></div>
-        <button class="btn-submit" id="kaspiSubmitBtn" onclick="doSubmitKaspi()">
+        <button class="btn-submit" id="kaspiSubmitBtn" onclick="doSubmitKaspi()" data-i18n="kaspi_submit_btn">
           📩 Оформить заказ — получить ссылку
         </button>
       </div>
@@ -1494,16 +1494,16 @@
       <div class="pay-detail-card" style="text-align:left;">
         <div style="text-align:center;">
           <div class="pay-detail-icon">💳</div>
-          <h3>Частичная оплата</h3>
+          <h3 data-i18n="combined_title">Частичная оплата</h3>
           <p style="font-size:13px;color:var(--ink-2);margin-bottom:16px;">
-            Сумма к оплате: <strong id="combinedTotalDisplay" style="color:var(--navy-deep);font-size:16px;font-family:'Fraunces',serif;">0 ₸</strong>
+            <span data-i18n="combined_amount_label">Сумма к оплате:</span> <strong id="combinedTotalDisplay" style="color:var(--navy-deep);font-size:16px;font-family:'Fraunces',serif;">0 ₸</strong>
           </p>
         </div>
 
         <div class="cb-row" id="cbRowVoucher">
           <div class="cb-row-header">
             <label class="cb-label">
-              <input type="checkbox" id="cbUseVoucher" onchange="onCbMethodToggle('voucher')"> 🎫 Ваучер
+              <input type="checkbox" id="cbUseVoucher" onchange="onCbMethodToggle('voucher')"> <span data-i18n="cb_voucher_label">🎫 Ваучер</span>
             </label>
             <div class="cb-amount-wrap" id="cbVoucherAmountWrap" style="display:none;">
               <input type="number" id="cbVoucherAmount" class="cb-amount-input" min="0" placeholder="0"
@@ -1511,10 +1511,10 @@
             </div>
           </div>
           <div class="cb-voucher-code-row" id="cbVoucherCodeWrap" style="display:none;">
-            <input type="text" id="cbVoucherCode" placeholder="Номер талона"
+            <input type="text" id="cbVoucherCode" data-i18n-placeholder="cb_voucher_code_ph" placeholder="Номер талона"
                    style="text-transform:uppercase;letter-spacing:1px;font-weight:700;"
                    oninput="this.value=this.value.toUpperCase();" />
-            <input type="text" id="cbVoucherOwnerName" placeholder="Имя владельца талона"
+            <input type="text" id="cbVoucherOwnerName" data-i18n-placeholder="cb_voucher_owner_ph" placeholder="Имя владельца талона"
                    style="margin-top:6px;" autocomplete="off" />
           </div>
         </div>
@@ -1522,7 +1522,7 @@
         <div class="cb-row" id="cbRowCash">
           <div class="cb-row-header">
             <label class="cb-label">
-              <input type="checkbox" id="cbUseCash" onchange="onCbMethodToggle('cash')"> 💵 Наличными
+              <input type="checkbox" id="cbUseCash" onchange="onCbMethodToggle('cash')"> <span data-i18n="cb_cash_label">💵 Наличными</span>
             </label>
             <div class="cb-amount-wrap" id="cbCashAmountWrap" style="display:none;">
               <input type="number" id="cbCashAmount" class="cb-amount-input" min="0" placeholder="0"
@@ -1534,29 +1534,29 @@
         <div class="cb-row" id="cbRowKaspi">
           <div class="cb-row-header">
             <label class="cb-label">
-              <input type="checkbox" id="cbUseKaspi" onchange="onCbMethodToggle('kaspi')"> 📱 Kaspi
+              <input type="checkbox" id="cbUseKaspi" onchange="onCbMethodToggle('kaspi')"> <span data-i18n="cb_kaspi_label">📱 Kaspi</span>
             </label>
             <div class="cb-amount-wrap" id="cbKaspiAmountWrap" style="display:none;">
               <input type="number" id="cbKaspiAmount" class="cb-amount-input" min="0" placeholder="0"
                      oninput="updateCombinedAmounts()"> <span class="cb-currency">₸</span>
             </div>
           </div>
-          <p id="cbKaspiHint" class="cb-hint" style="display:none;">
+          <p id="cbKaspiHint" class="cb-hint" style="display:none;" data-i18n="cb_kaspi_hint">
             📲 Ссылку на оплату Kaspi пришлём в WhatsApp после оформления заказа.
           </p>
         </div>
 
         <div class="cb-sum-bar" id="cbSumBar">
-          <span>Распределено:</span>
+          <span data-i18n="cb_distributed_label">Распределено:</span>
           <span id="cbDistributed" style="font-weight:700;font-family:'Fraunces',serif;">0 ₸</span>
           <span id="cbRemainder" class="cb-remainder"></span>
         </div>
 
         <div class="pay-confirm-block" style="margin-top:14px;">
-          <div class="pay-confirm-label">📱 Ваш WhatsApp для уведомлений</div>
+          <div class="pay-confirm-label" data-i18n="combined_whatsapp_label">📱 Ваш WhatsApp для уведомлений</div>
           <input type="tel" id="combinedWhatsapp" class="pay-confirm-input"
-            placeholder="+7 700 000 0000" autocomplete="tel" />
-          <div class="pay-confirm-hint">Для получения ссылки Kaspi и/или ответа по ваучеру</div>
+            data-i18n-placeholder="ph_phone" placeholder="+7 700 000 0000" autocomplete="tel" />
+          <div class="pay-confirm-hint" data-i18n="combined_whatsapp_hint">Для получения ссылки Kaspi и/или ответа по ваучеру</div>
         </div>
 
         <div id="combinedError" class="pay-voucher-error" style="display:none;"></div>
@@ -1571,45 +1571,45 @@
       <div class="pay-detail-card">
         <div id="voucherInputWrap">
           <div class="pay-detail-icon">🎫</div>
-          <h3>Оплата ваучером</h3>
-          <p class="pay-voucher-hint">
+          <h3 data-i18n="voucher_title">Оплата ваучером</h3>
+          <p class="pay-voucher-hint" data-i18n="voucher_hint">
             Введите данные талона. Владелец получит запрос подтверждения в WhatsApp, а вы — уведомление об ответе.
           </p>
 
           <div class="pay-confirm-block">
-            <div class="pay-confirm-label">🎫 Номер талона *</div>
+            <div class="pay-confirm-label" data-i18n="voucher_code_label">🎫 Номер талона *</div>
             <input type="text" id="voucherCodeInput" class="pay-confirm-input"
-              placeholder="Например: VC-2025-001"
+              data-i18n-placeholder="voucher_code_ph" placeholder="Например: VC-2025-001"
               style="text-transform:uppercase;letter-spacing:1.5px;font-weight:700;"
               oninput="this.value=this.value.toUpperCase();document.getElementById('voucherError').style.display='none';" />
           </div>
 
           <div class="pay-confirm-block">
-            <div class="pay-confirm-label">👤 Имя владельца талона *</div>
+            <div class="pay-confirm-label" data-i18n="voucher_owner_label">👤 Имя владельца талона *</div>
             <input type="text" id="voucherOwnerName" class="pay-confirm-input"
-              placeholder="Имя и фамилия"
+              data-i18n-placeholder="voucher_owner_ph" placeholder="Имя и фамилия"
               autocomplete="off" />
-            <div class="pay-confirm-hint">Укажите, на кого оформлен талон</div>
+            <div class="pay-confirm-hint" data-i18n="voucher_owner_hint">Укажите, на кого оформлен талон</div>
           </div>
 
           <div class="pay-confirm-block">
-            <div class="pay-confirm-label">📱 Ваш WhatsApp для уведомления</div>
+            <div class="pay-confirm-label" data-i18n="voucher_whatsapp_label">📱 Ваш WhatsApp для уведомления</div>
             <input type="tel" id="voucherCustomerWhatsapp" class="pay-confirm-input"
-              placeholder="+7 700 000 0000" autocomplete="tel" />
-            <div class="pay-confirm-hint">Пришлём вам ответ владельца талона сюда</div>
+              data-i18n-placeholder="ph_phone" placeholder="+7 700 000 0000" autocomplete="tel" />
+            <div class="pay-confirm-hint" data-i18n="voucher_whatsapp_hint">Пришлём вам ответ владельца талона сюда</div>
           </div>
 
           <div id="voucherError" class="pay-voucher-error" style="display:none;"></div>
-          <button class="btn-submit" id="voucherSubmitBtn" onclick="doSubmitVoucher()">
+          <button class="btn-submit" id="voucherSubmitBtn" onclick="doSubmitVoucher()" data-i18n="voucher_submit_btn">
             📩 Отправить запрос на подтверждение
           </button>
         </div>
 
         <div id="voucherWaitWrap" class="pay-voucher-wait" style="display:none;text-align:center;">
           <span class="spinner"></span>
-          <strong>Запрос отправлен!</strong>
-          <p style="margin-top:8px;color:var(--ink-2);">Владелец талона получит сообщение в WhatsApp.<br>Вы получите уведомление после подтверждения.</p>
-          <button class="btn-secondary" onclick="resetAll()" style="margin-top:24px;">На главную</button>
+          <strong data-i18n="voucher_wait_title">Запрос отправлен!</strong>
+          <p style="margin-top:8px;color:var(--ink-2);" data-i18n-html="voucher_wait_desc_html">Владелец талона получит сообщение в WhatsApp.<br>Вы получите уведомление после подтверждения.</p>
+          <button class="btn-secondary" onclick="resetAll()" style="margin-top:24px;" data-i18n="btn_home">На главную</button>
         </div>
       </div>
     </div>
@@ -1810,6 +1810,35 @@ const T = {
     pay_combined_title: 'Частичная', pay_combined_sub: 'Разделить сумму',
     pay_stripe_title: 'Кредитная карта', pay_stripe_sub: 'Иностранная карта (USD)',
     btn_place_order: '✅ Оформить заказ',
+    stripe_title: 'Оплата картой (Stripe)',
+    stripe_desc: 'Вы будете перенаправлены на страницу оплаты Stripe. После оплаты заказ будет подтверждён.',
+    stripe_btn: 'Перейти к оплате Stripe', stripe_note: 'Откроется в новой вкладке · Безопасно · Stripe',
+    cash_title: 'Оплата наличными',
+    cash_desc_html: '💡 <strong>Оплата при получении.</strong><br>Подготовьте точную сумму или попросите сдачу заранее.',
+    btn_confirm_order: '✅ Подтвердить заказ',
+    kaspi_title: 'Оплата через Kaspi',
+    kaspi_desc_html: '📲 После оформления заказа мы пришлём <strong>ссылку на оплату Kaspi</strong> в WhatsApp. Оплатите по ссылке — заказ подтвердится автоматически.',
+    kaspi_whatsapp_label: '📱 Ваш WhatsApp для получения ссылки',
+    kaspi_whatsapp_hint: 'Убедитесь, что номер правильный — ссылка придёт сюда',
+    kaspi_submit_btn: '📩 Оформить заказ — получить ссылку',
+    combined_title: 'Частичная оплата', combined_amount_label: 'Сумма к оплате:',
+    cb_voucher_label: '🎫 Ваучер', cb_voucher_code_ph: 'Номер талона', cb_voucher_owner_ph: 'Имя владельца талона',
+    cb_cash_label: '💵 Наличными', cb_kaspi_label: '📱 Kaspi',
+    cb_kaspi_hint: '📲 Ссылку на оплату Kaspi пришлём в WhatsApp после оформления заказа.',
+    cb_distributed_label: 'Распределено:',
+    combined_whatsapp_label: '📱 Ваш WhatsApp для уведомлений',
+    combined_whatsapp_hint: 'Для получения ссылки Kaspi и/или ответа по ваучеру',
+    voucher_title: 'Оплата ваучером',
+    voucher_hint: 'Введите данные талона. Владелец получит запрос подтверждения в WhatsApp, а вы — уведомление об ответе.',
+    voucher_code_label: '🎫 Номер талона *', voucher_code_ph: 'Например: VC-2025-001',
+    voucher_owner_label: '👤 Имя владельца талона *', voucher_owner_ph: 'Имя и фамилия',
+    voucher_owner_hint: 'Укажите, на кого оформлен талон',
+    voucher_whatsapp_label: '📱 Ваш WhatsApp для уведомления',
+    voucher_whatsapp_hint: 'Пришлём вам ответ владельца талона сюда',
+    voucher_submit_btn: '📩 Отправить запрос на подтверждение',
+    voucher_wait_title: 'Запрос отправлен!',
+    voucher_wait_desc_html: 'Владелец талона получит сообщение в WhatsApp.<br>Вы получите уведомление после подтверждения.',
+    btn_home: 'На главную', voucher_checking: 'Проверяем…',
   },
   en: {
     app_title: 'Food Order', app_subtitle: 'Select order type',
@@ -1891,6 +1920,35 @@ const T = {
     pay_combined_title: 'Split payment', pay_combined_sub: 'Split the amount',
     pay_stripe_title: 'Credit card', pay_stripe_sub: 'Foreign card (USD)',
     btn_place_order: '✅ Place order',
+    stripe_title: 'Pay by card (Stripe)',
+    stripe_desc: 'You will be redirected to the Stripe payment page. Your order will be confirmed after payment.',
+    stripe_btn: 'Go to Stripe payment', stripe_note: 'Opens in a new tab · Secure · Stripe',
+    cash_title: 'Pay with cash',
+    cash_desc_html: '💡 <strong>Pay on pickup/delivery.</strong><br>Please prepare the exact amount or ask in advance about change.',
+    btn_confirm_order: '✅ Confirm order',
+    kaspi_title: 'Pay with Kaspi',
+    kaspi_desc_html: '📲 After placing the order we\'ll send a <strong>Kaspi payment link</strong> to your WhatsApp. Pay via the link — the order will be confirmed automatically.',
+    kaspi_whatsapp_label: '📱 Your WhatsApp to receive the link',
+    kaspi_whatsapp_hint: 'Make sure the number is correct — the link will arrive here',
+    kaspi_submit_btn: '📩 Place order — get payment link',
+    combined_title: 'Split payment', combined_amount_label: 'Amount due:',
+    cb_voucher_label: '🎫 Voucher', cb_voucher_code_ph: 'Voucher number', cb_voucher_owner_ph: 'Voucher owner name',
+    cb_cash_label: '💵 Cash', cb_kaspi_label: '📱 Kaspi',
+    cb_kaspi_hint: '📲 We\'ll send the Kaspi payment link to your WhatsApp after placing the order.',
+    cb_distributed_label: 'Allocated:',
+    combined_whatsapp_label: '📱 Your WhatsApp for notifications',
+    combined_whatsapp_hint: 'To receive the Kaspi link and/or voucher reply',
+    voucher_title: 'Pay with a voucher',
+    voucher_hint: 'Enter the voucher details. The owner will get a confirmation request on WhatsApp, and you\'ll get a notification once they reply.',
+    voucher_code_label: '🎫 Voucher number *', voucher_code_ph: 'e.g. VC-2025-001',
+    voucher_owner_label: '👤 Voucher owner name *', voucher_owner_ph: 'Full name',
+    voucher_owner_hint: 'Whose name the voucher is registered under',
+    voucher_whatsapp_label: '📱 Your WhatsApp for notification',
+    voucher_whatsapp_hint: 'We\'ll send the voucher owner\'s reply here',
+    voucher_submit_btn: '📩 Send confirmation request',
+    voucher_wait_title: 'Request sent!',
+    voucher_wait_desc_html: 'The voucher owner will receive a message on WhatsApp.<br>You\'ll get a notification once confirmed.',
+    btn_home: 'Home', voucher_checking: 'Checking…',
   },
   he: {
     app_title: 'הזמנת אוכל', app_subtitle: 'בחרו סוג הזמנה',
@@ -1971,6 +2029,35 @@ const T = {
     pay_combined_title: 'תשלום חלקי', pay_combined_sub: 'לחלק את הסכום',
     pay_stripe_title: 'כרטיס אשראי', pay_stripe_sub: 'כרטיס זר (USD)',
     btn_place_order: '✅ שליחת הזמנה',
+    stripe_title: 'תשלום בכרטיס (Stripe)',
+    stripe_desc: 'תועברו לעמוד התשלום של Stripe. ההזמנה תאושר לאחר התשלום.',
+    stripe_btn: 'מעבר לתשלום ב-Stripe', stripe_note: 'ייפתח בכרטיסייה חדשה · מאובטח · Stripe',
+    cash_title: 'תשלום במזומן',
+    cash_desc_html: '💡 <strong>תשלום בעת הקבלה.</strong><br>הכינו את הסכום המדויק או בקשו עודף מראש.',
+    btn_confirm_order: '✅ אישור הזמנה',
+    kaspi_title: 'תשלום דרך Kaspi',
+    kaspi_desc_html: '📲 לאחר ביצוע ההזמנה נשלח <strong>קישור לתשלום Kaspi</strong> לוואטסאפ שלכם. שלמו דרך הקישור — ההזמנה תאושר אוטומטית.',
+    kaspi_whatsapp_label: '📱 מספר הוואטסאפ שלכם לקבלת הקישור',
+    kaspi_whatsapp_hint: 'ודאו שהמספר נכון — הקישור יגיע לכאן',
+    kaspi_submit_btn: '📩 שליחת הזמנה — קבלת קישור',
+    combined_title: 'תשלום חלקי', combined_amount_label: 'סכום לתשלום:',
+    cb_voucher_label: '🎫 תלוש', cb_voucher_code_ph: 'מספר תלוש', cb_voucher_owner_ph: 'שם בעל התלוש',
+    cb_cash_label: '💵 מזומן', cb_kaspi_label: '📱 Kaspi',
+    cb_kaspi_hint: '📲 קישור לתשלום Kaspi יישלח לוואטסאפ לאחר ביצוע ההזמנה.',
+    cb_distributed_label: 'הוקצה:',
+    combined_whatsapp_label: '📱 מספר הוואטסאפ שלכם לעדכונים',
+    combined_whatsapp_hint: 'לקבלת קישור Kaspi ו/או תשובה על התלוש',
+    voucher_title: 'תשלום בתלוש',
+    voucher_hint: 'הזינו את פרטי התלוש. בעל התלוש יקבל בקשת אישור בוואטסאפ, ואתם תקבלו הודעה לאחר התשובה.',
+    voucher_code_label: '🎫 מספר תלוש *', voucher_code_ph: 'לדוגמה: VC-2025-001',
+    voucher_owner_label: '👤 שם בעל התלוש *', voucher_owner_ph: 'שם מלא',
+    voucher_owner_hint: 'ציינו על שם מי רשום התלוש',
+    voucher_whatsapp_label: '📱 מספר הוואטסאפ שלכם להודעה',
+    voucher_whatsapp_hint: 'נשלח לכאן את תשובת בעל התלוש',
+    voucher_submit_btn: '📩 שליחת בקשת אישור',
+    voucher_wait_title: 'הבקשה נשלחה!',
+    voucher_wait_desc_html: 'בעל התלוש יקבל הודעה בוואטסאפ.<br>תקבלו הודעה לאחר האישור.',
+    btn_home: 'לעמוד הראשי', voucher_checking: 'בודקים…',
   },
 };
 
@@ -1984,6 +2071,7 @@ function applyLang() {
   document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.getAttribute('data-i18n')));
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => el.placeholder = t(el.getAttribute('data-i18n-placeholder')));
   document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria'))));
+  document.querySelectorAll('[data-i18n-html]').forEach(el => el.innerHTML = t(el.getAttribute('data-i18n-html')));
   document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-lang') === currentLang));
   if (activeCat !== undefined) {
     buildCatBar();
@@ -2903,7 +2991,7 @@ function selectPayMethod(method) {
     document.getElementById('kaspiWhatsappInput').value = phone||'';
     document.getElementById('kaspiConfirmError').style.display='none';
     document.getElementById('kaspiSubmitBtn').disabled=false;
-    document.getElementById('kaspiSubmitBtn').innerHTML='📩 Оформить заказ — получить ссылку';
+    document.getElementById('kaspiSubmitBtn').innerHTML=t('kaspi_submit_btn');
     document.getElementById('paySectionKaspi').style.display='';
   } else if (method==='voucher') {
     document.getElementById('voucherCodeInput').value=''; document.getElementById('voucherOwnerName').value='';
@@ -3004,7 +3092,7 @@ async function doSubmitCombined() {
   const wa = document.getElementById('combinedWhatsapp').value.trim();
   if (!wa) return showCombinedError('Укажите ваш номер WhatsApp для уведомлений.');
   const payload = Object.assign({}, pendingOrderPayload, { payment_method:'combined', payment_breakdown:bd, customer_whatsapp:wa });
-  const btn = document.getElementById('combinedSubmitBtn'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Отправляем…';
+  const btn = document.getElementById('combinedSubmitBtn'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> '+t('btn_sending');
   const orderUrl = routeWebhook(currentType, 'order_webhook', ORDER_WEBHOOK_URL) || ORDER_API;
   try { const r = await fetch(orderUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error(); let num=''; try { const d=await r.json(); num=d.order_number||d.id||''; } catch(_) {} clearCart(); showResult(true,num,'combined',bd); }
   catch(_) { btn.disabled=false; btn.textContent=t('btn_place_order'); showCombinedError('Ошибка отправки. Попробуйте ещё раз.'); }
@@ -3176,7 +3264,7 @@ async function doSubmitVoucher() {
   if (!owner) { eEl.textContent='Укажите имя владельца талона.'; eEl.style.display=''; return; }
   if (!wa) { eEl.textContent='Укажите ваш WhatsApp для получения уведомления.'; eEl.style.display=''; return; }
   if (!pendingOrderPayload) { goToScreen(3); return; }
-  const btn = document.getElementById('voucherSubmitBtn'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Проверяем…';
+  const btn = document.getElementById('voucherSubmitBtn'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> '+t('voucher_checking');
   const vp = { voucher_code:code, voucher_owner_name:owner, customer_whatsapp:wa, amount:pendingOrderPayload.total_price, order_type:pendingOrderPayload.order_type, customer_name:pendingOrderPayload.customer_name, customer_phone:pendingOrderPayload.customer_phone, items:pendingOrderPayload.items, submitted_at:pendingOrderPayload.submitted_at, delivery_address:pendingOrderPayload.delivery_address, notes:pendingOrderPayload.notes };
   if (VOUCHER_WEBHOOK_URL === 'YOUR_VOUCHER_WEBHOOK_URL_HERE') { setTimeout(()=>{ document.getElementById('voucherInputWrap').style.display='none'; document.getElementById('voucherWaitWrap').style.display=''; clearCart(); }, 900); return; }
   try { const r = await fetch(VOUCHER_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(vp)}); if(!r.ok) throw new Error(); let res={}; try { res=await r.json(); } catch(_) {}
