@@ -703,6 +703,33 @@
     .pay-card-title  { font-weight: 700; font-size: 13.5px; color: var(--ink); letter-spacing: -0.01em; }
     .pay-card-sub    { font-size: 10.5px; color: var(--muted); margin-top: 4px; line-height: 1.3; }
 
+    .dm-card {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: var(--surface); border: 1.5px solid var(--line);
+      border-radius: var(--r-lg); padding: 12px 14px; cursor: pointer;
+      transition: border-color 0.18s, background 0.2s;
+      margin-bottom: 8px;
+    }
+    .dm-card:hover { border-color: var(--gold); }
+    .dm-card.active {
+      border-color: var(--navy);
+      background: linear-gradient(180deg, var(--navy-tint) 0%, #fff 100%);
+    }
+    .dm-card-radio {
+      width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
+      border: 1.5px solid var(--line); display: grid; place-items: center;
+    }
+    .dm-card.active .dm-card-radio { border-color: var(--navy); }
+    .dm-card.active .dm-card-radio::after {
+      content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--navy);
+    }
+    .dm-card-title { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+    .dm-card-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+    .dm-external-note {
+      font-size: 11.5px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a;
+      border-radius: 10px; padding: 8px 12px; margin-top: 4px; line-height: 1.4;
+    }
+
     .pay-detail-section { animation: fadeIn 0.25s ease; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
     .pay-detail-card {
@@ -992,6 +1019,8 @@
     .delivery-banner-label { font-size: 11px; opacity: .65; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 2px; }
     .delivery-banner-date { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
     .delivery-banner-time { font-size: 13px; opacity: .8; margin-top: 1px; }
+    .delivery-banner-note { font-size: 11px; opacity: .7; margin-top: 4px; line-height: 1.4; }
+    .ready-note { font-size: 12px; color: var(--muted); opacity: .85; padding: 6px 16px 0; line-height: 1.4; }
 
     /* ── DATE PICKER ── */
     .dp-section { padding: 14px 16px 0; }
@@ -1224,6 +1253,33 @@
           oninput="saveFormFields()" />
         <div class="hint" data-i18n="hint_address">Оставьте пустым, если будете забирать сами</div>
       </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-label" data-i18n="label_delivery_method">Как вы получите заказ?</div>
+      <div class="dm-card" id="dmCardPickup" onclick="selectDeliveryMethod('pickup')">
+        <div class="dm-card-radio"></div>
+        <div>
+          <div class="dm-card-title" data-i18n="dm_pickup">Заберу сам(а)</div>
+          <div class="dm-card-sub" data-i18n="dm_pickup_sub">Самовывоз с кухни в выбранное время</div>
+        </div>
+      </div>
+      <div class="dm-card" id="dmCardCustomer" onclick="selectDeliveryMethod('customer')">
+        <div class="dm-card-radio"></div>
+        <div>
+          <div class="dm-card-title" data-i18n="dm_customer">Закажу доставку сам(а)</div>
+          <div class="dm-card-sub" data-i18n="dm_customer_sub">Вы сами вызовете курьера к указанному времени готовности</div>
+        </div>
+      </div>
+      <div class="dm-card" id="dmCardKitchen" onclick="selectDeliveryMethod('kitchen')">
+        <div class="dm-card-radio"></div>
+        <div>
+          <div class="dm-card-title" data-i18n="dm_kitchen">Попросить кухню заказать доставку</div>
+          <div class="dm-card-sub" data-i18n="dm_kitchen_sub">Кухня закажет доставку через внешнее приложение от вашего имени</div>
+        </div>
+      </div>
+      <div class="dm-external-note" id="dmExternalNote" style="display:none" data-i18n="dm_external_note">⚠️ Доставка выполняется сторонним приложением. Стоимость доставки оплачивается отдельно, по фактическому тарифу приложения — она не входит в сумму заказа.</div>
+      <div id="dmError" style="display:none;color:#ef4444;font-size:12px;margin-top:6px;"></div>
     </div>
 
     <div class="section-block">
@@ -1721,7 +1777,15 @@ const T = {
     total_label: 'Итого', selected_label: 'Выбрано позиций', all_cats: 'Все',
     loading_dates: '⏳ Загружаем доступные даты…',
     no_dates: 'Нет доступных дат для этого типа заказа.',
-    date_delivery: 'Дата доставки', time_delivery: 'Время доставки', date_other: 'позже',
+    date_delivery: 'Дата готовности', time_delivery: 'Время готовности', date_other: 'позже',
+    ready_label: 'Готово к', ready_note: 'Это время готовности заказа на кухне, а не время доставки к вам.',
+    unit_pcs: 'шт.',
+    label_delivery_method: 'Как вы получите заказ?',
+    dm_pickup: 'Заберу сам(а)', dm_pickup_sub: 'Самовывоз с кухни в выбранное время',
+    dm_customer: 'Закажу доставку сам(а)', dm_customer_sub: 'Вы сами вызовете курьера (Yandex, inDriver и т.п.) к указанному времени готовности',
+    dm_kitchen: 'Попросить кухню заказать доставку', dm_kitchen_sub: 'Кухня закажет доставку через внешнее приложение от вашего имени',
+    dm_external_note: '⚠️ Доставка выполняется сторонним приложением. Стоимость доставки оплачивается отдельно, по фактическому тарифу приложения — она не входит в сумму заказа.',
+    err_delivery_method_required: 'Выберите, как вы получите заказ.',
     no_dishes: 'Блюда для этого типа заказа пока не добавлены.',
     fixed_menu_label: 'Ежедневные блюда', fixed_menu_desc: 'Готовое меню от шеф-повара — выберите дату и получите блюда дня',
     shabbat_menu_label: 'Шаббат и праздники', shabbat_menu_desc: 'Заказ оформляется заранее — уточните сроки у администратора',
@@ -1786,7 +1850,15 @@ const T = {
     shabbat_menu_label: 'Shabbat & Holidays', shabbat_menu_desc: 'Order in advance — contact admin for deadlines',
     open_menu_label: 'Custom order', open_menu_desc: 'Choose any dishes from the menu in the quantity you need',
     preorder_menu_label: 'Pre-orders', preorder_menu_desc: 'Baked goods & semi-prepared — ordered in advance with minimum quantity',
-    date_delivery: 'Delivery date', time_delivery: 'Delivery time', date_other: 'other',
+    date_delivery: 'Ready date', time_delivery: 'Ready time', date_other: 'other',
+    ready_label: 'Ready by', ready_note: 'This is when your order will be ready at the kitchen — not a delivery arrival time.',
+    unit_pcs: 'pcs',
+    label_delivery_method: 'How will you get your order?',
+    dm_pickup: 'I\'ll pick it up', dm_pickup_sub: 'Self-pickup from the kitchen at the chosen time',
+    dm_customer: 'I\'ll arrange delivery myself', dm_customer_sub: 'You\'ll order a courier (Yandex, inDriver, etc.) for the ready time',
+    dm_kitchen: 'Ask the kitchen to arrange delivery', dm_kitchen_sub: 'The kitchen will book delivery via an external app on your behalf',
+    dm_external_note: '⚠️ Delivery is handled by a third-party app. Its cost is paid separately, at the app\'s actual rate — it is not included in the order total.',
+    err_delivery_method_required: 'Please select how you will get your order.',
     btn_new_order: 'New order',
     mission_title: 'Non-profit kitchen',
     mission_text: 'Our kitchen is non-commercial. All proceeds go toward feeding people as part of community programs.',
@@ -1846,7 +1918,15 @@ const T = {
     shabbat_menu_label: 'שבת וחגים', shabbat_menu_desc: 'ההזמנה מתבצעת מראש — בדקו עם המנהל את המועדים',
     open_menu_label: 'הזמנה אישית', open_menu_desc: 'בחרו כל מנה מהתפריט בכמות הרצויה',
     preorder_menu_label: 'הזמנה מראש', preorder_menu_desc: 'מאפים וחצי מוכנים — מוזמן מראש עם כמות מינימום',
-    date_delivery: 'תאריך משלוח', time_delivery: 'שעת משלוח', date_other: 'אחר',
+    date_delivery: 'תאריך מוכנות', time_delivery: 'שעת מוכנות', date_other: 'אחר',
+    ready_label: 'מוכן ל', ready_note: 'זהו הזמן שבו ההזמנה תהיה מוכנה במטבח — לא זמן ההגעה אליכם.',
+    unit_pcs: 'יח׳',
+    label_delivery_method: 'איך תקבלו את ההזמנה?',
+    dm_pickup: 'אאסוף בעצמי', dm_pickup_sub: 'איסוף עצמי מהמטבח בזמן שנבחר',
+    dm_customer: 'אזמין משלוח בעצמי', dm_customer_sub: 'אתם תזמינו שליח (Yandex, inDriver וכו׳) לזמן המוכנות',
+    dm_kitchen: 'לבקש מהמטבח להזמין משלוח', dm_kitchen_sub: 'המטבח יזמין משלוח באפליקציה חיצונית בשמכם',
+    dm_external_note: '⚠️ המשלוח מתבצע באמצעות אפליקציה חיצונית. עלות המשלוח משולמת בנפרד, לפי התעריף בפועל של האפליקציה — היא אינה כלולה בסכום ההזמנה.',
+    err_delivery_method_required: 'נא לבחור כיצד תקבלו את ההזמנה.',
     btn_new_order: 'הזמנה חדשה',
     mission_title: 'מטבח ללא מטרות רווח',
     mission_text: 'המטבח שלנו אינו מסחרי. כל ההכנסות מיועדות להאכלת אנשים במסגרת תוכניות הקהילה.',
@@ -1925,6 +2005,7 @@ let paymentConfig = { methods: ['cash','kaspi','stripe','voucher','combined'], k
 let currentScreen = 1, activeCat = 'all';
 let _loadSeq = 0;
 let currentDeliveryDate = null, currentDeliveryTime = null;
+let deliveryMethod = null;
 
 const RU_DAYS_FULL = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
 const RU_DAYS_SHORT = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
@@ -1949,15 +2030,16 @@ function renderDeliveryBanner() {
   const el = document.getElementById('deliveryBanner');
   if (!currentDeliveryDate) { el.style.display = 'none'; return; }
   const d = parseLocalDate(currentDeliveryDate);
-  const dayName = RU_DAYS_FULL[d.getDay()];
-  const dateStr = d.getDate() + ' ' + RU_MONTHS[d.getMonth()];
+  const dayName = DAYS[currentLang in DAYS ? currentLang : 'ru'][d.getDay()];
+  const dateStr = d.getDate() + ' ' + lMon(d.getMonth());
   const timeStr = currentDeliveryTime ? ' · ' + currentDeliveryTime : '';
   el.style.display = 'block';
   el.innerHTML = `<div class="delivery-banner">
     <div class="delivery-banner-icon">📅</div>
     <div class="delivery-banner-body">
-      <div class="delivery-banner-label">Доставка</div>
+      <div class="delivery-banner-label">${t('ready_label')}</div>
       <div class="delivery-banner-date">${dayName}, ${dateStr}${timeStr}</div>
+      <div class="delivery-banner-note">${t('ready_note')}</div>
     </div>
   </div>`;
 }
@@ -2024,7 +2106,7 @@ function renderManualDatePicker(type) {
           style="position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer;" />
       </label>
     </div>
-  </div>${timeBlock}`;
+  </div>${timeBlock}<div class="ready-note">${t('ready_note')}</div>`;
 }
 
 function selectManualDate(dateStr) {
@@ -2278,15 +2360,16 @@ function renderDatePicker() {
         const sel = entry.date === selectedMenuDate;
         const entryTime = getEntryTime(entry);
         return `<button class="dp-card${sel?' selected':''}" onclick="selectMenuDate('${entry.date}')">
-          <div class="dc-day">${RU_DAYS_SHORT[d.getDay()]}</div>
+          <div class="dc-day">${lDay(d.getDay())}</div>
           <div class="dc-num">${d.getDate()}</div>
-          <div class="dc-mon">${RU_MONTHS_SHORT[d.getMonth()]}</div>
+          <div class="dc-mon">${lMon(d.getMonth())}</div>
           ${entryTime && !hasTimeSlots ? `<div class="dc-time">${entryTime}</div>` : ''}
         </button>`;
       }).join('')}
     </div>
   </div>
-  ${selectedMenuDate && hasTimeSlots ? renderTimeSlotPicker() : ''}`;
+  ${selectedMenuDate && hasTimeSlots ? renderTimeSlotPicker() : ''}
+  <div class="ready-note">${t('ready_note')}</div>`;
 }
 
 function renderTimeSlotPicker() {
@@ -2434,8 +2517,25 @@ function saveFormFields() {
   if (!currentType) return;
   try { const e = JSON.parse(sessionStorage.getItem('kc_cart')||'{}'); e.formData=getFormData(); e.screen=currentScreen; sessionStorage.setItem('kc_cart', JSON.stringify(e)); } catch(_) {}
 }
-function getFormData() { return { name: document.getElementById('customerName')?.value||'', phone: document.getElementById('customerPhone')?.value||'', address: document.getElementById('deliveryAddress')?.value||'', notes: document.getElementById('orderNotes')?.value||'' }; }
-function restoreFormData(fd) { if (!fd) return; if (fd.name) document.getElementById('customerName').value=fd.name; if (fd.phone) document.getElementById('customerPhone').value=fd.phone; if (fd.address) document.getElementById('deliveryAddress').value=fd.address; if (fd.notes) document.getElementById('orderNotes').value=fd.notes; }
+function getFormData() { return { name: document.getElementById('customerName')?.value||'', phone: document.getElementById('customerPhone')?.value||'', address: document.getElementById('deliveryAddress')?.value||'', notes: document.getElementById('orderNotes')?.value||'', delivery_method: deliveryMethod }; }
+function restoreFormData(fd) { if (!fd) return; if (fd.name) document.getElementById('customerName').value=fd.name; if (fd.phone) document.getElementById('customerPhone').value=fd.phone; if (fd.address) document.getElementById('deliveryAddress').value=fd.address; if (fd.notes) document.getElementById('orderNotes').value=fd.notes; if (fd.delivery_method) selectDeliveryMethod(fd.delivery_method); }
+
+// Canonical Airtable singleSelect labels (Hebrew, fixed regardless of UI language)
+const DM_AIRTABLE_LABEL = {
+  pickup:   'איסוף עצמי',
+  customer: 'לקוח מזמין משלוח בעצמו',
+  kitchen:  'לבקש מהמטבח להזמין משלוח',
+};
+function selectDeliveryMethod(method) {
+  deliveryMethod = method;
+  document.querySelectorAll('.dm-card').forEach(c => c.classList.remove('active'));
+  const map = { pickup: 'dmCardPickup', customer: 'dmCardCustomer', kitchen: 'dmCardKitchen' };
+  const card = document.getElementById(map[method]); if (card) card.classList.add('active');
+  const note = document.getElementById('dmExternalNote');
+  if (note) note.style.display = (method === 'customer' || method === 'kitchen') ? 'block' : 'none';
+  const err = document.getElementById('dmError'); if (err) err.style.display = 'none';
+  saveFormFields();
+}
 function clearCart() { try { sessionStorage.removeItem('kc_cart'); } catch(_) {} }
 
 async function restoreCart() {
@@ -2468,7 +2568,7 @@ function updateStickyTotal() {
   const total = sel.reduce((s,d)=> s + d.price*quantities[d.id], 0);
   const count = sel.reduce((s,d)=> s + quantities[d.id], 0);
   document.getElementById('totalInfo').textContent = t('selected_label')+': '+sel.length;
-  document.getElementById('totalAmount').textContent = total>0 ? total+' ₸' : count+' шт.';
+  document.getElementById('totalAmount').textContent = total>0 ? total+' ₸' : count+' '+t('unit_pcs');
   const bar = document.getElementById('stickyTotal');
   if (count>0) bar.classList.add('visible'); else bar.classList.remove('visible');
 }
@@ -2482,11 +2582,12 @@ function renderSummary() {
   let deliveryRow = '';
   if (currentDeliveryDate) {
     const d = new Date(currentDeliveryDate);
-    const label = RU_DAYS_FULL[d.getDay()] + ', ' + d.getDate() + ' ' + RU_MONTHS[d.getMonth()] + (currentDeliveryTime ? ' · ' + currentDeliveryTime : '');
-    deliveryRow = `<li class="summary-delivery-row"><span>📅 Доставка</span><span style="font-weight:700;color:var(--navy)">${label}</span></li>`;
+    const dayName = DAYS[currentLang in DAYS ? currentLang : 'ru'][d.getDay()];
+    const label = dayName + ', ' + d.getDate() + ' ' + lMon(d.getMonth()) + (currentDeliveryTime ? ' · ' + currentDeliveryTime : '');
+    deliveryRow = `<li class="summary-delivery-row"><span>📅 ${t('ready_label')}</span><span style="font-weight:700;color:var(--navy)">${label}</span></li>`;
   }
   list.innerHTML = deliveryRow + sel.map(d => {
-    const sub = d.price>0 ? (d.price*quantities[d.id])+' ₸' : quantities[d.id]+' шт.';
+    const sub = d.price>0 ? (d.price*quantities[d.id])+' ₸' : quantities[d.id]+' '+t('unit_pcs');
     const name = d.name + (quantities[d.id]>1 ? ' × '+quantities[d.id] : '');
     return `<li><span>${name}</span><span>${sub}</span></li>`;
   }).join('');
@@ -2682,12 +2783,19 @@ function goToPayment() {
       _showSubmitError(t('err_time_required') || 'Выберите время доставки.'); return;
     }
 
+    if (!deliveryMethod) {
+      const err = document.getElementById('dmError');
+      if (err) { err.textContent = t('err_delivery_method_required'); err.style.display = 'block'; }
+      document.getElementById('dmCardPickup')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      _showSubmitError(t('err_delivery_method_required') || 'Выберите способ получения заказа.'); return;
+    }
+
     const sel = dishes.filter(d => quantities[d.id] > 0);
     if (!sel.length) { _showSubmitError(t('err_no_dishes') || 'Выберите хотя бы одно блюдо.'); return; }
   const items = sel.map(d => ({ dish_id: d.id, dish_name: d.name_ru || d.name, dish_name_he: d.name_he || null, dish_name_en: d.name_en || null, quantity: quantities[d.id], unit_price: d.price }));
   const total = items.reduce((s,i)=> s + i.unit_price*i.quantity, 0);
   const _adminCfg = _adminSettings;
-  pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_model: currentType?currentType.model||null:null, order_category: currentType?currentType.category||null:null, order_type_record_id: window._currentSlotId || null, order_template_id: currentType?currentType.template_id||null:null, order_date: currentDeliveryDate||null, delivery_time: currentDeliveryTime||null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString(), lang: currentLang || 'ru', manager_lang: (_adminCfg.manager && _adminCfg.manager.lang) || 'he' };
+  pendingOrderPayload = { order_type: currentType?currentType.id:'unknown', order_type_title: currentType?currentType.title:'', order_model: currentType?currentType.model||null:null, order_category: currentType?currentType.category||null:null, order_type_record_id: window._currentSlotId || null, order_template_id: currentType?currentType.template_id||null:null, order_date: currentDeliveryDate||null, delivery_time: currentDeliveryTime||null, slot_name: currentSlot?currentSlot.name||null:null, customer_name: name, customer_phone: phone, delivery_address: document.getElementById('deliveryAddress').value.trim(), delivery_method: deliveryMethod, delivery_method_label: DM_AIRTABLE_LABEL[deliveryMethod] || null, notes: document.getElementById('orderNotes').value.trim(), items, total_price: total, submitted_at: new Date().toISOString(), lang: currentLang || 'ru', manager_lang: (_adminCfg.manager && _adminCfg.manager.lang) || 'he' };
   document.getElementById('payTotalAmount').textContent = total>0 ? total+' ₸' : '—';
   const methods = paymentConfig.methods;
   const _setDisplay = (id, show) => { const el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; };
@@ -3061,9 +3169,11 @@ async function loadSettings() {
 }
 
 function resetAll() {
-  currentType=null; currentSlot=null; dishes=[]; quantities={}; pendingOrderPayload=null;
+  currentType=null; currentSlot=null; dishes=[]; quantities={}; pendingOrderPayload=null; deliveryMethod=null;
   clearCart();
   ['customerName','customerPhone','deliveryAddress','orderNotes'].forEach(id => { const e=document.getElementById(id); if (e) e.value=''; });
+  document.querySelectorAll('.dm-card').forEach(c => c.classList.remove('active'));
+  const note = document.getElementById('dmExternalNote'); if (note) note.style.display = 'none';
   hideStickyTotal(); goToScreen(1);
 }
 

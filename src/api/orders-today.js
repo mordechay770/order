@@ -40,6 +40,7 @@ const FO_PHONE    = 'fldMPQfkQATfg6j0t';
 const FO_EVENT_TYPE = 'fldJgHup8TWwCtZXe';
 const FO_PEOPLE   = 'fldkOkfJcr3KoQdEy';
 const FO_DELIVERY_TYPE   = 'fldH9aXNoJSABpTJP'; // משלוח (singleSelect)
+const FO_DELIVERY_METHOD = 'fldLNDBxakM60KfJ4'; // אופן קבלת ההזמנה (איסוף עצמי / לקוח מזמין / לבקש מהמטבח)
 const FO_DELIVERY_ADDR   = 'fld2j0eu6qrid1DXA'; // כתובת למשלוח
 const FO_DELIVERY_STATUS = 'fldvAUsFNkaRHYQ8q'; // סטטוס משלוח
 const FO_PAYMENT_METHOD  = 'fldjE5esZVBwDjNDi'; // צורת תשלום
@@ -91,7 +92,7 @@ async function fetchOrdersRange(startISO, endISO, token, allStatuses) {
   const formula = buildFormula(dateFilter, allStatuses);
   const fields = [FO_STATUS, FO_SERIAL, FO_CUST, FO_DATE_EXE, FO_NAME_RU, FO_QTY_LINK,
                   FO_NOTES, FO_KITCHEN_NOTES, FO_NOTES_INT, FO_PHONE, FO_EVENT_TYPE, FO_PEOPLE,
-                  FO_DELIVERY_TYPE, FO_DELIVERY_ADDR, FO_DELIVERY_STATUS, FO_PAYMENT_METHOD,
+                  FO_DELIVERY_TYPE, FO_DELIVERY_METHOD, FO_DELIVERY_ADDR, FO_DELIVERY_STATUS, FO_PAYMENT_METHOD,
                   FO_PRICE, FO_TOTAL];
   const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FO_DATE_EXE}&sort[0][direction]=asc`;
   const r = await fetch(`${AT_BASE}/${T_ORDERS}?${qs}`, { headers: atHeaders(token) });
@@ -276,6 +277,7 @@ export default async function handler(req, res) {
           kitchen_notes:   f[FO_KITCHEN_NOTES]  || '',
           notes_internal:  f[FO_NOTES_INT]      || '',
           delivery_type:   typeof f[FO_DELIVERY_TYPE]   === 'object' ? f[FO_DELIVERY_TYPE].name   : (f[FO_DELIVERY_TYPE]   || ''),
+          delivery_method: typeof f[FO_DELIVERY_METHOD] === 'object' ? f[FO_DELIVERY_METHOD].name : (f[FO_DELIVERY_METHOD] || ''),
           delivery_addr:   f[FO_DELIVERY_ADDR]  || '',
           delivery_status: typeof f[FO_DELIVERY_STATUS] === 'object' ? f[FO_DELIVERY_STATUS].name : (f[FO_DELIVERY_STATUS] || ''),
           payment_method:  typeof f[FO_PAYMENT_METHOD]  === 'object' ? f[FO_PAYMENT_METHOD].name  : (f[FO_PAYMENT_METHOD]  || ''),

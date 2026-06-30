@@ -26,6 +26,7 @@ const FO_CUST_NAME= 'fld1FKztthSOvgJhJ'; // שם הלקוח
 const FO_PHONE    = 'fldMPQfkQATfg6j0t'; // מספר טלפון
 const FO_ADDRESS  = 'fld2j0eu6qrid1DXA'; // כתובת למשלוח
 const FO_DELIVERY = 'fldH9aXNoJSABpTJP'; // משלוח (כן/לא)
+const FO_DELIVERY_METHOD = 'fldLNDBxakM60KfJ4'; // אופן קבלת ההזמנה (איסוף עצמי / לקוח מזמין משלוח בעצמו / לבקש מהמטבח להזמין משלוח)
 const FO_NOTES    = 'fldKGooL6E0PkqKfI'; // הערות לקוח
 const FO_LANG     = 'fldCOu0rGNLrThxtV'; // שפת לקוח
 const FO_PAYMENT  = 'fldjE5esZVBwDjNDi'; // צורת תשלום
@@ -57,6 +58,13 @@ const PAY_MAP = {
   kaspi:   'כספי',
   stripe:  'סטרייפ',
   // voucher / combined have no single Airtable option — field left empty
+};
+
+// delivery_method (canonical key from order-form.html) → Airtable singleSelect option name
+const DELIVERY_METHOD_MAP = {
+  pickup:   'איסוף עצמי',
+  customer: 'לקוח מזמין משלוח בעצמו',
+  kitchen:  'לבקש מהמטבח להזמין משלוח',
 };
 
 // ── Green API — WhatsApp ──────────────────────────────────────────────────────
@@ -222,10 +230,16 @@ export default async function handler(req, res) {
     if (body.order_type_title) orderFields[FO_NAME_RU] = body.order_type_title;
 
     if (body.delivery_address?.trim()) {
-      orderFields[FO_ADDRESS]  = body.delivery_address.trim();
-      orderFields[FO_DELIVERY] = 'Да';
+      orderFields[FO_ADDRESS] = body.delivery_address.trim();
+    }
+
+    const dmMethod = DELIVERY_METHOD_MAP[body.delivery_method] ? body.delivery_method : null;
+    if (dmMethod) {
+      orderFields[FO_DELIVERY_METHOD] = DELIVERY_METHOD_MAP[dmMethod];
+      orderFields[FO_DELIVERY] = dmMethod === 'pickup' ? 'Нет' : 'Да';
     } else {
-      orderFields[FO_DELIVERY] = 'Нет';
+      // Fallback for older clients without delivery_method
+      orderFields[FO_DELIVERY] = body.delivery_address?.trim() ? 'Да' : 'Нет';
     }
 
     if (body.notes?.trim()) orderFields[FO_NOTES] = body.notes.trim();
@@ -355,6 +369,11 @@ export default async function handler(req, res) {
       ru: { head: `🔔 Новый заказ ${numStr}`, client: '👤',      type: '📋', date: '📅', total: '💰', btnApprove: '✅ Управление',          btnWa: '💬 WhatsApp клиента' },
     };
     const mt = MGR_TMPL[mgrLang] || MGR_TMPL.he;
+    const DM_MGR_LABEL = {
+      he: { pickup: '🚶 איסוף עצמי', customer: '🚗 הלקוח מזמין משלוח בעצמו', kitchen: '🛵 לבקש מהמטבח להזמין משלוח' },
+      ru: { pickup: '🚶 Самовывоз', customer: '🚗 Клиент сам закажет доставку', kitchen: '🛵 Кухня заказывает доставку' },
+    };
+    const dmLabelLine = DM_MGR_LABEL[mgrLang]?.[dmMethod] || DM_MGR_LABEL.he[dmMethod] || '';
     const managerLink = managerToken && orderId
       ? `${SITE_URL}/api/manager-action?id=${orderId}&action=approve&token=${encodeURIComponent(managerToken)}`
       : '';
@@ -363,6 +382,7 @@ export default async function handler(req, res) {
       `${mt.client}: ${custName} · ${custPhone}`,
       orderType ? `${mt.type} ${orderType}` : '',
       delivery  ? `${mt.date} ${delivery}`  : '',
+      dmLabelLine,
       itemLinesMgr,
       total     ? `${mt.total} ${total} ₸`  : '',
     ].filter(Boolean).join('\n');
@@ -387,7 +407,7 @@ export default async function handler(req, res) {
       ? (mgrButtons.length
           ? sendWaButtons(managerPhone, {
               header:  mt.head,
-              body:    [`${mt.client}: ${custName} · ${custPhone}`, orderType ? `${mt.type} ${orderType}` : '', delivery ? `${mt.date} ${delivery}` : '', itemLinesMgr, total ? `${mt.total} ${total} ₸` : ''].filter(Boolean).join('\n'),
+              body:    [`${mt.client}: ${custName} · ${custPhone}`, orderType ? `${mt.type} ${orderType}` : '', delivery ? `${mt.date} ${delivery}` : '', dmLabelLine, itemLinesMgr, total ? `${mt.total} ${total} ₸` : ''].filter(Boolean).join('\n'),
               buttons: mgrButtons,
             })
           : sendWa(managerPhone, mgrMsg))

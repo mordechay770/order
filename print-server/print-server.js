@@ -77,6 +77,11 @@ function toCP862(s) {
   return Buffer.from(buf);
 }
 function encode(s) { return ENCODING === 'cp1251' ? toCP1251(s) : toCP866(s); }
+var DELIVERY_METHOD_RU = {
+  'איסוף עצמי': 'Samovyvoz',
+  'לקוח מזמין משלוח בעצמו': 'Klient sam zakazhet dostavku',
+  'לבקש מהמטבח להזמין משלוח': 'Kukhnya zakazyvaet dostavku',
+};
 function hasHebrew(s) { return /[א-ת]/.test(s); }
 function reverseHebPart(s) {
   var sep = s.indexOf(': ');
@@ -157,6 +162,7 @@ function buildEscPos(o, sectionTitle) {
   parts.push(txt('Itogo: ' + total + ' pors.'));
   if (totalGrams > 0) parts.push(txt('Ves:   ' + totalGrams + ' g'));
   if (o.kitchen_notes)    { parts.push(txt(LINE)); parts.push(txt('Kukhne: '   + o.kitchen_notes)); }
+  if (o.delivery_method)  { parts.push(txt(LINE)); parts.push(txt('Poluchenie: ' + (DELIVERY_METHOD_RU[o.delivery_method] || o.delivery_method))); }
   if (o.delivery_address) { parts.push(txt(LINE)); parts.push(txt('Dostavka: ' + o.delivery_address)); }
   parts.push(txt(SEP));
   parts.push(cmd(ESC, 0x61, 0x01));

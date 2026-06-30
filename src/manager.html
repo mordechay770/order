@@ -463,6 +463,10 @@ function renderOrderModal(o) {
     ${o.total ? `<div style="text-align:right;font-size:15px;font-weight:700;margin-top:8px;color:#fde047">Итого: ${o.total} ₸</div>` : ''}
 
     <div class="section-title">Доставка</div>
+    ${o.delivery_method ? `<div style="margin-bottom:8px;padding:8px 10px;background:#1e293b;border-radius:8px;font-size:13px;color:#fde047">
+      👤 Выбор клиента: <strong>${esc(o.delivery_method)}</strong>
+      ${o.delivery_method!=='איסוף עצמי' ? '<div style="font-size:11px;color:#94a3b8;margin-top:3px">⚠️ Стоимость доставки оплачивается отдельно, по факту приложения</div>' : ''}
+    </div>` : ''}
     <div style="margin-bottom:6px">
       <select class="input-field" id="m-deltype">
         <option value="" ${!o.delivery_type?'selected':''}>— Тип доставки —</option>
