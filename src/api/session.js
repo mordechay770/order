@@ -4,8 +4,8 @@
  * creates a payment record in Airtable linked to the order.
  */
 
-const BASE    = 'appM61hkcOruhdBuv';
-const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
+import { createRecord, listRecords } from '../lib/db.js';
+
 const T_PAYMENTS = 'tblaNK6mYqr20YtT1';
 const T_QTY      = 'tblcP1zvc3Tu9oQuL'; // כמויות הזמנה
 const DONATION_DISH_ID = 'reclQgCl0ATOFhepR'; // מאכלים record — "💚 Пожертвование / תרומה"
@@ -34,10 +34,6 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5500',
 ];
 
-function atHeaders(token) {
-  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-}
-
 async function fetchKztRate() {
   try {
     const r = await fetch('https://open.er-api.com/v6/latest/USD', {
@@ -54,37 +50,29 @@ async function fetchKztRate() {
   }
 }
 
-async function createDonationQtyRow({ orderRecordId, donationUsd, rate, token }) {
+async function createDonationQtyRow({ orderRecordId, donationUsd, rate }) {
   if (!orderRecordId || !donationUsd) return null;
-  const kztRate    = rate || 450;
+  const kztRate     = rate || 450;
   const donationKzt = Math.round(donationUsd * kztRate);
-  const r = await fetch(`${AT_BASE}/${T_QTY}?returnFieldsByFieldId=true`, {
-    method:  'POST',
-    headers: atHeaders(token),
-    body:    JSON.stringify({ fields: {
-      [FQ_ORDER]:    [orderRecordId],
-      [FQ_DISH_LNK]: [DONATION_DISH_ID],
-      [FQ_QTY]:      1,
-      [FQ_PRICE]:    donationKzt,
-    }}),
+  const d = await createRecord(T_QTY, {
+    [FQ_ORDER]:    [orderRecordId],
+    [FQ_DISH_LNK]: [DONATION_DISH_ID],
+    [FQ_QTY]:      1,
+    [FQ_PRICE]:    donationKzt,
   });
-  const d = await r.json();
-  if (!r.ok) throw new Error(JSON.stringify(d).slice(0, 100));
   return d.id;
 }
 
-async function paymentAlreadyExists(sessionId, token) {
-  // Search for existing payment with this session ID in Notes field
-  const url = `${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`
-    + `&filterByFormula=${encodeURIComponent(`SEARCH("${sessionId}",{${FP_NOTES}})`)}`
-    + `&maxRecords=1&fields[]=${FP_NOTES}`;
-  const r = await fetch(url, { headers: atHeaders(token) });
-  if (!r.ok) return false;
-  const d = await r.json();
-  return (d.records || []).length > 0;
+async function paymentAlreadyExists(sessionId) {
+  const recs = await listRecords(T_PAYMENTS, {
+    filterByFormula: `SEARCH("${sessionId}",{${FP_NOTES}})`,
+    fields: [FP_NOTES],
+    maxRecords: 1,
+  }).catch(() => []);
+  return recs.length > 0;
 }
 
-async function createPaymentRecord({ orderRecordId, amountKzt, amountUsd, rate, sessionId, orderNum, token }) {
+async function createPaymentRecord({ orderRecordId, amountKzt, amountUsd, rate, sessionId, orderNum }) {
   const today = new Date().toISOString().slice(0, 10);
   const fields = {
     [FP_DATE]:     today,
@@ -99,14 +87,7 @@ async function createPaymentRecord({ orderRecordId, amountKzt, amountUsd, rate, 
   if (orderRecordId && /^rec[A-Za-z0-9]{14}$/.test(orderRecordId)) {
     fields[FP_ORDER] = [orderRecordId];
   }
-
-  const r = await fetch(`${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`, {
-    method:  'POST',
-    headers: atHeaders(token),
-    body:    JSON.stringify({ fields }),
-  });
-  const d = await r.json();
-  if (!r.ok) throw new Error(JSON.stringify(d).slice(0, 150));
+  const d = await createRecord(T_PAYMENTS, fields);
   return d.id;
 }
 
@@ -127,8 +108,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid session_id' });
   }
 
-  const stripeKey     = (process.env.STRIPE_SECRET_KEY || '').trim();
-  const airtableToken = (process.env.AIRTABLE_TOKEN    || '').replace(/^﻿/, '').trim();
+  const stripeKey = (process.env.STRIPE_SECRET_KEY || '').trim();
   if (!stripeKey) return res.status(500).json({ error: 'Stripe not configured' });
 
   try {
@@ -152,27 +132,18 @@ export default async function handler(req, res) {
 
     // Create payment record in Airtable when payment is confirmed
     let paymentId = null;
-    if (session.payment_status === 'paid' && airtableToken) {
+    if (session.payment_status === 'paid') {
       try {
-        const alreadyExists = await paymentAlreadyExists(sessionId, airtableToken);
+        const alreadyExists = await paymentAlreadyExists(sessionId);
         if (alreadyExists) {
           console.log('[session] payment already recorded for', sessionId);
         } else {
           const rate = await fetchKztRate();
-          paymentId = await createPaymentRecord({
-            orderRecordId,
-            amountKzt,
-            amountUsd,
-            rate,
-            sessionId,
-            orderNum,
-            token: airtableToken,
-          });
+          paymentId = await createPaymentRecord({ orderRecordId, amountKzt, amountUsd, rate, sessionId, orderNum });
           console.log('[session] payment record created:', paymentId);
 
-          // Create donation row in כמויות if applicable
           if (donationUsd > 0 && orderRecordId) {
-            createDonationQtyRow({ orderRecordId, donationUsd, rate, token: airtableToken })
+            createDonationQtyRow({ orderRecordId, donationUsd, rate })
               .then(id => console.log('[session] donation qty row created:', id))
               .catch(e => console.error('[session] donation qty row failed:', e.message));
           }

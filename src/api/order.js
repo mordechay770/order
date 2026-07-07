@@ -7,8 +7,7 @@
  *         total_price, payment_method, payment_breakdown? }
  */
 
-const BASE    = 'appM61hkcOruhdBuv';
-const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
+import { createRecord, getRecord } from '../lib/db.js';
 
 // Tables
 const T_ORDERS = 'tblMnlLwYCD27ou80'; // הזמנות אוכל מהמטבח
@@ -168,32 +167,6 @@ function parseBody(req) {
   });
 }
 
-function atHeaders(token) {
-  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-}
-
-async function atGet(path, token) {
-  const sep = path.includes('?') ? '&' : '?';
-  const r = await fetch(`${AT_BASE}/${path}${sep}returnFieldsByFieldId=true`, {
-    headers: atHeaders(token),
-  });
-  if (!r.ok) { const txt = await r.text().catch(() => ''); throw new Error(`Airtable GET ${r.status}: ${txt.slice(0,200)}`); }
-  return r.json();
-}
-
-async function atPost(path, body, token) {
-  const r = await fetch(`${AT_BASE}/${path}?returnFieldsByFieldId=true`, {
-    method: 'POST',
-    headers: atHeaders(token),
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
-    const txt = await r.text().catch(() => '');
-    throw new Error(`Airtable ${r.status}: ${txt.slice(0, 300)}`);
-  }
-  return r.json();
-}
-
 export default async function handler(req, res) {
   // CORS
   const origin = req.headers['origin'] || '';
@@ -207,9 +180,6 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const token = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
-  if (!token) return res.status(500).json({ error: 'Server misconfigured' });
 
   const body = await parseBody(req);
   if (
@@ -270,10 +240,10 @@ export default async function handler(req, res) {
     }
 
     // 1. Create order
-    const orderResp = await atPost(T_ORDERS, { fields: orderFields }, token);
+    const orderResp = await createRecord(T_ORDERS, orderFields);
     const orderId  = orderResp.id;
     // autoNumber is not returned in POST response — fetch it via GET
-    const orderGet = await atGet(`${T_ORDERS}/${orderId}`, token);
+    const orderGet = await getRecord(T_ORDERS, orderId);
     const orderNum = orderGet.fields?.[FO_SERIAL] ?? null;
 
     // 2. Create qty rows in parallel
@@ -288,26 +258,24 @@ export default async function handler(req, res) {
           [FQ_PRICE]:    price,
           [FQ_LINE_TOT]: Math.round(qty * price),
         };
-        // Link to מאכלים record if dish_id is a valid Airtable record ID
         if (item.dish_id && /^rec[A-Za-z0-9]{14}$/.test(item.dish_id)) {
           qtyFields[FQ_DISH_LNK] = [item.dish_id];
         } else {
-          // fallback to free-text for sample/unknown dishes
           qtyFields[FQ_DISH_TXT] = String(item.dish_name || '').trim();
         }
-        return atPost(T_QTY, { fields: qtyFields }, token);
+        return createRecord(T_QTY, qtyFields);
       })
     );
 
     // 2b. Donation row in כמויות (if donation_kzt provided)
     const donationKzt = Number(body.donation_kzt) || 0;
     if (donationKzt > 0) {
-      atPost(T_QTY, { fields: {
+      createRecord(T_QTY, {
         [FQ_ORDER]:    [orderId],
         [FQ_DISH_LNK]: [DONATION_DISH_ID],
         [FQ_QTY]:      1,
         [FQ_PRICE]:    donationKzt,
-      }}, token).catch(e => console.error('[order] donation row failed:', e.message));
+      }).catch(e => console.error('[order] donation row failed:', e.message));
     }
 
     // 3. WhatsApp notifications — fire-and-forget (don't block response)

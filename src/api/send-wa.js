@@ -4,8 +4,9 @@
  * Body: { phone, order_id, order_number, lang }
  */
 
+import { updateRecord } from '../lib/db.js';
+
 const SITE_URL  = 'https://src-sigma-ecru-25.vercel.app';
-const AT_BASE   = 'https://api.airtable.com/v0/appM61hkcOruhdBuv';
 const T_ORDERS  = 'tblMnlLwYCD27ou80';
 const FO_PHONE  = 'fldMPQfkQATfg6j0t';
 
@@ -77,14 +78,7 @@ export default async function handler(req, res) {
     if (r.ok && data.idMessage) {
       // If caller wants phone updated in Airtable, do it fire-and-forget
       if (body.update_phone && body.order_id && /^rec[A-Za-z0-9]{14}$/.test(body.order_id)) {
-        const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
-        if (airtableToken) {
-          fetch(`${AT_BASE}/${T_ORDERS}/${body.order_id}?returnFieldsByFieldId=true`, {
-            method: 'PATCH',
-            headers: { Authorization: `Bearer ${airtableToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fields: { [FO_PHONE]: phone } }),
-          }).catch(() => {});
-        }
+        updateRecord(T_ORDERS, body.order_id, { [FO_PHONE]: phone }).catch(() => {});
       }
       return res.status(200).json({ sent: true });
     }

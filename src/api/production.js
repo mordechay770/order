@@ -4,8 +4,7 @@
  * PATCH /api/production?token=&id=recXXX body: { status, actual_qty, notes }
  */
 
-const BASE    = 'appM61hkcOruhdBuv';
-const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
+import { listRecords, createRecord, updateRecord } from '../lib/db.js';
 
 const T_PROD     = 'tbl2Wb8lObLNyvv2x';
 const T_RECIPES  = 'tbl053nytobUU4ytc';
@@ -40,8 +39,6 @@ const FD_QTY     = 'flda87qPF1ifw3ltp';
 const FD_DEST    = 'fldqblcHRUSi4Mwjk';
 const FD_NOTES   = 'fldK6dAmYPygyJzOl';
 const FD_REPORTER= 'fldBp7hPYyirezMaG';
-
-function atH(t) { return { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }; }
 
 function getRole(reqToken) {
   const clean = t => (t || '').replace(/^﻿/, '').trim();
@@ -82,15 +79,14 @@ async function handleGet(req, res, airtableToken) {
     formula = `AND(${statusPart},${datePart})`;
   }
 
-  const fields = [FP_SERIAL, FP_DATE, FP_REPORTER, FP_RECIPE, FP_ACTUAL,
-                  FP_NOTES, FP_TYPE, FP_DEST, FP_STATUS, FP_REQUESTED, FP_ORDERED_BY];
-  const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FP_DATE}&sort[0][direction]=asc`;
+  const rows = await listRecords(T_PROD, {
+    filterByFormula: formula,
+    fields: [FP_SERIAL, FP_DATE, FP_REPORTER, FP_RECIPE, FP_ACTUAL,
+             FP_NOTES, FP_TYPE, FP_DEST, FP_STATUS, FP_REQUESTED, FP_ORDERED_BY],
+    sort: [{ field: FP_DATE, direction: 'asc' }],
+  });
 
-  const r = await fetch(`${AT_BASE}/${T_PROD}?${qs}`, { headers: atH(airtableToken) });
-  if (!r.ok) throw new Error(`Airtable production ${r.status}`);
-  const data = await r.json();
-
-  const records = (data.records || []).map(rec => {
+  const records = rows.map(rec => {
     const f = rec.fields;
     // multipleRecordLinks always includes {id, name} — primary field of linked table
     const recipeLink = (f[FP_RECIPE] || [])[0] || null;
@@ -117,7 +113,7 @@ async function handleGet(req, res, airtableToken) {
 
 }
 
-async function handlePost(req, res, airtableToken, role) {
+async function handlePost(req, res, role) {
   if (!['manager', 'chef'].includes(role))
     return res.status(403).json({ error: 'Only manager/chef can create production orders' });
 
@@ -136,17 +132,11 @@ async function handlePost(req, res, airtableToken, role) {
   if (notes)       fields[FP_NOTES]      = notes;
   if (ordered_by)  fields[FP_ORDERED_BY] = ordered_by;
 
-  const r = await fetch(`${AT_BASE}/${T_PROD}?returnFieldsByFieldId=true`, {
-    method: 'POST',
-    headers: atH(airtableToken),
-    body: JSON.stringify({ fields }),
-  });
-  if (!r.ok) throw new Error(`Airtable POST ${r.status}`);
-  const rec = await r.json();
+  const rec = await createRecord(T_PROD, fields);
   return res.status(201).json({ id: rec.id, serial: rec.fields?.[FP_SERIAL] });
 }
 
-async function handlePatch(req, res, airtableToken, role) {
+async function handlePatch(req, res, role) {
   const { id } = req.query;
   if (!id || !/^rec[A-Za-z0-9]{14}$/.test(id))
     return res.status(400).json({ error: 'Invalid id' });
@@ -170,23 +160,16 @@ async function handlePatch(req, res, airtableToken, role) {
   if (!Object.keys(fields).length)
     return res.status(400).json({ error: 'Nothing to update' });
 
-  const r = await fetch(`${AT_BASE}/${T_PROD}/${id}?returnFieldsByFieldId=true`, {
-    method: 'PATCH',
-    headers: atH(airtableToken),
-    body: JSON.stringify({ fields }),
-  });
-  if (!r.ok) throw new Error(`Airtable PATCH ${r.status}`);
+  await updateRecord(T_PROD, id, fields);
   return res.status(200).json({ ok: true });
 }
 
-// GET /api/production?recipes=1 — list all recipes for product picker
-async function handleRecipeList(res, airtableToken) {
-  const fields = [FR_NAME_RU, FR_NAME_HE, FR_CAT, FR_UNIT, FR_UNIT_QTY];
-  const qs = `${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FR_NAME_RU}&sort[0][direction]=asc`;
-  const r = await fetch(`${AT_BASE}/${T_RECIPES}?${qs}`, { headers: atH(airtableToken) });
-  if (!r.ok) throw new Error(`Airtable recipes ${r.status}`);
-  const data = await r.json();
-  const list = (data.records || []).map(rec => ({
+async function handleRecipeList(res) {
+  const recs = await listRecords(T_RECIPES, {
+    fields: [FR_NAME_RU, FR_NAME_HE, FR_CAT, FR_UNIT, FR_UNIT_QTY],
+    sort: [{ field: FR_NAME_RU, direction: 'asc' }],
+  });
+  const list = recs.map(rec => ({
     id:       rec.id,
     name_ru:  rec.fields[FR_NAME_RU] || '',
     name_he:  rec.fields[FR_NAME_HE] || '',
@@ -203,24 +186,21 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
-  const reqToken      = (req.query.token || '').trim();
-  const role          = getRole(reqToken);
+  const reqToken = (req.query.token || '').trim();
+  const role     = getRole(reqToken);
 
-  if (!role)          return res.status(403).json({ error: 'Forbidden' });
-  if (!airtableToken) return res.status(500).json({ error: 'Server misconfigured' });
+  if (!role) return res.status(403).json({ error: 'Forbidden' });
 
-  // Read-only for mashgiach
   if (role === 'mashgiach' && req.method !== 'GET')
     return res.status(403).json({ error: 'Mashgiach: read only' });
 
   try {
     if (req.method === 'GET') {
-      if (req.query.recipes === '1') return handleRecipeList(res, airtableToken);
-      return handleGet(req, res, airtableToken);
+      if (req.query.recipes === '1') return handleRecipeList(res);
+      return handleGet(req, res);
     }
-    if (req.method === 'POST')  return handlePost(req, res, airtableToken, role);
-    if (req.method === 'PATCH') return handlePatch(req, res, airtableToken, role);
+    if (req.method === 'POST')  return handlePost(req, res, role);
+    if (req.method === 'PATCH') return handlePatch(req, res, role);
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('[production]', err.message);

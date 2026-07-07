@@ -3,8 +3,7 @@
  * GET /api/order-status?id=recXXX — manager page (includes items + phone)
  */
 
-const BASE    = 'appM61hkcOruhdBuv';
-const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
+import { getRecord, listRecords } from '../lib/db.js';
 
 // Orders table
 const T_ORDERS    = 'tblMnlLwYCD27ou80';
@@ -42,46 +41,34 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5500',
 ];
 
-function atHeaders(token) {
-  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-}
-
 function extractSelect(val) {
   if (!val) return '';
   return (typeof val === 'object') ? (val.name || '') : val;
 }
 
-async function fetchItems(qtyIds, token) {
+async function fetchItems(qtyIds) {
   if (!qtyIds || !qtyIds.length) return [];
 
-  // Fetch each כמות record individually using the IDs from the order's backlink field
   const settled = await Promise.all(
-    qtyIds.map(id =>
-      fetch(`${AT_BASE}/${T_QTY}/${id}?returnFieldsByFieldId=true`, { headers: atHeaders(token) })
-        .then(r => r.ok ? r.json() : null)
-        .catch(() => null)
-    )
+    qtyIds.map(id => getRecord(T_QTY, id).catch(() => null))
   );
   const rows = settled.filter(Boolean);
   if (!rows.length) return [];
 
-  // 2. Collect unique dish IDs that need name lookup
   const dishIds = [...new Set(rows.flatMap(r => (r.fields[FQ_DISH] || [])))];
 
-  // 3. Fetch dish names + portions in one call
   const dishMap = {};
   if (dishIds.length) {
     const formula2 = `OR(${dishIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
-    const qs2 = `filterByFormula=${encodeURIComponent(formula2)}&fields%5B%5D=${FD_NAME}&fields%5B%5D=${FD_PORTION}&returnFieldsByFieldId=true`;
-    const r2 = await fetch(`${AT_BASE}/${T_DISHES}?${qs2}`, { headers: atHeaders(token) });
-    if (r2.ok) {
-      const d2 = await r2.json();
-      for (const rec of (d2.records || [])) {
-        dishMap[rec.id] = {
-          name:    rec.fields[FD_NAME]    || '',
-          portion: rec.fields[FD_PORTION] || 0,
-        };
-      }
+    const dishRecs = await listRecords(T_DISHES, {
+      filterByFormula: formula2,
+      fields: [FD_NAME, FD_PORTION],
+    }).catch(() => []);
+    for (const rec of dishRecs) {
+      dishMap[rec.id] = {
+        name:    rec.fields[FD_NAME]    || '',
+        portion: rec.fields[FD_PORTION] || 0,
+      };
     }
   }
 
@@ -120,25 +107,22 @@ export default async function handler(req, res) {
 
   if (!byId && (!byNum || byNum < 1)) return res.status(400).json({ error: 'Provide id or num' });
 
-  const token = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
-  if (!token) return res.status(500).json({ error: 'Server misconfigured' });
-
   try {
     let rec;
 
     if (byId && /^rec[A-Za-z0-9]{14}$/.test(byId)) {
-      const r = await fetch(`${AT_BASE}/${T_ORDERS}/${byId}?returnFieldsByFieldId=true`, { headers: atHeaders(token) });
-      if (r.status === 404) return res.status(404).json({ error: 'Order not found' });
-      if (!r.ok) throw new Error(`Airtable ${r.status}`);
-      rec = await r.json();
+      rec = await getRecord(T_ORDERS, byId).catch(e => {
+        if (e.message?.includes('404')) return null;
+        throw e;
+      });
+      if (!rec) return res.status(404).json({ error: 'Order not found' });
     } else {
-      const fields = [FO_SERIAL, FO_STATUS, FO_NAME_RU, FO_DATE_EXE, FO_CUST_NAME, FO_PHONE, FO_PRICE, FO_COUNT, FO_NOTES, FO_ADDRESS, FO_PAYMENT];
       const formula = `{${FO_SERIAL}}=${byNum}`;
-      const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields%5B%5D=${f}`).join('&')}&returnFieldsByFieldId=true`;
-      const r = await fetch(`${AT_BASE}/${T_ORDERS}?${qs}`, { headers: atHeaders(token) });
-      if (!r.ok) throw new Error(`Airtable ${r.status}`);
-      const data = await r.json();
-      rec = data.records?.[0];
+      const recs = await listRecords(T_ORDERS, {
+        filterByFormula: formula,
+        fields: [FO_SERIAL, FO_STATUS, FO_NAME_RU, FO_DATE_EXE, FO_CUST_NAME, FO_PHONE, FO_PRICE, FO_COUNT, FO_NOTES, FO_ADDRESS, FO_PAYMENT],
+      });
+      rec = recs[0];
       if (!rec) return res.status(404).json({ error: 'Order not found' });
     }
 
@@ -162,7 +146,7 @@ export default async function handler(req, res) {
 
     if (withItems) {
       const qtyIds = f[FO_QTY_LINK] || [];
-      base.items = await fetchItems(qtyIds, token);
+      base.items = await fetchItems(qtyIds);
     }
 
     return res.status(200).json(base);

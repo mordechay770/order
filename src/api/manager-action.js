@@ -4,8 +4,7 @@
  * Returns HTML page (so manager sees confirmation in browser).
  */
 
-const BASE    = 'appM61hkcOruhdBuv';
-const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
+import { getRecord, updateRecord, createRecord, listRecords } from '../lib/db.js';
 
 const T_ORDERS   = 'tblMnlLwYCD27ou80';
 const T_PAYMENTS = 'tblaNK6mYqr20YtT1';
@@ -54,13 +53,10 @@ const STATUS_MAP = {
   approve:  'Подтверждён',
   reject:   'Отменён',
   ready:    'Готов',
+  start:    'В обработке',
   deliver:  'Нмсрм', // marks delivery_status only (not order status)
-  // kaspi_paid is handled separately — does not update order status
+  // kaspi_paid / problem handled separately — do not update order status via STATUS_MAP
 };
-
-function atHeaders(token) {
-  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-}
 
 function toWaId(phone) {
   // Already a Green API chat ID (personal @c.us or group @g.us) — pass through unchanged
@@ -155,15 +151,11 @@ const FO_LANG          = 'fldCOu0rGNLrThxtV'; // שפת לקוח
 const FQ_PRICE         = 'fld2hjBAMbg4NeRef'; // עלות מנה בזמן ההזמנה
 const FQ_ORDER_REC_ID  = 'fldAcoyLDwIUoqqQH'; // lookup: order record ID (reliable filter key)
 
-async function fetchItems(orderId, token) {
-  // fldAcoyLDwIUoqqQH is a lookup returning the order record ID — ARRAYJOIN gives us the ID string
+async function fetchItems(orderId) {
   const qFormula = `FIND("${orderId}",ARRAYJOIN({${FQ_ORDER_REC_ID}}))`;
-  const qQs = `filterByFormula=${encodeURIComponent(qFormula)}&returnFieldsByFieldId=true`;
   try {
-    const r = await fetch(`${AT_BASE}/${T_QTY}?${qQs}`, { headers: atHeaders(token) });
-    if (!r.ok) return [];
-    const d = await r.json();
-    return (d.records || []).map(rec => {
+    const records = await listRecords(T_QTY, { filterByFormula: qFormula });
+    return records.map(rec => {
       const rf = rec.fields;
       const links = rf[FQ_DISH_LK];
       // Try: linked record name (primary field), then lookup text field, then free-text fallback
@@ -177,6 +169,7 @@ async function fetchItems(orderId, token) {
     });
   } catch { return []; }
 }
+
 
 function itemsTable(items) {
   if (!items.length) return '';
@@ -235,7 +228,6 @@ export default async function handler(req, res) {
   // ── PATCH: edit order fields ────────────────────────────────────────────────
   if (req.method === 'PATCH') {
     const role = getRole((reqToken || '').trim());
-    const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
     if (role !== 'manager') return res.status(403).json({ error: 'Forbidden' });
     if (!id || !/^rec[A-Za-z0-9]{14}$/.test(id)) return res.status(400).json({ error: 'Invalid id' });
     const { notes_internal, notes_kitchen, notes_customer, delivery_address, delivery_status,
@@ -245,46 +237,40 @@ export default async function handler(req, res) {
     if (notes_kitchen   !== undefined) fields[FO_KITCHEN_NOTES] = notes_kitchen;
     if (notes_customer  !== undefined) fields[FO_NOTES_CUST]    = notes_customer;
     if (delivery_address!== undefined) fields[FO_DELIVERY_ADDR] = delivery_address;
-    // singleSelect: Airtable rejects empty string — use null to clear
     if (delivery_status !== undefined) fields[FO_DELIVERY_STAT] = delivery_status || null;
     if (delivery_type   !== undefined) fields[FO_DELIVERY_TYPE] = delivery_type   || null;
     if (status          !== undefined) fields[FO_STATUS]        = status          || null;
     if (!Object.keys(fields).length) return res.status(400).json({ error: 'Nothing to update' });
-    const r = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, {
-      method: 'PATCH', headers: atHeaders(airtableToken),
-      body: JSON.stringify({ fields }),
-    });
-    if (!r.ok) { const d = await r.json().catch(()=>({})); return res.status(502).json({ error: 'Airtable error', detail: JSON.stringify(d).slice(0,200) }); }
+    const r = await updateRecord(T_ORDERS, id, fields).catch(e => ({ _err: e.message }));
+    if (r._err) return res.status(502).json({ error: 'Airtable error', detail: r._err });
     return res.status(200).json({ ok: true });
   }
 
   const role = getRole((reqToken || '').trim());
-  const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
 
   // ── JSON GET actions (return JSON, not HTML) ─────────────────────────────
   if (['GET','POST'].includes(req.method) && ['payments','payment_methods','contacts','pay','notify_staff'].includes(action)) {
     if (role !== 'manager') return res.status(403).json({ error: 'Forbidden' });
+    try {
 
     if (action === 'payment_methods') {
-      const qs = `fields[]=${FM_NAME}&returnFieldsByFieldId=true&sort[0][field]=${FM_NAME}&sort[0][direction]=asc`;
-      const r2 = await fetch(`${AT_BASE}/${T_PAY_METHODS}?${qs}`, { headers: atHeaders(airtableToken) });
-      if (!r2.ok) return res.status(502).json({ error: 'Airtable error' });
-      const d2 = await r2.json();
-      const methods = (d2.records || []).map(rec => ({ id: rec.id, name: rec.fields[FM_NAME] || '' })).filter(m => m.name);
+      const methods = (await listRecords(T_PAY_METHODS, {
+        fields: [FM_NAME],
+        sort: [{ field: FM_NAME, direction: 'asc' }],
+      })).map(rec => ({ id: rec.id, name: rec.fields[FM_NAME] || '' })).filter(m => m.name);
       return res.status(200).json({ methods });
     }
 
     if (action === 'payments') {
       if (!id || !/^rec[A-Za-z0-9]{14}$/.test(id)) return res.status(400).json({ error: 'Invalid order id' });
-      // Fetch payments linked to this order
       const formula = `FIND("${id}",ARRAYJOIN({${FP_ORDER}}))`;
-      const fields = [FP_ORDER, FP_DATE, FP_KZT, FP_STATUS, FP_NOTES, FP_METHOD_LKP,
-                      FP_FOREIGN_CHK, FP_FOREIGN_AMT, FP_CURRENCY, FP_RATE, FP_TOTAL_KZT];
-      const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FP_DATE}&sort[0][direction]=desc`;
-      const r2 = await fetch(`${AT_BASE}/${T_PAYMENTS}?${qs}`, { headers: atHeaders(airtableToken) });
-      if (!r2.ok) return res.status(502).json({ error: 'Airtable error ' + r2.status });
-      const d2 = await r2.json();
-      const payments = (d2.records || []).map(rec => {
+      const recs = await listRecords(T_PAYMENTS, {
+        filterByFormula: formula,
+        fields: [FP_ORDER, FP_DATE, FP_KZT, FP_STATUS, FP_NOTES, FP_METHOD_LKP,
+                 FP_FOREIGN_CHK, FP_FOREIGN_AMT, FP_CURRENCY, FP_RATE, FP_TOTAL_KZT],
+        sort: [{ field: FP_DATE, direction: 'desc' }],
+      });
+      const payments = recs.map(rec => {
         const f = rec.fields;
         const methodLkp = f[FP_METHOD_LKP];
         const methodName = Array.isArray(methodLkp) ? methodLkp[0] :
@@ -313,11 +299,11 @@ export default async function handler(req, res) {
       if (!phone) return res.status(400).json({ error: 'phone required' });
       const clean = phone.replace(/\D/g,'');
       const formula = `FIND("${clean.slice(-9)}",SUBSTITUTE({Номер телефона},"+",""))`;
-      const qs = `filterByFormula=${encodeURIComponent(formula)}&fields[]=${FC_PHONE}&fields[]=${FC_LNAME}&fields[]=${FC_FNAME}&returnFieldsByFieldId=true`;
-      const r2 = await fetch(`${AT_BASE}/${T_CONTACTS}?${qs}`, { headers: atHeaders(airtableToken) });
-      if (!r2.ok) return res.status(502).json({ error: 'Airtable error' });
-      const d2 = await r2.json();
-      const contacts = (d2.records || []).map(rec => ({
+      const recs2 = await listRecords(T_CONTACTS, {
+        filterByFormula: formula,
+        fields: [FC_PHONE, FC_LNAME, FC_FNAME],
+      });
+      const contacts = recs2.map(rec => ({
         id:    rec.id,
         fname: rec.fields[FC_FNAME] || '',
         lname: rec.fields[FC_LNAME] || '',
@@ -339,10 +325,8 @@ export default async function handler(req, res) {
       if (target === 'group' && !groupWaId) return res.status(400).json({ error: 'GROUP_WA_ID not set' });
       if (!target) return res.status(400).json({ error: 'target required: chef or group' });
 
-      // Fetch order — single-record endpoint returns all fields, no fields[] filtering
-      const orR = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, { headers: atHeaders(airtableToken) });
-      if (!orR.ok) return res.status(502).json({ error: 'Order fetch failed', status: orR.status });
-      const orData = await orR.json();
+      const orData = await getRecord(T_ORDERS, id).catch(() => null);
+      if (!orData) return res.status(502).json({ error: 'Order fetch failed' });
       const f = orData.fields || {};
       const serial    = f[FO_SERIAL]    ? `№${f[FO_SERIAL]}` : '';
       const custName  = f[FO_CUST_NAME] || '';
@@ -352,7 +336,7 @@ export default async function handler(req, res) {
       const kitNotes  = f[FO_KITCHEN_NOTES] || '';
 
       // Fetch items — no fields[] so linked records return {id,name}
-      const items = await fetchItems(id, airtableToken);
+      const items = await fetchItems(id);
       const itemLines = items.map(i => `  • ${i.name} × ${i.qty}`).join('\n');
 
       let dateStr = '', timeStr = '';
@@ -388,6 +372,10 @@ export default async function handler(req, res) {
       if (waR.ok && waD.idMessage) return res.status(200).json({ ok: true });
       return res.status(200).json({ ok: false, error: waD.message || 'WhatsApp error' });
     }
+    } catch (err) {
+      console.error('[manager-action] json action error:', err.message);
+      return res.status(502).json({ error: 'Server error', detail: err.message });
+    }
   }
 
   // ── POST: create contact ─────────────────────────────────────────────────
@@ -395,15 +383,10 @@ export default async function handler(req, res) {
     if (role !== 'manager') return res.status(403).json({ error: 'Forbidden' });
     const { phone, first_name, last_name } = req.body || {};
     if (!phone || !first_name) return res.status(400).json({ error: 'phone and first_name required' });
-    const airtableToken2 = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
     const fields = { [FC_PHONE]: phone, [FC_FNAME]: first_name };
     if (last_name) fields[FC_LNAME] = last_name;
-    const r2 = await fetch(`${AT_BASE}/${T_CONTACTS}?returnFieldsByFieldId=true`, {
-      method: 'POST', headers: atHeaders(airtableToken2),
-      body: JSON.stringify({ fields }),
-    });
-    if (!r2.ok) { const d2 = await r2.json().catch(()=>({})); return res.status(502).json({ error: 'Airtable error', detail: JSON.stringify(d2).slice(0,200) }); }
-    const created = await r2.json();
+    const created = await createRecord(T_CONTACTS, fields).catch(e => ({ _err: e.message }));
+    if (created._err) return res.status(502).json({ error: 'Airtable error', detail: created._err });
     return res.status(201).json({ ok: true, id: created.id });
   }
 
@@ -427,17 +410,15 @@ export default async function handler(req, res) {
       if (foreign_amount)   fields[FP_FOREIGN_AMT] = Number(foreign_amount);
       if (exchange_rate)    fields[FP_RATE]         = Number(exchange_rate);
     }
-    const r2 = await fetch(`${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`, {
-      method: 'POST', headers: atHeaders(airtableToken),
-      body: JSON.stringify({ fields }),
-    });
-    if (!r2.ok) { const d2 = await r2.json().catch(()=>({})); return res.status(502).json({ error: 'Airtable error', detail: JSON.stringify(d2).slice(0,200) }); }
-    const created = await r2.json();
+    const created = await createRecord(T_PAYMENTS, fields).catch(e => ({ _err: e.message }));
+    if (created._err) return res.status(502).json({ error: 'Airtable error', detail: created._err });
     return res.status(201).json({ ok: true, id: created.id });
   }
 
-  // baker/chef can mark ready+deliver; manager can do all
-  const allowedActions = role === 'manager' ? ['approve','reject','ready','deliver','kaspi_paid','mark_paid'] : ['ready','deliver'];
+  // baker/chef can mark ready+deliver+start+problem; manager can do all
+  const allowedActions = role === 'manager'
+    ? ['approve','reject','ready','deliver','kaspi_paid','mark_paid','start','problem']
+    : ['ready','deliver','start','problem'];
   if (!role || !allowedActions.includes(action)) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(403).send(htmlPage('Ошибка', '<div class="icon">🚫</div><h1>Нет доступа</h1><p>Недействительная ссылка.</p>', '#ef4444'));
@@ -449,23 +430,15 @@ export default async function handler(req, res) {
   }
 
   const newStatus = STATUS_MAP[action];
-  if (!newStatus && !['kaspi_paid','mark_paid'].includes(action)) {
+  if (!newStatus && !['kaspi_paid','mark_paid','problem'].includes(action)) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(400).send(htmlPage('Ошибка', '<div class="icon">⚠️</div><h1>Неверное действие</h1>', '#f59e0b'));
-  }
-
-  if (!airtableToken) {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(500).send(htmlPage('Ошибка', '<div class="icon">⚙️</div><h1>Ошибка конфигурации</h1>', '#ef4444'));
   }
 
   const tknEnc = encodeURIComponent(reqToken);
 
   try {
-    // Fetch order — single-record GET returns all fields, no fields[] needed
-    const getR = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, { headers: atHeaders(airtableToken) });
-    if (!getR.ok) throw new Error(`GET ${getR.status}`);
-    const rec = await getR.json();
+    const rec = await getRecord(T_ORDERS, id);
     const f = rec.fields || {};
 
     const orderNum  = f[FO_SERIAL]    ? `№${f[FO_SERIAL]}` : '';
@@ -487,7 +460,7 @@ export default async function handler(req, res) {
 
     // ── PREVIEW page (approve/ready/deliver without confirm=1, GET only) ─────
     if (req.method === 'GET' && req.query.confirm !== '1' && action !== 'mark_paid') {
-      const items = await fetchItems(id, airtableToken);
+      const items = await fetchItems(id);
       const confirmUrl = `${SITE_URL}/api/manager-action?id=${id}&action=${action}&token=${tknEnc}&confirm=1`;
       const actionLabels = { approve: '✅ Подтвердить заказ', ready: '🍽️ Отметить Готов', deliver: '📦 Отметить Передано' };
       const actionColors = { approve: '#22c55e', ready: '#f59e0b', deliver: '#6366f1' };
@@ -615,25 +588,27 @@ export default async function handler(req, res) {
       const method = String(body.method || '').trim();
       if (!amount || !method) return res.status(400).json({ error: 'amount and method required' });
       const today = new Date().toISOString().slice(0, 10);
-      const payR = await fetch(`${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`, {
-        method: 'POST', headers: atHeaders(airtableToken),
-        body: JSON.stringify({ fields: {
-          [FP_ORDER]: [id], [FP_DATE]: today, [FP_KZT]: amount,
-          [FP_STATUS]: 'Done', [FP_NOTES]: `${method} | Заказ ${orderNum}`,
-        }}),
-      });
-      const payD = await payR.json().catch(() => ({}));
-      if (!payR.ok) return res.status(502).json({ error: 'Airtable error', detail: JSON.stringify(payD).slice(0,100) });
+      const payR = await createRecord(T_PAYMENTS, {
+        [FP_ORDER]: [id], [FP_DATE]: today, [FP_KZT]: amount,
+        [FP_STATUS]: 'Done', [FP_NOTES]: `${method} | Заказ ${orderNum}`,
+      }).catch(e => ({ _err: e.message }));
+      if (payR._err) return res.status(502).json({ error: 'Airtable error', detail: payR._err });
+      return res.status(200).json({ ok: true });
+    }
+
+    // ── problem: send WA alert to group, no status change ────────────────────
+    if (action === 'problem') {
+      const managerTgt = managerTarget();
+      if (managerTgt) await sendWa(managerTgt, `⚠️ ПРОБЛЕМА — заказ ${orderNum}!\n📋 ${orderType}${custName ? '\n👤 '+custName : ''}\n\nШеф сообщает о проблеме. Требуется вмешательство.`).catch(() => {});
       return res.status(200).json({ ok: true });
     }
 
     // ── deliver: mark delivery_status only ───────────────────────────────────
     if (action === 'deliver') {
-      const patchR = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, {
-        method: 'PATCH', headers: atHeaders(airtableToken),
-        body: JSON.stringify({ fields: { [FO_DELIVERY_STAT]: 'נמסר' } }),
-      });
-      if (!patchR.ok) throw new Error(`PATCH deliver ${patchR.status}`);
+      await updateRecord(T_ORDERS, id, { [FO_DELIVERY_STAT]: 'נמסר' });
+      // Notify group
+      const managerTgt = managerTarget();
+      if (managerTgt) await sendWa(managerTgt, `📦 Заказ ${orderNum} передан клиенту\n👤 ${custName}`).catch(() => {});
       const pageBody = `
         <div class="icon">📦</div>
         <h1>Передано!</h1>
@@ -647,15 +622,10 @@ export default async function handler(req, res) {
     // ── kaspi_paid: create payment record ───────────────────────────────────
     if (action === 'kaspi_paid') {
       const today = new Date().toISOString().slice(0, 10);
-      const payR = await fetch(`${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`, {
-        method: 'POST', headers: atHeaders(airtableToken),
-        body: JSON.stringify({ fields: {
-          [FP_ORDER]: [id], [FP_DATE]: today, [FP_KZT]: total,
-          [FP_STATUS]: 'Done', [FP_NOTES]: `Kaspi — отмечено менеджером | Заказ ${orderNum}`,
-        }}),
+      await createRecord(T_PAYMENTS, {
+        [FP_ORDER]: [id], [FP_DATE]: today, [FP_KZT]: total,
+        [FP_STATUS]: 'Done', [FP_NOTES]: `Kaspi — отмечено менеджером | Заказ ${orderNum}`,
       });
-      const payD = await payR.json().catch(() => ({}));
-      if (!payR.ok) throw new Error(`PAY ${JSON.stringify(payD).slice(0, 100)}`);
       const pageBody = `
         <div class="icon">✅</div><h1>Оплата Kaspi отмечена</h1>
         <div class="badge">Заказ ${orderNum}</div>
@@ -666,11 +636,7 @@ export default async function handler(req, res) {
     }
 
     // ── approve / ready / reject: update order status ────────────────────────
-    const patchR = await fetch(`${AT_BASE}/${T_ORDERS}/${id}?returnFieldsByFieldId=true`, {
-      method: 'PATCH', headers: atHeaders(airtableToken),
-      body: JSON.stringify({ fields: { [FO_STATUS]: newStatus } }),
-    });
-    if (!patchR.ok) throw new Error(`PATCH ${patchR.status}`);
+    await updateRecord(T_ORDERS, id, { [FO_STATUS]: newStatus });
 
     // Send WhatsApp to customer — only on the transition into newStatus, never on a
     // repeat hit (double-tap, page refresh, link-prefetch) that finds it already there.
@@ -689,16 +655,23 @@ export default async function handler(req, res) {
         waBody = orderType || cl.readyBody;
         if (statusUrl) buttons.push({ type: 'url', buttonId: '1', buttonText: cl.btnStatus, url: statusUrl });
         const managerTgt = managerTarget();
-        if (managerTgt) sendWa(managerTgt, `✅ Заказ ${orderNum} готов!\n👤 ${custName}\n📋 ${orderType}`).catch(() => {});
+        if (managerTgt) await sendWa(managerTgt, `✅ Заказ ${orderNum} готов!\n👤 ${custName}\n📋 ${orderType}`).catch(() => {});
       } else if (action === 'reject') {
         header = cl.rejectHead.replace('{num}', orderNum);
         waBody = cl.rejectBody;
       }
-      if (header) sendWaButtons(custPhone, { header, body: waBody, buttons }).catch(() => {});
+      if (header) await sendWaButtons(custPhone, { header, body: waBody, buttons }).catch(() => {});
     }
 
-    const icons  = { approve: '✅', reject: '❌', ready: '🍽️' };
-    const colors = { approve: '#22c55e', reject: '#ef4444', ready: '#f59e0b' };
+    // Notify group when chef starts working on an order
+    if (action === 'start' && !isRepeatHit) {
+      const managerTgt = managerTarget();
+      if (managerTgt) await sendWa(managerTgt, `👨‍🍳 Заказ ${orderNum} принят в работу\n📋 ${orderType}${custName ? '\n👤 '+custName : ''}${dateStr ? '\n📅 '+dateStr : ''}`).catch(() => {});
+      return res.status(200).json({ ok: true, status: newStatus });
+    }
+
+    const icons  = { approve: '✅', reject: '❌', ready: '🍽️', start: '👨‍🍳' };
+    const colors = { approve: '#22c55e', reject: '#ef4444', ready: '#f59e0b', start: '#d97706' };
 
     const readyUrl   = action === 'approve' ? `${SITE_URL}/api/manager-action?id=${id}&action=ready&token=${tknEnc}` : '';
     const deliverUrl = action === 'ready'   ? `${SITE_URL}/api/manager-action?id=${id}&action=deliver&token=${tknEnc}` : '';

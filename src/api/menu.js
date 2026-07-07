@@ -4,8 +4,7 @@
  * type must be one of ALLOWED_TYPES — anything else returns 400.
  */
 
-const BASE    = 'appM61hkcOruhdBuv';
-const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
+import { listRecords, getRecord } from '../lib/db.js';
 
 // Tables
 const T_DISHES = 'tblhkNaiSGBiLRUxA';
@@ -44,7 +43,7 @@ const FT_STATUS = 'fldD1XfdS3z9IeHqw'; // סטטוס
 const ALLOWED_TYPES  = ['בוקר','צהריים','ערב','שבת','חג','טיול','מיוחד','מאפים','מוצרים מוכנים'];
 const DAILY_TYPES    = new Set(['צהריים','ערב','שבת','חג']);
 
-// Only our own Vercel domain + local dev may call this
+// ── Only our own Vercel domain + local dev may call this ─────────────────────
 const ALLOWED_ORIGINS = [
   'https://src-sigma-ecru-25.vercel.app',
   'http://localhost:3000',
@@ -52,54 +51,7 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5500',
 ];
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
-function atHeaders(token) {
-  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-}
-
-async function atGet(path, token) {
-  // returnFieldsByFieldId=true ensures fields keyed by ID, not name
-  const sep = path.includes('?') ? '&' : '?';
-  const fullUrl = `${AT_BASE}/${path}${sep}returnFieldsByFieldId=true`;
-  const r = await fetch(fullUrl, { headers: atHeaders(token) });
-  if (!r.ok) {
-    const txt = await r.text().catch(() => '');
-    throw new Error(`Airtable ${r.status}: ${txt.slice(0, 200)}`);
-  }
-  return r.json();
-}
-
-/** Build Airtable-compatible query string (handles fields[], sort[0][field], etc.) */
-function buildQS(params, offset) {
-  const parts = [];
-  for (const [k, v] of Object.entries(params)) {
-    if (k === 'sort' && Array.isArray(v)) {
-      v.forEach((s, i) => {
-        parts.push(`sort[${i}][field]=${encodeURIComponent(s.field)}`);
-        parts.push(`sort[${i}][direction]=${encodeURIComponent(s.direction)}`);
-      });
-    } else if (k === 'fields' && Array.isArray(v)) {
-      v.forEach(f => parts.push(`fields[]=${encodeURIComponent(f)}`));
-    } else {
-      parts.push(`${k}=${encodeURIComponent(v)}`);
-    }
-  }
-  if (offset) parts.push(`offset=${encodeURIComponent(offset)}`);
-  return parts.join('&');
-}
-
-/** Fetch all pages of an Airtable table query, returns records[] */
-async function atList(tableId, params, token) {
-  const records = [];
-  let offset = '';
-  do {
-    const data = await atGet(`${tableId}?${buildQS(params, offset)}`, token);
-    records.push(...(data.records || []));
-    offset = data.offset || '';
-  } while (offset);
-  return records;
-}
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 function extractAiText(raw) {
   if (!raw) return null;
@@ -136,17 +88,17 @@ function formatDish(rec, priceMap) {
  * NOTE: FP_DISH in T_PRICES links to the BOM/recipes table, NOT to מאכלים.
  * We therefore select price rows directly by record ID (from FD_PRC_LINK on each dish).
  */
-async function fetchPrices(dishPriceLinks, orderType, token) {
+async function fetchPrices(dishPriceLinks, orderType) {
   // Collect all price record IDs
   const allPriceIds = [...new Set(dishPriceLinks.flatMap(d => d.priceRecIds))];
   if (!allPriceIds.length) return {};
 
   // Fetch price rows by record ID via OR filter
   const formula = `OR(${allPriceIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
-  const rows = await atList(T_PRICES, {
+  const rows = await listRecords(T_PRICES, {
     filterByFormula: formula,
     fields: [FP_PRICE, FP_TYPE],
-  }, token);
+  });
 
   // Map priceRecId → { price, type }
   const priceById = {};
@@ -174,35 +126,35 @@ async function fetchPrices(dishPriceLinks, orderType, token) {
 
 // ── static menu (בוקר, טיול, מיוחד, מאפים, מוצרים מוכנים) ──────────────────
 
-async function fetchStaticMenu(type, token) {
+async function fetchStaticMenu(type) {
   const formula = `FIND(${JSON.stringify(type)}, ARRAYJOIN({${FD_TYPES}}, ","))`;
 
-  const records = await atList(T_DISHES, {
+  const records = await listRecords(T_DISHES, {
     filterByFormula: formula,
     fields: [FD_NAME, FD_NAME_HE, FD_NAME_EN, FD_PORTION, FD_MINQTY, FD_PRC_LINK, FD_CATEGORY],
-  }, token);
+  });
 
   const dishPriceLinks = records.map(r => ({
     dishId:      r.id,
     priceRecIds: (r.fields[FD_PRC_LINK] || []),
   }));
-  const priceMap = await fetchPrices(dishPriceLinks, type, token);
+  const priceMap = await fetchPrices(dishPriceLinks, type);
 
   return records.map(r => formatDish(r, priceMap));
 }
 
 // ── daily menu (צהריים, ערב, שבת, חג) ────────────────────────────────────────
 
-async function fetchDailyMenu(type, token) {
+async function fetchDailyMenu(type) {
   const today = new Date().toISOString().slice(0, 10);
 
   const formula = `AND({${FS_TYPE}}=${JSON.stringify(type)},{${FS_STATUS}}="פתוח להזמנה",NOT(IS_BEFORE({${FS_DATE}},"${today}")))`;
 
-  const slots = await atList(T_SLOTS, {
+  const slots = await listRecords(T_SLOTS, {
     filterByFormula: formula,
     fields: [FS_DATE, FS_TIME, FS_TPL],
     sort: [{ field: FS_DATE, direction: 'asc' }],
-  }, token);
+  });
 
   if (!slots.length) return [];
 
@@ -213,7 +165,7 @@ async function fetchDailyMenu(type, token) {
 
   // 3. Fetch each template to get its dish IDs (parallel)
   const tplRecords = await Promise.all(
-    tplIds.map(id => atGet(`${T_TPLS}/${id}`, token).catch(() => null))
+    tplIds.map(id => getRecord(T_TPLS, id).catch(() => null))
   );
   const tplDishMap = {}; // tplId → dishIds[]
   for (const rec of tplRecords) {
@@ -226,15 +178,15 @@ async function fetchDailyMenu(type, token) {
 
   // 5. Fetch all dishes in one call using OR formula
   const dishFormula = `OR(${dishIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
-  const dishRecords = await atList(T_DISHES, {
+  const dishRecords = await listRecords(T_DISHES, {
     filterByFormula: dishFormula,
     fields: [FD_NAME, FD_NAME_HE, FD_NAME_EN, FD_PORTION, FD_MINQTY, FD_PRC_LINK, FD_CATEGORY],
-  }, token);
+  });
   const dishPriceLinks = dishRecords.map(r => ({
     dishId:      r.id,
     priceRecIds: (r.fields[FD_PRC_LINK] || []),
   }));
-  const priceMap = await fetchPrices(dishPriceLinks, type, token);
+  const priceMap = await fetchPrices(dishPriceLinks, type);
   const dishMap  = Object.fromEntries(dishRecords.map(r => [r.id, formatDish(r, priceMap)]));
 
   // 6. Build output: one entry per slot date
@@ -280,13 +232,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid type', allowed: ALLOWED_TYPES });
   }
 
-  const token = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
-  if (!token) return res.status(500).json({ error: 'Server misconfigured' });
-
   try {
     const data = DAILY_TYPES.has(type)
-      ? await fetchDailyMenu(type, token)
-      : await fetchStaticMenu(type, token);
+      ? await fetchDailyMenu(type)
+      : await fetchStaticMenu(type);
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
     return res.status(200).json(data);

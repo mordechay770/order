@@ -15,8 +15,7 @@ import crypto from 'crypto';
 
 export const config = { api: { bodyParser: false } };
 
-const BASE    = 'appM61hkcOruhdBuv';
-const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
+import { createRecord, listRecords } from '../lib/db.js';
 
 const T_ORDERS   = 'tblMnlLwYCD27ou80';
 const T_PAYMENTS = 'tblaNK6mYqr20YtT1';
@@ -32,10 +31,6 @@ const FP_CURRENCY = 'fldp3mSTxtqDH9FSh'; // singleSelect — USD/ILS/EUR/RUB
 const FP_RATE     = 'fldrFvqePRaNt6TKq'; // number — שער ₸ ל-1 יחידת מטבע זר
 const FP_NOTES    = 'fldNvdvqVWt0Go6Ze'; // multilineText
 const FP_STATUS   = 'fldETI893nLw717mj'; // singleSelect — Done
-
-function atHeaders(token) {
-  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-}
 
 function getRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -74,15 +69,22 @@ async function fetchKztRate() {
   }
 }
 
-/** Find Airtable order record ID by serial number */
-async function findOrderRecordId(serial, token) {
-  const url = `${AT_BASE}/${T_ORDERS}?returnFieldsByFieldId=true`
-    + `&filterByFormula=${encodeURIComponent(`{${FO_SERIAL}}=${serial}`)}`
-    + `&fields[]=${FO_SERIAL}&maxRecords=1`;
-  const r = await fetch(url, { headers: atHeaders(token) });
-  if (!r.ok) return null;
-  const d = await r.json();
-  return d.records?.[0]?.id || null;
+async function paymentAlreadyExists(sessionId) {
+  const recs = await listRecords(T_PAYMENTS, {
+    filterByFormula: `SEARCH("${sessionId}",{${FP_NOTES}})`,
+    fields: [FP_NOTES],
+    maxRecords: 1,
+  }).catch(() => []);
+  return recs.length > 0;
+}
+
+async function findOrderRecordId(serial) {
+  const recs = await listRecords(T_ORDERS, {
+    filterByFormula: `{${FO_SERIAL}}=${serial}`,
+    fields: [FO_SERIAL],
+    maxRecords: 1,
+  }).catch(() => []);
+  return recs[0]?.id || null;
 }
 
 export default async function handler(req, res) {
@@ -91,8 +93,6 @@ export default async function handler(req, res) {
   const rawBody = await getRawBody(req);
   const sigHeader     = req.headers['stripe-signature'] || '';
   const webhookSecret = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
-  const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
-
   // Verify Stripe signature (skip only if webhook secret is not configured yet)
   if (webhookSecret && !verifyStripeSignature(rawBody, sigHeader, webhookSecret)) {
     console.error('[stripe-webhook] signature mismatch');
@@ -119,15 +119,10 @@ export default async function handler(req, res) {
   const sessionId     = session.id               || '';
   const amountUsd     = (session.amount_total || 0) / 100; // dollars
 
-  if (!airtableToken) {
-    console.error('[stripe-webhook] no AIRTABLE_TOKEN');
-    return res.status(500).json({ error: 'Airtable not configured' });
-  }
-
   // Resolve order record ID (from metadata, or search by serial)
   let recId = orderRecordId && /^rec[A-Za-z0-9]{14}$/.test(orderRecordId) ? orderRecordId : null;
   if (!recId && orderNum) {
-    recId = await findOrderRecordId(Number(orderNum), airtableToken);
+    recId = await findOrderRecordId(Number(orderNum));
   }
 
   // Fetch live exchange rate
@@ -156,13 +151,11 @@ export default async function handler(req, res) {
   if (recId)          fields[FP_ORDER]    = [recId];
 
   try {
-    const r = await fetch(`${AT_BASE}/${T_PAYMENTS}?returnFieldsByFieldId=true`, {
-      method: 'POST',
-      headers: atHeaders(airtableToken),
-      body: JSON.stringify({ fields }),
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(JSON.stringify(d).slice(0, 200));
+    if (sessionId && await paymentAlreadyExists(sessionId)) {
+      console.log('[stripe-webhook] payment already recorded for', sessionId);
+      return res.status(200).json({ received: true, duplicate: true });
+    }
+    const d = await createRecord(T_PAYMENTS, fields);
     console.log('[stripe-webhook] payment created:', d.id, '| order:', recId, '| rate:', rate);
     return res.status(200).json({ received: true, payment_id: d.id });
   } catch (err) {

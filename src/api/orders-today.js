@@ -9,8 +9,7 @@
  *   type=kosher  — returns kosher requirements list instead of orders
  */
 
-const BASE    = 'appM61hkcOruhdBuv';
-const AT_BASE = `https://api.airtable.com/v0/${BASE}`;
+import { listRecords, getRecord } from '../lib/db.js';
 
 const T_ORDERS = 'tblMnlLwYCD27ou80';
 const T_QTY    = 'tblcP1zvc3Tu9oQuL';
@@ -61,10 +60,6 @@ const FN_DATE_EXE = 'תאריך ושעת ביצוע ההזמנה';
 
 const ACTIVE_STATUSES = ['Подтверждён', 'Готов', 'Ожидает подтверждения менеджера', 'Ожидает подтверждения клиента', 'В обработке'];
 
-function atHeaders(t) {
-  return { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' };
-}
-
 function getRole(reqToken) {
   const clean = t => (t || '').replace(/^﻿/, '').trim();
   if (reqToken === clean(process.env.MANAGER_TOKEN))   return 'manager';
@@ -87,27 +82,23 @@ function buildFormula(dateFilter, allStatuses) {
   return statusPart ? `AND(${statusPart},${dateFilter})` : dateFilter;
 }
 
-async function fetchOrdersRange(startISO, endISO, token, allStatuses) {
+async function fetchOrdersRange(startISO, endISO, allStatuses) {
   const dateFilter = `AND(DATESTR({${FN_DATE_EXE}})>='${startISO}',DATESTR({${FN_DATE_EXE}})<='${endISO}')`;
   const formula = buildFormula(dateFilter, allStatuses);
-  const fields = [FO_STATUS, FO_SERIAL, FO_CUST, FO_DATE_EXE, FO_NAME_RU, FO_QTY_LINK,
-                  FO_NOTES, FO_KITCHEN_NOTES, FO_NOTES_INT, FO_PHONE, FO_EVENT_TYPE, FO_PEOPLE,
-                  FO_DELIVERY_TYPE, FO_DELIVERY_METHOD, FO_DELIVERY_ADDR, FO_DELIVERY_STATUS, FO_PAYMENT_METHOD,
-                  FO_PRICE, FO_TOTAL];
-  const qs = `filterByFormula=${encodeURIComponent(formula)}&${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FO_DATE_EXE}&sort[0][direction]=asc`;
-  const r = await fetch(`${AT_BASE}/${T_ORDERS}?${qs}`, { headers: atHeaders(token) });
-  if (!r.ok) throw new Error(`Airtable orders ${r.status}`);
-  const data = await r.json();
-  return data.records || [];
+  return listRecords(T_ORDERS, {
+    filterByFormula: formula,
+    fields: [FO_STATUS, FO_SERIAL, FO_CUST, FO_DATE_EXE, FO_NAME_RU, FO_QTY_LINK,
+             FO_NOTES, FO_KITCHEN_NOTES, FO_NOTES_INT, FO_PHONE, FO_EVENT_TYPE, FO_PEOPLE,
+             FO_DELIVERY_TYPE, FO_DELIVERY_METHOD, FO_DELIVERY_ADDR, FO_DELIVERY_STATUS, FO_PAYMENT_METHOD,
+             FO_PRICE, FO_TOTAL],
+    sort: [{ field: FO_DATE_EXE, direction: 'asc' }],
+  });
 }
 
-async function fetchItems(qtyIds, token) {
+async function fetchItems(qtyIds) {
   if (!qtyIds?.length) return [];
   const settled = await Promise.all(
-    qtyIds.map(id =>
-      fetch(`${AT_BASE}/${T_QTY}/${id}?returnFieldsByFieldId=true`, { headers: atHeaders(token) })
-        .then(r => r.ok ? r.json() : null).catch(() => null)
-    )
+    qtyIds.map(id => getRecord(T_QTY, id).catch(() => null))
   );
   const rows = settled.filter(Boolean);
   if (!rows.length) return [];
@@ -116,17 +107,16 @@ async function fetchItems(qtyIds, token) {
   const dishMap = {};
   if (dishIds.length) {
     const formula = `OR(${dishIds.map(id => `RECORD_ID()="${id}"`).join(',')})`;
-    const qs = `filterByFormula=${encodeURIComponent(formula)}&fields[]=${FD_NAME}&fields[]=${FD_CATEGORY}&fields[]=${FD_PORTION}&returnFieldsByFieldId=true`;
-    const r = await fetch(`${AT_BASE}/${T_DISHES}?${qs}`, { headers: atHeaders(token) });
-    if (r.ok) {
-      const d = await r.json();
-      for (const rec of (d.records || [])) {
-        dishMap[rec.id] = {
-          name:     rec.fields[FD_NAME] || '',
-          category: typeof rec.fields[FD_CATEGORY] === 'object' ? rec.fields[FD_CATEGORY]?.name : (rec.fields[FD_CATEGORY] || ''),
-          portion:  rec.fields[FD_PORTION] || 0,
-        };
-      }
+    const dishRecs = await listRecords(T_DISHES, {
+      filterByFormula: formula,
+      fields: [FD_NAME, FD_CATEGORY, FD_PORTION],
+    }).catch(() => []);
+    for (const rec of dishRecs) {
+      dishMap[rec.id] = {
+        name:     rec.fields[FD_NAME] || '',
+        category: typeof rec.fields[FD_CATEGORY] === 'object' ? rec.fields[FD_CATEGORY]?.name : (rec.fields[FD_CATEGORY] || ''),
+        portion:  rec.fields[FD_PORTION] || 0,
+      };
     }
   }
 
@@ -135,17 +125,16 @@ async function fetchItems(qtyIds, token) {
     category: dishMap[row.fields[FQ_DISH]?.[0]]?.category || '',
     quantity: row.fields[FQ_QTY] || 0,
     portion:  dishMap[row.fields[FQ_DISH]?.[0]]?.portion || 0,
-  })).filter(i => i.quantity > 0);
+  })).filter(i => i.quantity > 0 || (i.name && i.name !== '—'));
 }
 
 // ── Kosher requirements handler ──────────────────────────────────────────────
-async function fetchKosherRequirements(airtableToken) {
-  const fields = [FK_ID, FK_PROD_HE, FK_TYPE, FK_STATUS, FK_DESC_HE, FK_DESC_RU, FK_NOTES];
-  const qs = `${fields.map(f=>`fields[]=${f}`).join('&')}&returnFieldsByFieldId=true&sort[0][field]=${FK_ID}`;
-  const r = await fetch(`${AT_BASE}/${T_KOSHER}?${qs}`, { headers: atHeaders(airtableToken) });
-  if (!r.ok) throw new Error(`Airtable kosher ${r.status}`);
-  const data = await r.json();
-  return (data.records || []).map(rec => {
+async function fetchKosherRequirements() {
+  const records = await listRecords(T_KOSHER, {
+    fields: [FK_ID, FK_PROD_HE, FK_TYPE, FK_STATUS, FK_DESC_HE, FK_DESC_RU, FK_NOTES],
+    sort: [{ field: FK_ID, direction: 'asc' }],
+  });
+  return records.map(rec => {
     const f = rec.fields;
     const nameLkp = f[FK_PROD_HE];
     return {
@@ -184,11 +173,10 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  const airtableToken = (process.env.AIRTABLE_TOKEN || '').replace(/^﻿/, '').trim();
-  const reqToken      = (req.query.token || '').trim();
-  const role          = getRole(reqToken);
+  const reqToken = (req.query.token || '').trim();
+  const role     = getRole(reqToken);
 
-  if (!role)            return res.status(403).json({ error: 'Forbidden' });
+  if (!role) return res.status(403).json({ error: 'Forbidden' });
 
   // POST /api/orders-today?action=notify_kitchen — send WA to chef/kitchen group
   if (req.method === 'POST' && req.query.action === 'notify_kitchen') {
@@ -207,14 +195,12 @@ export default async function handler(req, res) {
 
   // GET ?type=kosher — return kosher requirements
   if (req.query.type === 'kosher') {
-    if (!airtableToken) return res.status(500).json({ error: 'Server misconfigured' });
     try {
-      const requirements = await fetchKosherRequirements(airtableToken);
+      const requirements = await fetchKosherRequirements();
       res.setHeader('Cache-Control','public,max-age=600');
       return res.status(200).json({ requirements });
     } catch(err) { return res.status(502).json({ error: err.message }); }
   }
-  if (!airtableToken)   return res.status(500).json({ error: 'Server misconfigured' });
 
   const bakerMode   = req.query.baker       === '1';
   const allStatuses = req.query.all_statuses === '1' || role === 'mashgiach';
@@ -253,12 +239,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const allRecords = await fetchOrdersRange(startISO, endISO, airtableToken, allStatuses);
+    const allRecords = await fetchOrdersRange(startISO, endISO, allStatuses);
 
     const withItems = await Promise.all(
       allRecords.map(async rec => {
         const f        = rec.fields;
-        const items    = await fetchItems(f[FO_QTY_LINK] || [], airtableToken);
+        const items    = await fetchItems(f[FO_QTY_LINK] || []);
         const typeRaw  = f[FO_NAME_RU] || '';
         const typeName = typeof typeRaw === 'object' ? (typeRaw.name || '') : typeRaw;
         const status   = typeof f[FO_STATUS] === 'object' ? f[FO_STATUS].name : (f[FO_STATUS] || '');
