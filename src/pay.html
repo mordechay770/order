@@ -213,37 +213,17 @@ body {
   <div class="section-title">Способ оплаты</div>
 
   <!-- Kaspi -->
-  <button class="pay-btn pay-btn-kaspi" onclick="toggleKaspi()">
+  <a class="pay-btn pay-btn-kaspi" id="kaspiBtn" href="#" target="_blank" rel="noopener">
     <span class="pay-btn-icon">💳</span>
     <span class="pay-btn-text">
-      Kaspi Pay
-      <div class="pay-btn-sub">Перевод на телефон · мгновенно</div>
+      Оплатить через Kaspi
+      <div class="pay-btn-sub">Сумма уже указана · мгновенно</div>
     </span>
-    <span class="pay-btn-arrow" id="kaspiArrow">▼</span>
-  </button>
-  <div class="kaspi-details" id="kaspiDetails">
-    <div class="kd-amount" id="kaspiAmount"></div>
-    <div class="kaspi-detail-row">
-      <span class="kd-label">Телефон</span>
-      <span>
-        <span class="kd-value" id="kaspiPhone">—</span>
-        <button class="kd-copy" onclick="copyText('kaspiPhone','Телефон скопирован')">скоп.</button>
-      </span>
-    </div>
-    <div class="kaspi-detail-row" id="kaspiIbanRow" style="display:none">
-      <span class="kd-label">IBAN</span>
-      <span>
-        <span class="kd-value" id="kaspiIban">—</span>
-        <button class="kd-copy" onclick="copyText('kaspiIban','IBAN скопирован')">скоп.</button>
-      </span>
-    </div>
-    <div class="kaspi-detail-row">
-      <span class="kd-label">Получатель</span>
-      <span class="kd-value" id="kaspiName">—</span>
-    </div>
-    <div style="margin-top:12px;padding:10px;background:#1e3a5f;border-radius:10px;font-size:12px;color:#93c5fd;line-height:1.5">
-      📌 После перевода обязательно укажите номер заказа в комментарии
-    </div>
+    <span class="pay-btn-arrow">→</span>
+  </a>
+  <div style="background:#1e3a5f;border-radius:10px;padding:12px;font-size:13px;color:#93c5fd;line-height:1.6;margin-bottom:10px" id="kaspiNote">
+    📌 В комментарии к переводу укажите: <strong id="kaspiOrderRef" style="color:#fde047"></strong><br>
+    📸 После оплаты пришлите квитанцию в WhatsApp менеджеру
   </div>
 
   <!-- Stripe -->
@@ -286,16 +266,10 @@ async function init() {
     return;
   }
 
-  renderOrder(
-    orderData,
-    orderData.kaspi_phone  || '',
-    orderData.kaspi_iban   || '',
-    orderData.kaspi_name   || '',
-    orderData.stripe_enabled !== false,
-  );
+  renderOrder(orderData, '', '', '', orderData.stripe_enabled !== false);
 }
 
-function renderOrder(o, kaspiPhone, kaspiIban, kaspiName, stripeEnabled) {
+function renderOrder(o, _k, _ki, _kn, stripeEnabled) {
   const amtFmt = o.amount_kzt ? Number(o.amount_kzt).toLocaleString('ru') + ' ₸' : '—';
 
   document.getElementById('orderCard').innerHTML = `
@@ -314,18 +288,16 @@ function renderOrder(o, kaspiPhone, kaspiIban, kaspiName, stripeEnabled) {
   document.getElementById('phoneCard').style.display = '';
   if (o.phone) document.getElementById('waPhone').value = o.phone;
 
-  // Kaspi section
-  document.getElementById('kaspiAmount').textContent = amtFmt;
-  if (kaspiPhone) {
-    document.getElementById('kaspiPhone').textContent = kaspiPhone;
+  // Kaspi — use formula URL from Airtable
+  const kaspiBtn = document.getElementById('kaspiBtn');
+  const kaspiNote = document.getElementById('kaspiNote');
+  if (o.kaspi_url) {
+    kaspiBtn.href = o.kaspi_url;
+    document.getElementById('kaspiOrderRef').textContent = `Заказ №${o.order_num || o.order_id}`;
   } else {
-    document.getElementById('kaspiPhone').textContent = 'Уточните у менеджера';
+    kaspiBtn.style.display = 'none';
+    kaspiNote.style.display = 'none';
   }
-  if (kaspiIban) {
-    document.getElementById('kaspiIban').textContent = kaspiIban;
-    document.getElementById('kaspiIbanRow').style.display = '';
-  }
-  if (kaspiName) document.getElementById('kaspiName').textContent = kaspiName;
 
   // Stripe button
   if (!stripeEnabled) document.getElementById('stripeBtn').style.display = 'none';

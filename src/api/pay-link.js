@@ -18,6 +18,7 @@ const FO_CUST_NAME = 'fld1FKztthSOvgJhJ';
 const FO_PHONE     = 'fldMPQfkQATfg6j0t';
 const FO_PRICE     = 'fldJA6xBGacdetQjI';
 const FO_STATUS    = 'fldcekWvpJwdVVMK6';
+const FO_KASPI_URL = 'fldMmQtQsDSM5muX4';
 
 const SITE_URL = 'https://src-sigma-ecru-25.vercel.app';
 
@@ -55,6 +56,7 @@ function orderData(recordId, f) {
     amount_kzt: f[FO_PRICE]     || 0,
     order_type: f[FO_NAME_RU]   || '',
     status:     typeof f[FO_STATUS] === 'object' ? f[FO_STATUS].name : (f[FO_STATUS] || ''),
+    kaspi_url:  f[FO_KASPI_URL] || '',
   };
 }
 
@@ -97,11 +99,6 @@ export default async function handler(req, res) {
   if (!rec) return res.status(404).json({ error: 'Order not found' });
 
   const data = orderData(orderId, rec.fields || {});
-
-  // Attach public Kaspi config from env (set once in Vercel — KASPI_PHONE, KASPI_IBAN, KASPI_NAME)
-  data.kaspi_phone = (process.env.KASPI_PHONE || '').trim();
-  data.kaspi_iban  = (process.env.KASPI_IBAN  || '').trim();
-  data.kaspi_name  = (process.env.KASPI_NAME  || '').trim();
   data.stripe_enabled = !!(process.env.STRIPE_SECRET_KEY || '').trim();
 
   return res.status(200).json(data);
