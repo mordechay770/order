@@ -1,5 +1,75 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-07-08 — DAL migration, תיקון באגים, לינק תשלום
+
+### בוצע
+
+#### `src/lib/db.js` (חדש)
+- Data Access Layer מרכזי לכל קריאות Airtable
+- פונקציות: `listRecords`, `getRecord`, `createRecord`, `updateRecord`
+- טיפול שגיאות אחיד — throw על HTTP error, pagination אוטומטי ב-listRecords
+
+#### כל קבצי ה-API — מיגרציה ל-DAL
+- הוסר: `const BASE`, `atHeaders`, `atGet`, `atPost`, `atList`, בדיקות token ידניות
+- הוסף: `import { ... } from '../lib/db.js'` בכל קובץ
+- קבצים שהוסבו: `menu.js`, `order.js`, `order-status.js`, `orders-today.js`,
+  `manager-action.js`, `session.js`, `send-wa.js`, `production.js`, `stripe-webhook.js`, `settings.js`
+
+#### תיקון 4 באגים קריטיים (נמצאו בסקירת קוד)
+- **`production.js`**: `handlePost` קיבל `(req, res, airtableToken, role)` אך נקרא עם `(req, res, role)` → role תמיד undefined → 403. תוקן: הוסר הפרמטר המיותר
+- **`manager-action.js`**: `sendWa` ו-`sendWaButtons` בפעולת `ready` רצו ללא `await` → Vercel ביטל אותם לפני השליחה. תוקן: הוסף `await`
+- **`stripe-webhook.js`**: לא היה dedup לפני יצירת תשלום → כפל רשומות ב-at-least-once webhook. תוקן: נוסף `paymentAlreadyExists()` לפני `createRecord`
+- **`manager-action.js`**: handlers של `payment_methods`, `payments`, `contacts`, `notify_staff` ללא try/catch → שגיאות Airtable גרמו לתגובות לא מעוצבות. תוקן: עטיפה ב-try/catch
+
+#### `src/api/manager-action.js` — תוספות לינק תשלום
+- `action=payment_link` (מנהל): מייצר URL חתום עם HMAC (PAYMENT_LINK_SECRET)
+- `action=pay_data` (ציבורי): מאמת HMAC ומחזיר פרטי הזמנה ל-pay.html
+- דורש env var חדש: `PAYMENT_LINK_SECRET`
+
+#### `src/pay.html` (חדש)
+- דף תשלום ציבורי ללקוח — נפתח מלינק חתום
+- מציג: מספר הזמנה, שם לקוח, סכום, סטטוס
+- שדה טלפון WA (מלא מקדים, ניתן לעריכה)
+- כפתור כספי → פותח `FO_KASPI_URL` (formula field מ-Airtable עם הסכום)
+- הוראה: לכתוב מספר הזמנה בהערות + לשלוח קבלה ב-WA
+- כפתור Stripe → יוצר Checkout session ומעביר לתשלום בכרטיס
+
+#### `src/manager.html`
+- כפתור "🔗 Ссылка на оплату" בתחתית כל מודאל הזמנה
+- לחיצה מחזירה URL + "📋 Скопировать" + "💬 Отправить WA"
+
+---
+
+## 2026-07-01 — סטטוסי שף, WA לקבוצה, תיקון שעות, מצגת
+
+### בוצע
+
+#### `src/chef.html`
+- Badge אמבר להצגת אופן קבלת ההזמנה (איסוף/משלוח/מטבח) — בולט בכרטיס
+- כפתורים דינמיים לפי סטטוס: "👨‍🍳 קיבלתי" → "✔ מוכן" + "⚠️ בעיה" → "📦 נמסר"
+- פונקציה `updateStatus(orderId, action)` מחליפה `markReady` + `markDelivered`
+- תרגום DM_LABELS ברוסית בקבלה המודפסת (ESC/POS)
+
+#### `src/api/manager-action.js`
+- פעולות חדשות: `start` (קיבלתי), `problem` (בעיה — ללא שינוי סטטוס, שולח WA למנהל)
+- `allowedActions` לשף: `ready, deliver, start, problem`
+- **תיקון קריטי**: כל `sendWa()` עם `await` לפני `return res.json()` — מנע ביטול ה-serverless לפני שליחת WA
+- הודעות WA לקבוצה בכל שלב: התקבלה הזמנה / קיבלתי / מוכן / נמסר / בעיה
+- `MANAGER_GROUP_ID = 120363429354372539@g.us` הוגדר ב-Vercel env
+
+#### `src/order-form.html`
+- תיקון פילטר שעות עבר — נעשה ב-`renderTimeSlotPicker()` (לא ב-`renderManualDatePicker()`) — זה הפונקציה הנכונה לסוגי הזמנות יומיות (צהריים/ערב)
+- השעה הנוכחית נבדקת מול timezone Asia/Almaty
+
+#### `src/kf-9x4m2.html` (חדש — לא ב-Vercel-root, ייחודי)
+- מצגת HTML דו-לשונית (עברית/רוסית) לצוות המטבח והמנהל
+- 11 שקפים: תהליך כללי / לקוח / מערכת / מנהל / שף / WA / משלוח / התראות / סטטוסים / צ'קליסט
+- הדמיות ממשיות: טופס הזמנה, WhatsApp קבוצה, Dashboard שף, עמוד סטטוס מנהל
+- בחירת שפה גלובלית (כפתורי עב/RU בחלק העליון)
+- לינק ייחודי: `https://src-sigma-ecru-25.vercel.app/kf-9x4m2.html`
+
+---
+
 ## 2026-06-30 (ב) — קטגוריות תפריט, תרגום פירוט מנה, תיקון הודעות וואטסאפ כפולות
 
 ### בוצע
