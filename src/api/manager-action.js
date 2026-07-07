@@ -4,6 +4,7 @@
  * Returns HTML page (so manager sees confirmation in browser).
  */
 
+import crypto from 'crypto';
 import { getRecord, updateRecord, createRecord, listRecords } from '../lib/db.js';
 
 const T_ORDERS   = 'tblMnlLwYCD27ou80';
@@ -48,6 +49,31 @@ const FC_LNAME  = 'fldijzThKYRMNfUzI';
 const FC_FNAME  = 'fldHywAgv4fP7soEX';
 
 const SITE_URL = 'https://src-sigma-ecru-25.vercel.app';
+
+// ── Payment link helpers ──────────────────────────────────────────────────
+function makePaySig(recordId) {
+  const s = (process.env.PAYMENT_LINK_SECRET || '').trim();
+  if (!s) throw new Error('PAYMENT_LINK_SECRET not configured');
+  return crypto.createHmac('sha256', s).update(recordId).digest('hex').slice(0, 32);
+}
+function verifyPaySig(recordId, sig) {
+  if (!sig || sig.length !== 32) return false;
+  try { return crypto.timingSafeEqual(Buffer.from(makePaySig(recordId), 'utf8'), Buffer.from(sig, 'utf8')); }
+  catch { return false; }
+}
+function payOrderData(recordId, f) {
+  return {
+    order_id:       recordId,
+    order_num:      f[FO_SERIAL]    || '',
+    cust_name:      f[FO_CUST_NAME] || '',
+    phone:          f[FO_PHONE]     || '',
+    amount_kzt:     f[FO_PRICE]     || 0,
+    order_type:     f[FO_NAME_RU]   || '',
+    status:         typeof f[FO_STATUS] === 'object' ? f[FO_STATUS].name : (f[FO_STATUS] || ''),
+    kaspi_url:      f[FO_KASPI_URL] || '',
+    stripe_enabled: !!(process.env.STRIPE_SECRET_KEY || '').trim(),
+  };
+}
 
 const STATUS_MAP = {
   approve:  'Подтверждён',
@@ -246,12 +272,39 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  // ── PUBLIC: pay_data — verify HMAC sig, return order data for pay.html ──
+  if (req.method === 'GET' && action === 'pay_data') {
+    const orderId = (id || '').trim();
+    if (!orderId || !/^rec[A-Za-z0-9]{14}$/.test(orderId))
+      return res.status(400).json({ error: 'Invalid order id' });
+    const sig = (req.query.sig || '').trim();
+    let valid;
+    try { valid = verifyPaySig(orderId, sig); }
+    catch (e) { return res.status(500).json({ error: e.message }); }
+    if (!valid) return res.status(403).json({ error: 'Invalid signature' });
+    const rec = await getRecord(T_ORDERS, orderId).catch(() => null);
+    if (!rec) return res.status(404).json({ error: 'Order not found' });
+    return res.status(200).json(payOrderData(orderId, rec.fields || {}));
+  }
+
   const role = getRole((reqToken || '').trim());
 
   // ── JSON GET actions (return JSON, not HTML) ─────────────────────────────
-  if (['GET','POST'].includes(req.method) && ['payments','payment_methods','contacts','pay','notify_staff'].includes(action)) {
+  if (['GET','POST'].includes(req.method) && ['payments','payment_methods','contacts','pay','notify_staff','payment_link'].includes(action)) {
     if (role !== 'manager') return res.status(403).json({ error: 'Forbidden' });
     try {
+
+    if (action === 'payment_link') {
+      const orderId = (id || '').trim();
+      if (!orderId || !/^rec[A-Za-z0-9]{14}$/.test(orderId))
+        return res.status(400).json({ error: 'Invalid order id' });
+      let sig;
+      try { sig = makePaySig(orderId); }
+      catch (e) { return res.status(500).json({ error: e.message }); }
+      const url = `${SITE_URL}/pay?order=${orderId}&sig=${sig}`;
+      const rec = await getRecord(T_ORDERS, orderId).catch(() => null);
+      return res.status(200).json({ url, ...payOrderData(orderId, rec?.fields || {}) });
+    }
 
     if (action === 'payment_methods') {
       const methods = (await listRecords(T_PAY_METHODS, {

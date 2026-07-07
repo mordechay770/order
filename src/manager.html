@@ -684,7 +684,7 @@ async function sendPayLink() {
   resultEl.innerHTML = '<span style="color:#64748b">Генерирую ссылку...</span>';
 
   try {
-    const r = await fetch(`/api/pay-link?order=${editOrderId}&token=${encodeURIComponent(managerToken)}`);
+    const r = await fetch(`/api/manager-action?action=payment_link&id=${editOrderId}&token=${encodeURIComponent(managerToken)}`);
     const d = await r.json();
     if (!r.ok) { resultEl.innerHTML = `<span style="color:#fca5a5">${esc(d.error || 'Ошибка')}</span>`; return; }
 

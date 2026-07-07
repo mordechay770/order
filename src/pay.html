@@ -254,7 +254,7 @@ async function init() {
   }
 
   try {
-    const r = await fetch(`/api/pay-link?order=${encodeURIComponent(orderId)}&sig=${encodeURIComponent(sig)}`);
+    const r = await fetch(`/api/manager-action?action=pay_data&id=${encodeURIComponent(orderId)}&sig=${encodeURIComponent(sig)}`);
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
       showErr(d.error || 'Ошибка загрузки заказа.');
