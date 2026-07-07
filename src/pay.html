@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Оплата заказа</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0f172a;
+  color: #f1f5f9;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 48px;
+}
+.logo {
+  font-size: 22px;
+  font-weight: 800;
+  color: #6366f1;
+  margin-bottom: 24px;
+  letter-spacing: -0.5px;
+}
+.card {
+  background: #1e293b;
+  border-radius: 20px;
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+  margin-bottom: 16px;
+}
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+.order-num {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+}
+.order-total {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fde047;
+}
+.order-name {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.order-type {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 18px;
+}
+.divider {
+  height: 1px;
+  background: #334155;
+  margin: 16px 0;
+}
+.field-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.field-input {
+  width: 100%;
+  background: #0f172a;
+  border: 1.5px solid #334155;
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #f1f5f9;
+  font-size: 15px;
+  outline: none;
+  font-family: inherit;
+}
+.field-input:focus { border-color: #6366f1; }
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 14px;
+}
+.pay-btn {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: opacity .15s, transform .1s;
+  text-decoration: none;
+  margin-bottom: 10px;
+}
+.pay-btn:active { transform: scale(0.98); }
+.pay-btn:last-child { margin-bottom: 0; }
+.pay-btn-kaspi {
+  background: linear-gradient(135deg, #ff0080 0%, #cc0066 100%);
+  color: #fff;
+}
+.pay-btn-stripe {
+  background: linear-gradient(135deg, #635bff 0%, #4f46e5 100%);
+  color: #fff;
+}
+.pay-btn-icon { font-size: 22px; }
+.pay-btn-text { flex: 1; text-align: left; }
+.pay-btn-sub { font-size: 12px; font-weight: 500; opacity: 0.85; }
+.pay-btn-arrow { font-size: 18px; opacity: 0.7; }
+
+.kaspi-details {
+  display: none;
+  margin-top: 10px;
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 16px;
+}
+.kaspi-details.open { display: block; }
+.kaspi-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #1e293b;
+  font-size: 14px;
+}
+.kaspi-detail-row:last-child { border-bottom: none; }
+.kd-label { color: #64748b; }
+.kd-value { font-weight: 700; color: #f1f5f9; }
+.kd-copy {
+  background: #1e293b;
+  border: none;
+  color: #6366f1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+.kd-amount {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fde047;
+  text-align: center;
+  padding: 12px 0;
+}
+.stripe-loading {
+  display: none;
+  text-align: center;
+  padding: 12px;
+  font-size: 14px;
+  color: #94a3b8;
+}
+.err { color: #fca5a5; font-size: 13px; margin-top: 10px; text-align: center; }
+.skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #293548 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  border-radius: 8px;
+  height: 20px;
+  margin-bottom: 8px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+</style>
+</head>
+<body>
+
+<div class="logo">🍽️ Кошерная кухня</div>
+
+<div class="card" id="orderCard">
+  <div class="skeleton" style="height:14px;width:80px"></div>
+  <div class="skeleton" style="height:32px;width:180px;margin-top:8px"></div>
+  <div class="skeleton" style="height:16px;width:120px;margin-top:8px"></div>
+</div>
+
+<div class="card" id="phoneCard" style="display:none">
+  <div class="section-title">Контакт для уведомления</div>
+  <div class="field-label">Номер WhatsApp</div>
+  <input class="field-input" type="tel" id="waPhone" placeholder="+7 700 000 0000"
+         inputmode="tel" autocomplete="tel" />
+  <div style="font-size:12px;color:#475569;margin-top:6px">
+    После оплаты вы получите подтверждение в WhatsApp
+  </div>
+</div>
+
+<div class="card" id="payCard" style="display:none">
+  <div class="section-title">Способ оплаты</div>
+
+  <!-- Kaspi -->
+  <button class="pay-btn pay-btn-kaspi" onclick="toggleKaspi()">
+    <span class="pay-btn-icon">💳</span>
+    <span class="pay-btn-text">
+      Kaspi Pay
+      <div class="pay-btn-sub">Перевод на телефон · мгновенно</div>
+    </span>
+    <span class="pay-btn-arrow" id="kaspiArrow">▼</span>
+  </button>
+  <div class="kaspi-details" id="kaspiDetails">
+    <div class="kd-amount" id="kaspiAmount"></div>
+    <div class="kaspi-detail-row">
+      <span class="kd-label">Телефон</span>
+      <span>
+        <span class="kd-value" id="kaspiPhone">—</span>
+        <button class="kd-copy" onclick="copyText('kaspiPhone','Телефон скопирован')">скоп.</button>
+      </span>
+    </div>
+    <div class="kaspi-detail-row" id="kaspiIbanRow" style="display:none">
+      <span class="kd-label">IBAN</span>
+      <span>
+        <span class="kd-value" id="kaspiIban">—</span>
+        <button class="kd-copy" onclick="copyText('kaspiIban','IBAN скопирован')">скоп.</button>
+      </span>
+    </div>
+    <div class="kaspi-detail-row">
+      <span class="kd-label">Получатель</span>
+      <span class="kd-value" id="kaspiName">—</span>
+    </div>
+    <div style="margin-top:12px;padding:10px;background:#1e3a5f;border-radius:10px;font-size:12px;color:#93c5fd;line-height:1.5">
+      📌 После перевода обязательно укажите номер заказа в комментарии
+    </div>
+  </div>
+
+  <!-- Stripe -->
+  <button class="pay-btn pay-btn-stripe" id="stripeBtn" onclick="payStripe()">
+    <span class="pay-btn-icon">🌐</span>
+    <span class="pay-btn-text">
+      Банковская карта (Stripe)
+      <div class="pay-btn-sub">Visa / Mastercard · оплата в USD</div>
+    </span>
+    <span class="pay-btn-arrow">→</span>
+  </button>
+  <div class="stripe-loading" id="stripeLoading">Создаём сессию оплаты...</div>
+
+  <div class="err" id="payErr"></div>
+</div>
+
+<script>
+const params  = new URLSearchParams(location.search);
+const orderId = params.get('order') || '';
+const sig     = params.get('sig')   || '';
+
+let orderData = null;
+
+async function init() {
+  if (!orderId || !sig) {
+    showErr('Неверная ссылка.');
+    return;
+  }
+
+  try {
+    const r = await fetch(`/api/pay-link?order=${encodeURIComponent(orderId)}&sig=${encodeURIComponent(sig)}`);
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showErr(d.error || 'Ошибка загрузки заказа.');
+      return;
+    }
+    orderData = await r.json();
+  } catch {
+    showErr('Ошибка соединения.');
+    return;
+  }
+
+  renderOrder(
+    orderData,
+    orderData.kaspi_phone  || '',
+    orderData.kaspi_iban   || '',
+    orderData.kaspi_name   || '',
+    orderData.stripe_enabled !== false,
+  );
+}
+
+function renderOrder(o, kaspiPhone, kaspiIban, kaspiName, stripeEnabled) {
+  const amtFmt = o.amount_kzt ? Number(o.amount_kzt).toLocaleString('ru') + ' ₸' : '—';
+
+  document.getElementById('orderCard').innerHTML = `
+    <div class="order-header">
+      <div>
+        <div class="order-num">Заказ №${esc(String(o.order_num || '—'))}</div>
+        <div class="order-name">${esc(o.cust_name || 'Клиент')}</div>
+        <div class="order-type">${esc(o.order_type || '')}</div>
+      </div>
+      <div class="order-total">${amtFmt}</div>
+    </div>
+    ${o.status ? `<span class="status-badge">📋 ${esc(statusLabel(o.status))}</span>` : ''}
+  `;
+
+  // Phone card — pre-fill if order has phone
+  document.getElementById('phoneCard').style.display = '';
+  if (o.phone) document.getElementById('waPhone').value = o.phone;
+
+  // Kaspi section
+  document.getElementById('kaspiAmount').textContent = amtFmt;
+  if (kaspiPhone) {
+    document.getElementById('kaspiPhone').textContent = kaspiPhone;
+  } else {
+    document.getElementById('kaspiPhone').textContent = 'Уточните у менеджера';
+  }
+  if (kaspiIban) {
+    document.getElementById('kaspiIban').textContent = kaspiIban;
+    document.getElementById('kaspiIbanRow').style.display = '';
+  }
+  if (kaspiName) document.getElementById('kaspiName').textContent = kaspiName;
+
+  // Stripe button
+  if (!stripeEnabled) document.getElementById('stripeBtn').style.display = 'none';
+
+  document.getElementById('payCard').style.display = '';
+}
+
+function statusLabel(s) {
+  const map = {
+    'Ожидает подтверждения менеджера': '⏳ Ожидает',
+    'Подтверждён': '✅ Подтверждён',
+    'Готов': '🍽️ Готов',
+    'Отменён': '❌ Отменён',
+    'В обработке': '🔄 В обработке',
+  };
+  return map[s] || s;
+}
+
+// ── Kaspi toggle ──────────────────────────────────────────────────────────
+function toggleKaspi() {
+  const el = document.getElementById('kaspiDetails');
+  const arrow = document.getElementById('kaspiArrow');
+  const open = el.classList.toggle('open');
+  arrow.textContent = open ? '▲' : '▼';
+}
+
+// ── Stripe checkout ───────────────────────────────────────────────────────
+async function payStripe() {
+  if (!orderData) return;
+  const btn = document.getElementById('stripeBtn');
+  const loading = document.getElementById('stripeLoading');
+  const errEl = document.getElementById('payErr');
+  errEl.textContent = '';
+
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  loading.style.display = 'block';
+
+  const phone = document.getElementById('waPhone').value.trim();
+
+  try {
+    const r = await fetch('/api/stripe-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount_kzt:      orderData.amount_kzt,
+        order_num:       orderData.order_num,
+        order_id:        orderData.order_id,
+        order_record_id: orderData.order_id,
+        customer_phone:  phone,
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.url) {
+      errEl.textContent = d.error || 'Ошибка создания сессии';
+      btn.disabled = false; btn.style.opacity = '';
+      loading.style.display = 'none';
+      return;
+    }
+    location.href = d.url;
+  } catch {
+    errEl.textContent = 'Ошибка соединения';
+    btn.disabled = false; btn.style.opacity = '';
+    loading.style.display = 'none';
+  }
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showErr(msg) {
+  document.getElementById('orderCard').innerHTML =
+    `<div style="color:#fca5a5;font-size:14px;text-align:center;padding:20px">${esc(msg)}</div>`;
+}
+
+function copyText(elId, msg) {
+  const val = document.getElementById(elId).textContent;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = document.querySelector(`[onclick="copyText('${elId}','${msg}')"]`);
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓'; setTimeout(() => btn.textContent = orig, 1500); }
+  }).catch(() => {});
+}
+
+init();
+</script>
+</body>
+</html>
