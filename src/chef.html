@@ -419,7 +419,7 @@ function renderCard(o) {
   const kitNotes = o.kitchen_notes ? `<div class="order-notes" style="background:#172554;border-left:3px solid #6366f1">📝 Кухне: ${esc(o.kitchen_notes)}</div>` : '';
   const custNotes = (!o.kitchen_notes && o.notes) ? `<div class="order-notes">${esc(o.notes)}</div>` : '';
   const DM_ICON = { 'איסוף עצמי':'🚶 Самовывоз', 'לקוח מזמין משלוח בעצמו':'🚗 Клиент сам закажет доставку', 'לבקש מהמטבח להזמין משלוח':'🛵 Кухня заказывает доставку' };
-  const dmNote = o.delivery_method ? `<div style="font-size:11px;color:#fbbf24;margin-top:3px">${DM_ICON[o.delivery_method]||o.delivery_method}</div>` : '';
+  const dmNote = o.delivery_method ? `<div style="margin-top:6px;display:inline-block;padding:4px 12px;border-radius:6px;background:#78350f;color:#fde68a;font-size:13px;font-weight:700">${DM_ICON[o.delivery_method]||o.delivery_method}</div>` : '';
   return `<div class="order-card ${isReady?'status-ready':''}" id="card-${o.id}">
     <div class="card-header">
       <div>
@@ -433,10 +433,11 @@ function renderCard(o) {
     </div>
     ${kitNotes}${custNotes}${items}
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="ready-btn" style="flex:1" ${isReady?'disabled':''} onclick="markReady('${o.id}',this)">
-        ${isReady?'✓ Готово':'✔ Готовым'}
-      </button>
-      ${isReady ? `<button class="ready-btn" style="flex:1;background:#6366f1" onclick="markDelivered('${o.id}',this)">📦 Передано</button>` : ''}
+      ${isReady
+        ? `<button class="ready-btn" style="flex:1" disabled>✓ Готово</button><button class="ready-btn" style="flex:1;background:#6366f1" onclick="updateStatus('${o.id}','deliver',this)">📦 Передано</button>`
+        : o.status === 'В обработке'
+          ? `<button class="ready-btn" style="flex:1" onclick="updateStatus('${o.id}','ready',this)">✔ Готово</button><button class="ready-btn" style="flex:1;background:#ef4444" onclick="updateStatus('${o.id}','problem',this)">⚠️ Проблема</button>`
+          : `<button class="ready-btn" style="flex:1;background:#d97706" onclick="updateStatus('${o.id}','start',this)">👨‍🍳 Принял в работу</button>`}
     </div>
     <div style="display:flex;gap:6px;margin-top:6px">
       <button onclick="printOrder('${o.id}','full')" style="flex:1;padding:8px;border-radius:8px;border:1px solid #475569;background:transparent;color:#94a3b8;font-size:12px;cursor:pointer">🖨 Весь заказ</button>
@@ -445,25 +446,19 @@ function renderCard(o) {
   </div>`;
 }
 
-async function markDelivered(orderId, btn) {
+async function updateStatus(orderId, action, btn) {
+  const prev = btn.textContent;
   btn.disabled = true; btn.textContent = '...';
   try {
-    const r = await fetch(`${API}/manager-action?id=${orderId}&action=deliver&token=${encodeURIComponent(managerToken)}`);
-    if (r.ok) { showToast('📦 Передано!','success'); btn.textContent='✓ Передано'; }
-    else throw new Error(`HTTP ${r.status}`);
-  } catch(err) { showToast('Ошибка: '+err.message,'error'); btn.disabled=false; btn.textContent='📦 Передано'; }
-}
-
-async function markReady(orderId, btn) {
-  btn.disabled = true; btn.textContent = '...';
-  try {
-    const r = await fetch(`${API}/manager-action?id=${orderId}&action=ready&token=${encodeURIComponent(managerToken)}`);
-    if (r.ok) {
-      showToast('✓ Готово!','success');
-      const card = document.getElementById(`card-${orderId}`);
-      if (card) { card.classList.add('status-ready'); card.querySelector('.status-badge').textContent='Готов'; card.querySelector('.status-badge').className='status-badge badge-ready'; btn.textContent='✓ Готово'; }
-    } else throw new Error(`HTTP ${r.status}`);
-  } catch(err) { showToast('Ошибка: '+err.message,'error'); btn.disabled=false; btn.textContent='✔ Отметить готовым'; }
+    const r = await fetch(`${API}/manager-action?id=${orderId}&action=${action}&token=${encodeURIComponent(managerToken)}&confirm=1`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const toastMap = { start:'👨‍🍳 Принял в работу!', ready:'✓ Готово!', deliver:'📦 Передано!', problem:'⚠️ Уведомление отправлено' };
+    showToast(toastMap[action] || '✓ Обновлено', 'success');
+    setTimeout(loadOrders, 600);
+  } catch(err) {
+    showToast('Ошибка: ' + err.message, 'error');
+    btn.disabled = false; btn.textContent = prev;
+  }
 }
 
 async function sendNotify(to) {
@@ -638,6 +633,7 @@ async function printOrder(orderId, mode) {
   // Fallback: browser window.print() — only reached if no print server at all
   const SEP = '================================';
   const LINE = '--------------------------------';
+  const DM_LABELS = { 'איסוף עצמי':'Самовывоз', 'לקוח מזמין משלוח בעצמו':'Клиент сам закажет доставку', 'לבקש מהמטבח להזמין משלוח':'Кухня заказывает доставку' };
   const itemsHtml = o.items.length
     ? o.items.map(i => `<tr><td style="padding:3px 0">${i.name}</td><td style="text-align:right;font-weight:700;padding:3px 0;white-space:nowrap">× ${i.quantity}</td></tr>`).join('')
     : '<tr><td colspan="2">—</td></tr>';
@@ -663,7 +659,7 @@ ${date?'Дата:   '+date+'\n':''}Время:  <b>${time||'—'}</b></pre>
 <pre>${LINE}</pre>
 <pre style="text-align:right">Итого порций: <b>${totalPortions}</b></pre>
 ${o.kitchen_notes?`<pre>${LINE}</pre><pre>Кухне: ${o.kitchen_notes}</pre>`:''}
-${o.delivery_method?`<pre>${LINE}</pre><pre>Получение: ${o.delivery_method}</pre>`:''}
+${o.delivery_method?`<pre>${LINE}</pre><pre>Получение: ${DM_LABELS[o.delivery_method]||o.delivery_method}</pre>`:''}
 ${o.delivery_address?`<pre>${LINE}</pre><pre>Доставка:\n${o.delivery_address}</pre>`:''}
 <pre>${SEP}</pre>
 <pre class="c" style="font-size:11px">${new Date().toLocaleString('ru-RU',{timeZone:tz})}</pre>

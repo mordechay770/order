@@ -882,9 +882,7 @@
             🔑 Пароль администратора
             <span class="hint">(для входа в эту панель)</span>
           </label>
-          <input type="password" class="form-input" id="cfg_admin_pwd" placeholder="Текущий пароль..." />
-          <input type="password" class="form-input" id="cfg_admin_pwd2" placeholder="Новый пароль..." style="margin-top:8px;" />
-          <div style="font-size:11px;color:#999;margin-top:4px;">Оставьте оба поля пустыми, чтобы не менять пароль.</div>
+          <div style="font-size:12px;color:#999;padding:8px 0;">Пароль хранится в переменной окружения <code>ADMIN_PASSWORD</code> на сервере.<br>Для изменения — обновите значение в Vercel Dashboard → Settings → Environment Variables.</div>
         </div>
       </div>
       <button class="btn-save" onclick="saveSettings()">💾 Сохранить</button>
@@ -1118,15 +1116,6 @@
 //     Сценария 7b в поле "Сохранение настроек" во вкладке Вебхуки.
 // ════════════════════════════════════════════════════════════
 
-// Default admin password — CHANGE THIS immediately after first login!
-const DEFAULT_ADMIN_PWD = 'kitchen2024';
-
-// ── PASSWORD HASHING (SHA-256 via Web Crypto) ──────────────
-async function hashPwd(pwd) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
 // ── BRUTE FORCE PROTECTION ─────────────────────────────────
 let loginFailCount = parseInt(sessionStorage.getItem('kc_fails') || '0');
 function isLockedOut() {
@@ -1254,12 +1243,6 @@ function saveLocalSettings(s) {
 //  LOGIN
 // ════════════════════════════════════════════════════════════
 
-
-function doLogout() {
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('adminPanel').style.display  = 'none';
-  document.getElementById('loginPwd').value = '';
-}
 
 // Enter key for login
 document.getElementById('loginPwd').addEventListener('keydown', e => {
@@ -1436,37 +1419,27 @@ function applyDailyMenuWebhook() {
 
 async function saveSettings() {
   const s = collectSettings();
-  // Handle password change (using hashes)
-  const pwd1 = document.getElementById('cfg_admin_pwd')?.value.trim();
-  const pwd2 = document.getElementById('cfg_admin_pwd2')?.value.trim();
-  if (pwd2) {
-    const currentHash = localStorage.getItem('kc_admin_pwd_hash') || await hashPwd(DEFAULT_ADMIN_PWD);
-    const enteredHash = await hashPwd(pwd1);
-    if (enteredHash !== currentHash) { showStatus('Неверный текущий пароль', true); return; }
-    localStorage.setItem('kc_admin_pwd_hash', await hashPwd(pwd2));
-    localStorage.removeItem('kc_admin_pwd'); // remove any plaintext remnant
-    document.getElementById('cfg_admin_pwd').value  = '';
-    document.getElementById('cfg_admin_pwd2').value = '';
-  }
-
   settings = s;
   saveLocalSettings(s);
 
-  // Try to POST to remote webhook if configured
-  const saveUrl = s.webhooks.save_settings;
-  if (saveUrl) {
-    try {
-      await fetch(saveUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(s),
-      });
-      showStatus('✅ Настройки сохранены и отправлены в Airtable');
-    } catch (_) {
-      showStatus('💾 Сохранено локально (Airtable недоступен)', false);
+  // POST to server-side settings API (cross-device sync)
+  const pwd = sessionStorage.getItem('_adminPwd') || '';
+  try {
+    const r = await fetch('/api/settings', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${pwd}` },
+      body:    JSON.stringify(s),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (d.ok && d.saved) {
+      showStatus('✅ Настройки сохранены (синхронизированы)');
+    } else if (d.ok && d.saved === false) {
+      showStatus('💾 Сохранено локально (сервер не настроен для синхронизации)');
+    } else {
+      showStatus('💾 Сохранено локально (ошибка сервера)');
     }
-  } else {
-    showStatus('💾 Настройки сохранены локально');
+  } catch (_) {
+    showStatus('💾 Сохранено локально');
   }
   generateExportJson();
 }
@@ -1660,7 +1633,7 @@ function renderTypesList() {
 }
 
 function addOrderType() {
-  addOrderTypeRow({ id: 'type_' + Date.now(), icon: '📦', title: '', sub: '', model: 'open', category: 'custom', date_mode: 'none', deadline_days_before: 1, deadline_time: '12:00', menu_webhook: '', order_webhook: '', airtable_record_id: '', template_id: '', active: true });
+  addOrderTypeRow({ id: 'type_' + Date.now(), icon: '📦', title: '', sub: '', model: 'open', category: 'custom', date_mode: 'none', deadline_days_before: 1, deadline_time: '12:00', order_webhook: '', airtable_record_id: '', template_id: '', active: true });
 }
 
 function addOrderTypeRow(t) {
@@ -1733,15 +1706,9 @@ function addOrderTypeRow(t) {
         <input class="form-input" type="time" data-type="deadline_time" value="${escHtml(t.deadline_time||'')}" />
       </div>
     </div>
-    <div class="form-row-2">
-      <div>
-        <label class="form-label">Menu webhook <span class="hint">(optional)</span></label>
-        <input class="form-input" data-type="menu_webhook" value="${escHtml(t.menu_webhook||'')}" placeholder="https://hook.eu1.make.com/..." />
-      </div>
-      <div>
-        <label class="form-label">Order webhook <span class="hint">(optional)</span></label>
-        <input class="form-input" data-type="order_webhook" value="${escHtml(t.order_webhook||'')}" placeholder="https://hook.eu1.make.com/..." />
-      </div>
+    <div class="form-row">
+      <label class="form-label">Order webhook <span class="hint">(optional)</span></label>
+      <input class="form-input" data-type="order_webhook" value="${escHtml(t.order_webhook||'')}" placeholder="https://hook.eu1.make.com/..." />
     </div>
     <div class="form-row">
       <label class="form-label">Template ID <span class="hint">(optional)</span></label>
@@ -1763,7 +1730,7 @@ function collectOrderTypes() {
     date_mode: row.querySelector('[data-type="date_mode"]')?.value || 'none',
     deadline_days_before: Number(row.querySelector('[data-type="deadline_days_before"]')?.value || 0),
     deadline_time: row.querySelector('[data-type="deadline_time"]')?.value.trim(),
-    menu_webhook: row.querySelector('[data-type="menu_webhook"]')?.value.trim(),
+    menu_webhook: '',
     order_webhook: row.querySelector('[data-type="order_webhook"]')?.value.trim(),
     airtable_record_id: row.querySelector('[data-type="airtable_record_id"]')?.value.trim(),
     template_id: row.querySelector('[data-type="template_id"]')?.value.trim(),
@@ -2102,7 +2069,7 @@ function escHtml(s) {
 if (sessionStorage.getItem('kc_admin_ok') === '1') {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminPanel').style.display  = 'block';
-  loadAllFields();
+  loadServerSettings().then(() => loadAllFields());
 }
 
 async function doLogin() {
@@ -2111,25 +2078,31 @@ async function doLogin() {
     return;
   }
   const pwd = document.getElementById('loginPwd').value;
-  const pwdHash = await hashPwd(pwd);
+  if (!pwd) return;
 
-  // Stored hash (set after first password change) or hash of default pwd
-  let storedHash = localStorage.getItem('kc_admin_pwd_hash');
-  if (!storedHash) {
-    // Migration: if old plaintext exists, hash it
-    const oldPwd = localStorage.getItem('kc_admin_pwd');
-    storedHash = await hashPwd(oldPwd || DEFAULT_ADMIN_PWD);
-    localStorage.setItem('kc_admin_pwd_hash', storedHash);
-    localStorage.removeItem('kc_admin_pwd'); // remove plaintext
+  let ok = false;
+  try {
+    const r = await fetch('/api/admin-auth', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ password: pwd }),
+    });
+    ok = r.ok;
+  } catch (_) {
+    showLoginError('Ошибка сети. Попробуйте ещё раз.');
+    return;
   }
 
-  if (pwdHash === storedHash) {
+  if (ok) {
     loginFailCount = 0;
     sessionStorage.removeItem('kc_fails');
     sessionStorage.removeItem('kc_lock');
     sessionStorage.setItem('kc_admin_ok', '1');
+    sessionStorage.setItem('_adminPwd', pwd);
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminPanel').style.display  = 'block';
+    // Try loading settings from server (cross-device sync); fall back to localStorage
+    await loadServerSettings();
     loadAllFields();
   } else {
     const locked = recordFail();
@@ -2141,6 +2114,21 @@ async function doLogin() {
   }
 }
 
+async function loadServerSettings() {
+  const pwd = sessionStorage.getItem('_adminPwd') || '';
+  try {
+    const r = await fetch('/api/settings', {
+      headers: { Authorization: `Bearer ${pwd}` },
+    });
+    if (!r.ok) return; // not configured or error — keep localStorage
+    const d = await r.json().catch(() => ({}));
+    if (d.ok && d.settings) {
+      settings = d.settings;
+      saveLocalSettings(d.settings); // mirror to localStorage for offline
+    }
+  } catch (_) { /* ignore — offline */ }
+}
+
 function showLoginError(msg) {
   const err = document.getElementById('loginError');
   err.textContent = msg;
@@ -2150,6 +2138,7 @@ function showLoginError(msg) {
 
 function doLogout() {
   sessionStorage.removeItem('kc_admin_ok');
+  sessionStorage.removeItem('_adminPwd');
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('adminPanel').style.display  = 'none';
   document.getElementById('loginPwd').value = '';

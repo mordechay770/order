@@ -2230,11 +2230,21 @@ function renderManualDatePicker(type) {
   const fixedTime = type.delivery_time;
 
   const TYPE_SLOTS = type.time_slots || ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+  const _todayAlmaty = new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Almaty'});
+  const _nowHHMM = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', timeZone:'Asia/Almaty'});
+  const visibleSlots = (currentDeliveryDate === _todayAlmaty)
+    ? TYPE_SLOTS.filter(ts => ts > _nowHHMM)
+    : TYPE_SLOTS;
+  if (currentDeliveryTime && currentDeliveryDate === _todayAlmaty && currentDeliveryTime <= _nowHHMM) {
+    currentDeliveryTime = null;
+  }
   const timeBlock = needsTime ? `
     <div class="ts-section">
       <div class="ts-section-label">${t('time_delivery')}</div>
       <div class="ts-grid">
-        ${TYPE_SLOTS.map(ts => `<button class="ts-btn${ts===currentDeliveryTime?' selected':''}" onclick="selectManualTime('${ts}')">${ts}</button>`).join('')}
+        ${visibleSlots.length
+          ? visibleSlots.map(ts => `<button class="ts-btn${ts===currentDeliveryTime?' selected':''}" onclick="selectManualTime('${ts}')">${ts}</button>`).join('')
+          : '<p style="color:#94a3b8;font-size:13px;margin:8px 0">На сегодня время недоступно</p>'}
       </div>
     </div>` : '';
 
@@ -2532,11 +2542,21 @@ function renderDatePicker() {
 
 function renderTimeSlotPicker() {
   if (!currentType || !currentType.time_slots) return '';
-  const slots = currentType.time_slots;
+  const allSlots = currentType.time_slots;
+  const todayAlmaty = new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Almaty'});
+  const nowHHMM = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', timeZone:'Asia/Almaty'});
+  const slots = (currentDeliveryDate === todayAlmaty)
+    ? allSlots.filter(ts => ts > nowHHMM)
+    : allSlots;
+  if (currentDeliveryTime && currentDeliveryDate === todayAlmaty && currentDeliveryTime <= nowHHMM) {
+    currentDeliveryTime = null;
+  }
   return `<div class="ts-section" style="padding:0 0 8px">
     <div class="ts-section-label">${t('time_delivery')}</div>
     <div class="ts-grid">
-      ${slots.map(ts => `<button class="ts-btn${ts===currentDeliveryTime?' selected':''}" onclick="selectMenuTime('${ts}')">${ts}</button>`).join('')}
+      ${slots.length
+        ? slots.map(ts => `<button class="ts-btn${ts===currentDeliveryTime?' selected':''}" onclick="selectMenuTime('${ts}')">${ts}</button>`).join('')
+        : '<p style="color:#94a3b8;font-size:13px;margin:8px 0">На сегодня время недоступно</p>'}
     </div>
   </div>`;
 }

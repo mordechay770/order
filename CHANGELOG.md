@@ -1,5 +1,10 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-07-08 — DAL migration, תיקון באגים, לינק תשלום — ✅ הושלם ונפרס ב-production
+
+### תיקון ENV (סשן המשך)
+- `PAYMENT_LINK_SECRET` נשמר בשגיאה כ-`PAYMENT_LINK_SECRE` (חסרה T) → נמחק ונוסף מחדש → `vercel --prod` → עובד
+
 ## 2026-07-08 — DAL migration, תיקון באגים, לינק תשלום
 
 ### בוצע
