@@ -1,5 +1,13 @@
 # CHANGELOG — kitchen-orders
 
+## 2026-07-14 — ארוחת בוקר ניתנת להזמנה גם להיום
+
+### בוצע
+- `src/order-form.html` — סוג "בוקר" ב-ORDER_TYPES: `lead_days: 1→0`, `lead_cutoff: 20:00→23:59` — תאריך המשלוח הראשון הוא היום; שעות שעברו מוסתרות ממילא ע"י פילטר השעות (Asia/Almaty)
+- טקסטי sub עודכנו בשלוש שפות: "ניתן להזמין גם להיום" / "Можно заказать на сегодня" / "Same-day ordering available"
+- `src/admin.html` — עדכון ברירת מחדל תואמת לסוג בוקר (`deadline_days_before: 0`, sub חדש)
+- ⚠️ טרם נפרס — נדרש `vercel --prod`
+
 ## 2026-07-08 — DAL migration, תיקון באגים, לינק תשלום — ✅ הושלם ונפרס ב-production
 
 ### תיקון ENV (סשן המשך)
